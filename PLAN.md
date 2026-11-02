@@ -297,8 +297,12 @@ drag-reorder lists.
       included. Edits not yet applied are kept with the cached hub, so
       they outlive the app being closed (a phone does it on its own), and
       are checked against the hub on the next visit like any edits.
-- [ ] Phase 5b: saving a workspace to a file and opening it without the
-      hub; applying it later to its hub.
+- [x] Phase 5b: saving a workspace to a file (`.armrest`: the hub's dump
+      and the edits as YAML, in JSON) from the browse screen's menu, and
+      opening it (or an sbx dump) from the hubs screen, without the hub:
+      browse, edit, undo, review. "Connect to the hub and apply" reads
+      its hub whole and reviews the edits against it; a hub changed since
+      asks as for the cache; another hub is refused (until 5c).
 - [ ] Phase 5c: backup and restore: a file applied to a hub that changed
       since, or to another hub, is a restore (matched by name), with the
       plan first.

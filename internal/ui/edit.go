@@ -143,7 +143,12 @@ func (a *App) showPlan(body *fyne.Container, status *widget.Label, p *workspace.
 		status.SetText("Nothing to write: the hub already has all of this.")
 		return
 	}
-	status.SetText(fmt.Sprintf("Applying makes these changes on %s, in %d steps. Nothing has been written yet.", a.client.Info().Name, p.Writes))
+	name := a.work.Dump.Info.Name
+	if a.offline() {
+		status.SetText(fmt.Sprintf("Applying makes these changes on %s, in about %d steps, if it is as the file has it. Nothing has been written yet.", name, p.Writes))
+	} else {
+		status.SetText(fmt.Sprintf("Applying makes these changes on %s, in %d steps. Nothing has been written yet.", name, p.Writes))
+	}
 	for _, ch := range p.Changes {
 		title := ch.Title
 		if ch.Warning {
@@ -158,6 +163,9 @@ func (a *App) showPlan(body *fyne.Container, status *widget.Label, p *workspace.
 		body.Add(card(title, detail))
 	}
 	apply := widget.NewButtonWithIcon("Apply to the hub", theme.ConfirmIcon(), func() { a.applyPlan(p) })
+	if a.offline() {
+		apply = widget.NewButtonWithIcon("Connect to the hub and apply", theme.LoginIcon(), a.applyFile)
+	}
 	apply.Importance = widget.HighImportance
 	discard := widget.NewButtonWithIcon("Discard changes", theme.DeleteIcon(), func() {
 		dialog.ShowConfirm("Discard changes?", "The hub is not touched. Undo brings your changes back.", func(ok bool) {

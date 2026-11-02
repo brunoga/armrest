@@ -60,7 +60,24 @@ func (s *hubsScreen) content() fyne.CanvasObject {
 		container.NewHBox(widget.NewButtonWithIcon("Open the demo hub", theme.ComputerIcon(),
 			func() { s.app.connect(backend.DemoHub) }))))
 
-	s.root = container.NewVScroll(column(container.NewPadded(container.NewVBox(title, sub, network, byAddr, demo))))
+	files := widget.NewCard("Saved files", "", container.NewVBox(
+		wrapped("A hub saved to a file, with any changes: look at it and change it without the hub, then apply it later. Hub dumps made with sbx open too."),
+		container.NewHBox(widget.NewButtonWithIcon("Open a file…", theme.FolderOpenIcon(), s.app.openFile))))
+
+	cards := container.NewVBox(title, sub)
+	if f := s.app.file; f != nil {
+		// Applying a file: its hub is to be picked.
+		back := widget.NewButtonWithIcon("Back to the file", theme.NavigateBackIcon(), s.app.showFile)
+		back.Importance = widget.HighImportance
+		cards.Add(card("Applying "+f.name, container.NewVBox(
+			wrapped(fmt.Sprintf("Connect to %s to apply the file's changes to it. It is read first, and you review the changes before anything is written.", f.work.Dump.Info.Name)),
+			container.NewVBox(back, widget.NewButtonWithIcon("Close the file", theme.CancelIcon(), s.app.closeFile)))))
+	}
+	cards.Add(network)
+	cards.Add(byAddr)
+	cards.Add(files)
+	cards.Add(demo)
+	s.root = container.NewVScroll(column(container.NewPadded(cards)))
 	return s.root
 }
 

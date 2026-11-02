@@ -48,11 +48,15 @@ type App struct {
 	checking bool
 	// browse is the browse screen last shown.
 	browse *browseScreen
+	// file is the workspace file opened, until it is applied to its hub.
+	file *openedFile
+	// pickers pick files to open and save.
+	pickers pickers
 }
 
 // New returns the app for win.
 func New(win fyne.Window, back backend.Backend) *App {
-	return &App{win: win, back: back, async: func(f func()) { go f() }, now: time.Now}
+	return &App{win: win, back: back, async: func(f func()) { go f() }, now: time.Now, pickers: systemPickers}
 }
 
 // UseCache keeps each hub's configuration in c, to show the hub at once
@@ -65,7 +69,7 @@ func (a *App) Start() {
 	a.showHubs()
 }
 
-// Close ends the hub connection, if any.
+// Close ends the hub connection, if any. A file opened stays.
 func (a *App) Close() {
 	if a.client != nil {
 		_ = a.client.Close()

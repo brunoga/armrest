@@ -115,6 +115,9 @@ jobs:
         # The runner has the Android NDK installed.
         run: ANDROID_NDK_HOME="$ANDROID_NDK_LATEST_HOME" make android
 
+      - name: Check it needs nothing Android lacks
+        run: scripts/check-deps.sh Armrest.apk
+
       - uses: actions/upload-artifact@v7
         with:
           name: armrest-android

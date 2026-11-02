@@ -41,10 +41,14 @@ lint:
 
 # An Android package for arm64 phones, signed with a debug key. Needs the
 # fyne tool (go install fyne.io/tools/cmd/fyne@latest) and the Android NDK
-# in ANDROID_NDK_HOME.
+# in ANDROID_NDK_HOME (default: the newest under ~/Android).
+ANDROID_NDK_HOME ?= $(lastword $(sort $(wildcard $(HOME)/Android/android-ndk-*)))
+export ANDROID_NDK_HOME
+
 android:
 	cd cmd/armrest && fyne package --target android/arm64
 	mv cmd/armrest/Armrest.apk .
+	scripts/check-deps.sh Armrest.apk
 
 install-android:
 	adb install -r Armrest.apk

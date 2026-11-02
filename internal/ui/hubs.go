@@ -37,11 +37,10 @@ func (a *App) showHubs() {
 func (s *hubsScreen) content() fyne.CanvasObject {
 	title := widget.NewLabelWithStyle("Armrest", fyne.TextAlignLeading, fyne.TextStyle{Bold: true})
 	title.SizeName = theme.SizeNameHeadingText
-	sub := widget.NewLabel("Set up Sofabaton X1, X1S and X2 hubs, without the cloud.")
+	sub := wrapped("Set up Sofabaton X1, X1S and X2 hubs, without the cloud.")
 
 	s.found = container.NewVBox()
-	s.status = widget.NewLabel("")
-	s.status.Wrapping = fyne.TextWrapWord
+	s.status = wrapped("")
 	s.busy = widget.NewProgressBarInfinite()
 	s.busy.Hide()
 	s.search = widget.NewButtonWithIcon("Search again", theme.SearchIcon(), s.discover)
@@ -51,15 +50,17 @@ func (s *hubsScreen) content() fyne.CanvasObject {
 	s.addr = widget.NewEntry()
 	s.addr.SetPlaceHolder("192.168.1.20")
 	s.addr.OnSubmitted = func(string) { s.connectAddr() }
-	byAddr := widget.NewCard("Connect by address", "For a hub that does not show up above.",
+	byAddr := widget.NewCard("Connect by address", "", container.NewVBox(
+		wrapped("For a hub that does not show up above."),
 		container.NewBorder(nil, nil, nil,
-			widget.NewButtonWithIcon("Connect", theme.LoginIcon(), s.connectAddr), s.addr))
+			widget.NewButtonWithIcon("Connect", theme.LoginIcon(), s.connectAddr), s.addr)))
 
-	demo := widget.NewCard("No hub at hand?", "The demo hub is a simulated X2: changes stay in the app.",
+	demo := widget.NewCard("No hub at hand?", "", container.NewVBox(
+		wrapped("The demo hub is a simulated X2: changes stay in the app."),
 		container.NewHBox(widget.NewButtonWithIcon("Open the demo hub", theme.ComputerIcon(),
-			func() { s.app.connect(backend.DemoHub) })))
+			func() { s.app.connect(backend.DemoHub) }))))
 
-	s.root = container.NewVScroll(container.NewPadded(container.NewVBox(title, sub, network, byAddr, demo)))
+	s.root = container.NewVScroll(column(container.NewPadded(container.NewVBox(title, sub, network, byAddr, demo))))
 	return s.root
 }
 

@@ -62,6 +62,20 @@ The hub takes one client at a time: while the official app (or `sbx`) is
 connected, CALL_ME is refused. The app must say so plainly, not fail with
 a timeout.
 
+### 1.4 Principles
+
+- **Usability first**, in every screen and every phase. Common tasks take
+  few steps, wording is plain (no protocol terms), every wait shows what
+  is happening, errors say what to do next, and nothing is written to the
+  hub without a review that can be backed out of.
+- **Layouts adapt to the window, not the device.** A narrow window (a
+  phone, a split screen) gets one column and drills down: list, then
+  detail. A wide one (a tablet, a desktop) shows the list beside the
+  detail. Text columns keep a readable width, and touch targets stay
+  finger-sized everywhere.
+- **A professional look** comes in the polish phase, with images you will
+  provide; until then, Fyne's default theme, kept tidy.
+
 ## 2. Architecture
 
 ```
@@ -157,8 +171,8 @@ drag-reorder lists.
 - **UI:** Fyne's test driver. Interaction tests (tap, type, drag) on
   every screen against the demo backend, and screenshot tests rendering
   each screen to PNG. Checked into `testdata`, they are compared in CI
-  and reviewed when they change, in light and dark themes and at phone
-  and desktop sizes.
+  and reviewed when they change: every screen at phone (360×740) and
+  tablet or desktop (1024×768) sizes, in light and dark.
 - **Live:** a manual checklist per release on a real X2, as we have done
   with `sbx` (create, edit and delete each kind of thing; check the
   remote).

@@ -41,16 +41,16 @@ func (s *homeScreen) content(h backend.Hub) fyne.CanvasObject {
 	}
 	header := container.NewBorder(nil, nil, nil,
 		container.NewVBox(widget.NewButtonWithIcon("Disconnect", theme.LogoutIcon(), s.app.disconnect)),
-		container.NewVBox(name, widget.NewLabel(detail)))
+		container.NewVBox(name, wrapped(detail)))
 
 	s.devices = container.NewVBox()
 	s.activities = container.NewVBox()
-	s.status = widget.NewLabel("Reading the hub…")
+	s.status = wrapped("Reading the hub…")
 	tabs := container.NewAppTabs(
 		container.NewTabItemWithIcon("Activities", theme.MediaPlayIcon(), container.NewVScroll(s.activities)),
 		container.NewTabItemWithIcon("Devices", theme.ComputerIcon(), container.NewVScroll(s.devices)),
 	)
-	return container.NewPadded(container.NewBorder(header, s.status, nil, nil, tabs))
+	return column(container.NewPadded(container.NewBorder(header, s.status, nil, nil, tabs)))
 }
 
 // load reads the hub's lists.

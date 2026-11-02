@@ -51,11 +51,11 @@ func TestFiles(t *testing.T) {
 		t.Fatal(err)
 	}
 	u.backToBrowse()
-	menu(t, u, "Save to a file…")
+	hubAction(t, u, "Save to a file…")
 	if name != "X2 HUB 2026-11-02.armrest" || !strings.Contains(texts(w), "Saved the hub and your changes to a file.") {
 		t.Fatalf("saved as %q:\n%s", name, texts(w))
 	}
-	menu(t, u, "Disconnect")
+	hubAction(t, u, "Disconnect")
 
 	test.Tap(button(t, w, "Open a file…"))
 	got := texts(w)
@@ -116,9 +116,9 @@ func TestFileOtherHub(t *testing.T) {
 	if err := u.work.Save(&f, time.Time{}); err != nil {
 		t.Fatal(err)
 	}
-	menu(t, u, "Disconnect")
+	hubAction(t, u, "Disconnect")
 	test.Tap(button(t, w, "Open a file…"))
-	menu(t, u, "Restore to a hub…")
+	hubAction(t, u, "Restore to a hub…")
 	test.Tap(button(t, w, "Lounge (X2, 192.168.1.20)"))
 	if got := texts(w); !strings.Contains(got, "Restore onto another hub") || !strings.Contains(got, "saved from another hub, Bedroom") {
 		t.Fatalf("not asked:\n%s", got)
@@ -151,7 +151,7 @@ func TestBackup(t *testing.T) {
 	var name string
 	filePickers(u, &f, &name)
 	test.Tap(button(t, w, "Lounge (X2, 192.168.1.20)"))
-	menu(t, u, "Save to a file…")
+	hubAction(t, u, "Save to a file…")
 	if !strings.Contains(texts(w), "Saved the hub to a file.") {
 		t.Fatalf("saving:\n%s", texts(w))
 	}
@@ -165,14 +165,14 @@ func TestBackup(t *testing.T) {
 	if listed(u, "Play PC") {
 		t.Fatal("not deleted")
 	}
-	menu(t, u, "Disconnect")
+	hubAction(t, u, "Disconnect")
 
 	test.Tap(button(t, w, "Open a file…"))
 	if !listed(u, "Play PC") || u.browse.changes.Visible() {
 		t.Fatal("the backup")
 	}
 	restore := func() {
-		menu(t, u, "Restore to a hub…")
+		hubAction(t, u, "Restore to a hub…")
 		test.Tap(button(t, w, "Lounge (X2, 192.168.1.20)"))
 		if got := texts(w); !strings.Contains(got, "The hub changed since") {
 			t.Fatalf("not asked:\n%s", got)

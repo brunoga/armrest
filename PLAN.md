@@ -316,6 +316,11 @@ drag-reorder lists.
       holding it runs, to change or clear it, and the keys set are listed
       under it with what they run. Schematic for now; the remote's real
       layout and look come with phase 8.
+- [x] The browse screen in tabs: Hub (what it is, saving to a file,
+      restoring a file, disconnecting), Devices and Activities, at the
+      bottom on phones, at the top elsewhere; it opens on Hub, and comes
+      back from an editor to the tab it left. Undo, Redo and the changes
+      to review are on every tab.
 - [ ] Later: the profile library server (section 10).
 
 ## 10. The profile library server (later; not built yet)

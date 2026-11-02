@@ -32,9 +32,7 @@ type deviceEditor struct {
 	cmds    []*cmdRow
 	cmdList *fyne.Container
 
-	keys    []*keyRow
-	keyList *fyne.Container
-	addKey  *widget.Select
+	pad *keyPad
 
 	powerOn, powerOff *widget.Select
 
@@ -76,12 +74,6 @@ type cmdRow struct {
 	box  fyne.CanvasObject
 	// last is the name last seen, to follow renames in the pickers.
 	last string
-}
-
-type keyRow struct {
-	key         string
-	short, long *widget.Select
-	box         fyne.CanvasObject
 }
 
 func (a *App) showEditDevice(name string) {
@@ -135,26 +127,10 @@ func (ed *deviceEditor) content() fyne.CanvasObject {
 		wrapped("In the order the remote lists them. Renaming a command renames it in the activities too."),
 		ed.cmdList, addNote))
 
-	ed.keyList = container.NewVBox()
-	for _, k := range keyNames(e.Keys) {
-		if !isRemoteKey(k) {
-			continue // kept as they are (see edit)
-		}
-		ed.addKeyRow(k, e.Keys[k])
-	}
-	ed.addKey = widget.NewSelect(nil, func(k string) {
-		if k == "" {
-			return
-		}
-		ed.addKeyRow(k, profile.Key{})
-		ed.addKey.ClearSelected()
-		ed.refreshKeyChoices()
-	})
-	ed.addKey.PlaceHolder = "Set another key…"
-	ed.refreshKeyChoices()
+	ed.pad = newKeyPad(ed.app.win, ed.app.work.Dump.Info.Model, e.Keys, ed.keyPicker, ed.refreshPickers)
 	keys := widget.NewCard("Keys", "", container.NewVBox(
 		wrapped("What the remote's keys do while this device's page is shown."),
-		ed.keyList, ed.addKey))
+		ed.pad.box))
 
 	ed.powerOn = ed.picker(e.PowerOn)
 	ed.powerOff = ed.picker(e.PowerOff)
@@ -365,6 +341,9 @@ func (ed *deviceEditor) refreshPickers() {
 	}
 	refresh(ed.pickers, options)
 	refresh(ed.keyPickers, append(options, macros...))
+	if ed.pad != nil {
+		ed.pad.refresh()
+	}
 }
 
 // addMacro adds a macro's box.
@@ -467,57 +446,6 @@ func isRemoteKey(name string) bool {
 	return err == nil && b.IsHardKey() && b != record.ButtonPowerOn && b != record.ButtonPowerOff
 }
 
-// addKeyRow adds a key's row.
-func (ed *deviceEditor) addKeyRow(key string, k profile.Key) {
-	r := &keyRow{key: key, short: ed.keyPicker(k.Short), long: ed.keyPicker(k.Long)}
-	title := widget.NewLabelWithStyle(key, fyne.TextAlignLeading, fyne.TextStyle{Bold: true})
-	remove := widget.NewButtonWithIcon("", theme.DeleteIcon(), func() { ed.removeKeyRow(r) })
-	r.box = container.NewVBox(
-		container.NewBorder(nil, nil, nil, remove, title),
-		widget.NewForm(widget.NewFormItem("Press", r.short), widget.NewFormItem("Hold", r.long)))
-	ed.keys = append(ed.keys, r)
-	ed.keyList.Add(r.box)
-	ed.refreshPickers()
-}
-
-func (ed *deviceEditor) removeKeyRow(r *keyRow) {
-	for i, o := range ed.keys {
-		if o == r {
-			ed.keys = append(ed.keys[:i], ed.keys[i+1:]...)
-			break
-		}
-	}
-	ed.keyList.Remove(r.box)
-	ed.refreshKeyChoices()
-}
-
-// refreshKeyChoices offers the keys not set yet.
-func (ed *deviceEditor) refreshKeyChoices() {
-	set := map[string]bool{}
-	for _, r := range ed.keys {
-		set[r.key] = true
-	}
-	var free []string
-	for _, k := range remoteKeys() {
-		if !set[k] {
-			free = append(free, k)
-		}
-	}
-	ed.addKey.Options = free
-	ed.addKey.Refresh()
-}
-
-// remoteKeys are the remote's keys, in its order.
-func remoteKeys() []string {
-	all := profile.Buttons{}
-	for b := record.ButtonC; b <= record.ButtonBlue; b++ {
-		if isRemoteKey(b.String()) {
-			all[b.String()] = profile.Key{}
-		}
-	}
-	return keyNames(all)
-}
-
 func (ed *deviceEditor) addInput(selected string) {
 	p := ed.picker(selected)
 	var box fyne.CanvasObject
@@ -558,11 +486,7 @@ func (ed *deviceEditor) edit() workspace.DeviceEdit {
 			e.Keys[k] = v
 		}
 	}
-	for _, r := range ed.keys {
-		if s := pick(r.short); s != "" {
-			e.Keys[r.key] = profile.Key{Short: s, Long: pick(r.long)}
-		}
-	}
+	ed.pad.set(e.Keys)
 	for _, p := range ed.inputs {
 		if s := pick(p); s != "" {
 			e.Inputs = append(e.Inputs, s)

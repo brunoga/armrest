@@ -18,6 +18,7 @@ import (
 	"github.com/brunoga/armrest/internal/cache"
 	"github.com/brunoga/armrest/internal/demo"
 	"github.com/brunoga/sofabaton/hub"
+	"github.com/brunoga/sofabaton/profile"
 	"github.com/brunoga/sofabaton/hubsim"
 	"github.com/brunoga/sofabaton/transport"
 	"github.com/brunoga/sofabaton/wire"
@@ -741,4 +742,97 @@ func TestEditActivity(t *testing.T) {
 	if got := texts(w); !strings.Contains(got, "Movie Night\nNew") {
 		t.Errorf("not listed as new:\n%s", got)
 	}
+}
+
+// overlaySelects are the pickers of the dialog on top.
+func overlaySelects(w fyne.Window) []*widget.Select {
+	var out []*widget.Select
+	var visit func(o fyne.CanvasObject)
+	visit = func(o fyne.CanvasObject) {
+		switch o := o.(type) {
+		case *widget.Select:
+			out = append(out, o)
+		case *fyne.Container:
+			for _, c := range o.Objects {
+				visit(c)
+			}
+		case fyne.Widget:
+			for _, c := range test.WidgetRenderer(o).Objects() {
+				visit(c)
+			}
+		}
+	}
+	visit(w.Canvas().Overlays().Top())
+	return out
+}
+
+// Keys are set and cleared from the drawing of the remote.
+func TestKeyPad(t *testing.T) {
+	u, w := newApp(t, backend.Hub{Name: "Lounge", Model: "X2", Firmware: 9, Addr: lounge})
+	test.Tap(button(t, w, "Lounge (X2, 192.168.1.20)"))
+	pickRow(t, u, "Receiver")
+	test.Tap(button(t, w, "Edit"))
+	d := u.work.Config.Device("Receiver")
+	var free, set string
+	for _, row := range remoteRows {
+		for _, k := range row {
+			if _, ok := d.Buttons[k]; ok {
+				set = k
+			} else if free == "" {
+				free = k
+			}
+		}
+	}
+	if free == "" || set == "" {
+		t.Fatalf("keys of the Receiver: %v", d.Buttons)
+	}
+	cmd := d.Commands[0].Name
+	drawing(t, u, d.Buttons)
+
+	test.Tap(button(t, w, free))
+	ps := overlaySelects(w)
+	if len(ps) != 2 {
+		t.Fatalf("%d pickers in the key's dialog", len(ps))
+	}
+	ps[0].SetSelected(cmd)
+	assertScreens(t, w, "key")
+	test.Tap(button(t, w, "Done"))
+	if !strings.Contains(texts(w), free+": "+cmd) {
+		t.Fatalf("%s not listed:\n%s", free, texts(w))
+	}
+
+	test.Tap(button(t, w, set))
+	test.Tap(button(t, w, "Clear"))
+	if strings.Contains(texts(w), set+": ") {
+		t.Fatalf("%s still listed:\n%s", set, texts(w))
+	}
+
+	test.Tap(button(t, w, "Save"))
+	d = u.work.Config.Device("Receiver")
+	if k := d.Buttons[free]; k.Short != cmd {
+		t.Errorf("%s runs %q, not %q", free, k.Short, cmd)
+	}
+	if _, ok := d.Buttons[set]; ok {
+		t.Errorf("%s still set", set)
+	}
+}
+
+// drawing checks the drawing of the remote, with keys set.
+func drawing(t *testing.T, u *App, keys profile.Buttons) {
+	t.Helper()
+	w := test.NewWindow(nil)
+	defer w.Close()
+	var cmds []string
+	for _, k := range keys {
+		cmds = append(cmds, k.Short, k.Long)
+	}
+	p := newKeyPad(w, "X2", keys, func(s string) *widget.Select {
+		return widget.NewSelect(cmds, nil)
+	}, func() {})
+	for _, r := range p.keys {
+		r.short.Selected, r.long.Selected = keys[r.key].Short, keys[r.key].Long
+	}
+	p.refresh()
+	w.SetContent(container.NewVScroll(column(container.NewPadded(p.box))))
+	assertScreens(t, w, "keys")
 }

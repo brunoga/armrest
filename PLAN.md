@@ -190,7 +190,7 @@ drag-reorder lists.
 | 5 Workspaces | Saving and opening workspaces, backup and restore, undo | offline edits applied later |
 | 6 Android | Packaging, touch layouts, permissions | installed on your phone, edits your hub |
 | 7 iOS | Packaging, signing, Local Network permissions | installed on an iPhone, edits your hub |
-| 8 Release | Theme and look polish, accessibility, translations, store listings | v1.0 |
+| 8 Release | A professional look (theme, layouts, images you will provide), icon, accessibility, translations, store listings | v1.0 |
 
 ## 8. Risks, to settle in phase 0 (iOS's in phase 7)
 
@@ -211,8 +211,9 @@ drag-reorder lists.
 
 - [x] Name (Armrest), toolkit (Fyne), platform order (desktop, Android,
       iOS), no web for now.
-- [ ] Phase 0: the hubs screen (discovery, connect by address, the demo
+- [x] Phase 0: the hubs screen (discovery, connect by address, the demo
       hub) and a read-only home screen (activities, devices), with
       screenshot tests in light and dark. CI builds Linux, Windows, macOS
-      and an Android APK. Left: running it on Windows, macOS and your
-      phone against the X2.
+      and an Android APK, each needing only what its OS provides. Checked
+      on the X2 from Linux and from an Android phone (2026-11-02).
+- [ ] Phase 1: the library work (L1–L4) in `sofabaton`.

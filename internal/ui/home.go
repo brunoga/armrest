@@ -27,7 +27,9 @@ import (
 // for a hub not seen before, once read, showing how far it got.
 func (a *App) showHome(h backend.Hub) {
 	info := a.client.Info()
-	if a.cache != nil && !h.Demo {
+	// A file's changes are applied to the hub as it is now: it is read
+	// whole.
+	if a.cache != nil && !h.Demo && a.file == nil {
 		if e := a.cache.Load(hex.EncodeToString(info.ID[:])); e != nil {
 			if w, err := workspace.FromDump(context.Background(), e.Dump); err == nil {
 				if e.Edits != nil {
@@ -104,6 +106,8 @@ func (a *App) showHome(h backend.Hub) {
 				cancelBtn.SetText("Back")
 				cancelBtn.SetIcon(theme.NavigateBackIcon())
 				retry.Show()
+			case a.file != nil:
+				a.adoptFile(h, w)
 			default:
 				a.work = w
 				a.remember(h, w)
@@ -190,7 +194,7 @@ func (a *App) checkForChanges(h backend.Hub, s *browseScreen, e *cache.Entry) {
 func (a *App) hubChangedUnderEdits(fresh *workspace.Workspace) {
 	d := dialog.NewCustomConfirm("The hub was changed elsewhere",
 		"Start over", "Keep my changes",
-		wrapped("Since this device last saw it, the hub was changed by another app. Your changes were made on the older copy, and writing them could undo those changes. Start over from the hub as it is now (your changes are lost), or keep them?"),
+		wrapped("The hub was changed by another app since your copy of it was read. Your changes were made on the older copy, and writing them could undo those changes. Start over from the hub as it is now (your changes are lost), or keep them?"),
 		func(startOver bool) {
 			if startOver {
 				a.work = fresh
@@ -258,6 +262,8 @@ type browseScreen struct {
 	undoBtn, redoBtn *widget.Button
 	// root is the screen's content.
 	root fyne.CanvasObject
+	// menu is the header's menu: saving, and leaving the hub or file.
+	menu *fyne.Menu
 	hub  backend.Hub
 }
 
@@ -383,7 +389,7 @@ func (s *browseScreen) state(r browseRow) string {
 // sender sends d's commands from the hub, or is nil while d is not on
 // the hub.
 func (s *browseScreen) sender(d *profile.Device) func(string) {
-	if s.app.work.DeviceState(d) == workspace.New {
+	if s.app.work.DeviceState(d) == workspace.New || s.app.client == nil {
 		return nil
 	}
 	return func(command string) {
@@ -554,21 +560,36 @@ func (s *browseScreen) content(h backend.Hub) fyne.CanvasObject {
 }
 
 func (s *browseScreen) header(h backend.Hub) fyne.CanvasObject {
-	info := s.app.client.Info()
+	info := s.app.work.Dump.Info
 	name := widget.NewLabelWithStyle(info.Name, fyne.TextAlignLeading, fyne.TextStyle{Bold: true})
 	name.Truncation = fyne.TextTruncateEllipsis
-	detail := fmt.Sprintf("%v, firmware %d", info.Variant, info.Firmware)
-	if h.Demo {
+	detail := fmt.Sprintf("%s, firmware %d", info.Model, info.Firmware)
+	leave := fyne.NewMenuItem("Disconnect", s.app.disconnect)
+	switch {
+	case s.app.offline():
+		f := s.app.file
+		detail = "From the file " + f.name
+		if !f.saved.IsZero() {
+			detail += ", saved " + ago(f.saved, s.app.now())
+		}
+		leave = fyne.NewMenuItem("Close the file", s.app.closeFile)
+	case h.Demo:
 		detail = "Demo hub: a simulated " + detail
-	} else {
+	default:
 		detail += ", at " + h.Addr.String()
 	}
 	sub := widget.NewLabel(detail)
 	sub.Truncation = fyne.TextTruncateEllipsis
+	s.menu = fyne.NewMenu("", fyne.NewMenuItem("Save to a file…", s.app.saveToFile), fyne.NewMenuItemSeparator(), leave)
+	var more *widget.Button
+	more = widget.NewButtonWithIcon("", theme.MoreVerticalIcon(), func() {
+		c := fyne.CurrentApp().Driver().CanvasForObject(more)
+		pos := fyne.CurrentApp().Driver().AbsolutePositionForObject(more).AddXY(0, more.Size().Height)
+		widget.ShowPopUpMenuAtPosition(s.menu, c, pos)
+	})
 	return container.NewVBox(
 		container.NewBorder(nil, nil, nil,
-			container.NewVBox(container.NewHBox(s.undoBtn, s.redoBtn,
-				widget.NewButtonWithIcon("Disconnect", theme.LogoutIcon(), s.app.disconnect))),
+			container.NewVBox(container.NewHBox(s.undoBtn, s.redoBtn, more)),
 			container.NewVBox(name, sub)),
 		widget.NewSeparator())
 }

@@ -204,7 +204,7 @@ func TestBrowse(t *testing.T) {
 		t.Error("the list is not back")
 	}
 
-	test.Tap(button(t, w, "Disconnect"))
+	menu(t, u, "Disconnect")
 	if got := texts(w); !strings.Contains(got, "Hubs on your network") {
 		t.Errorf("not back at the hubs:\n%s", got)
 	}
@@ -330,7 +330,7 @@ func cachedApp(t *testing.T) (u *App, w fyne.Window, run func(), step func(), re
 	if got := texts(w); !strings.Contains(got, "Watch Google TV") {
 		t.Fatalf("first visit:\n%s", got)
 	}
-	test.Tap(button(t, w, "Disconnect"))
+	menu(t, u, "Disconnect")
 	run()
 	return u, w, run, step, renamed, now
 }
@@ -430,6 +430,18 @@ func TestUndoAndKeptEdits(t *testing.T) {
 	if got := texts(w); listed(u, "Play PC") || !strings.Contains(got, "Up to date.") || button(t, w, "Review changes").Disabled() {
 		t.Fatalf("after the check:\n%s", got)
 	}
+}
+
+// menu picks the browse screen's menu item named label.
+func menu(t *testing.T, u *App, label string) {
+	t.Helper()
+	for _, it := range u.browse.menu.Items {
+		if it.Label == label {
+			it.Action()
+			return
+		}
+	}
+	t.Fatalf("no menu item %q", label)
 }
 
 // listed reports whether the browse list has a row named name.

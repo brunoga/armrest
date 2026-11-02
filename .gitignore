@@ -1,0 +1,22 @@
+# compiled binaries and packages
+/armrest
+/cmd/armrest/armrest
+*.apk
+*.aab
+*.exe
+*.app
+*.tar.xz
+*.test
+coverage.out
+coverage.html
+
+# screenshots that differ from their masters (see Makefile: screens)
+testdata/failed/
+
+# editor and tool metadata
+.claude/
+CLAUDE.md
+.vscode/
+.idea/
+
+/fyne-cross/

@@ -1,0 +1,39 @@
+version: "2"
+
+linters:
+  # Default linters (errcheck, govet, staticcheck, etc.) remain enabled.
+  enable:
+    - misspell   # catch common spelling mistakes in comments and strings
+    - noctx      # detect network calls without context
+    - gosec      # security checks
+    - revive     # opinionated but practical style checks
+  settings:
+    revive:
+      rules:
+        - name: exported
+          disabled: true   # don't require every exported symbol to have a doc comment
+    errcheck:
+      # Writes to stdout/stderr in the commands: a failure there has nowhere
+      # to be reported.
+      exclude-functions:
+        - fmt.Fprint
+        - fmt.Fprintf
+        - fmt.Fprintln
+    gosec:
+      excludes:
+        # G302 and G306 want files written 0600 or less. What the app
+        # writes (workspaces, dumps) is the user's to read and share, so it
+        # gets the usual 0666 less the umask, as os.Create does.
+        - G302
+        - G306
+    staticcheck:
+      checks:
+        - all
+        - -QF1003   # "could use tagged switch": a style preference the code does not share
+  exclusions:
+    rules:
+      # errcheck and gosec are noisy in test helpers — allow unchecked calls,
+      # math/rand and file paths from variables in _test.go files — and test
+      # sockets live as long as the test, not a context.
+      - path: _test\.go
+        linters: [errcheck, gosec, noctx]

@@ -1,8 +1,8 @@
 package ui
 
 import (
-	"image/color"
 	"context"
+	"image/color"
 	"net/netip"
 	"strings"
 	"testing"
@@ -266,14 +266,15 @@ func TestReadFailure(t *testing.T) {
 	}
 }
 
-// A hub seen before shows at once from the cache, then is checked for
-// changes in the background.
-func TestCachedHub(t *testing.T) {
+// cachedApp is the app with a cache, whose work runs when the test calls
+// run. The hub's first activity is renamed when *renamed is set.
+func cachedApp(t *testing.T) (u *App, w fyne.Window, run func(), step func(), renamed *bool, now *time.Time) {
+	t.Helper()
 	test.NewTempApp(t)
-	w := test.NewWindow(nil)
+	w = test.NewWindow(nil)
 	t.Cleanup(w.Close)
 	w.Resize(fyne.NewSize(720, 640))
-	renamed := false
+	renamed = new(bool)
 	back := backend.Backend{
 		Discover: func(context.Context) ([]backend.Hub, error) {
 			return []backend.Hub{{Name: "Lounge", Model: "X2", Firmware: 9, Addr: lounge}}, nil
@@ -284,26 +285,28 @@ func TestCachedHub(t *testing.T) {
 			if err != nil {
 				return nil, err
 			}
-			if renamed {
+			if *renamed {
 				m.Activities[0].Name = "Movie Night"
 			}
 			return hub.Open(ctx, hubsim.Pipe(hubsim.FromModel(m)), hub.Options{})
 		},
 	}
-	u := New(w, back)
-	// Work runs when the test says, so the screen can be seen before the
-	// check is done.
+	u = New(w, back)
 	var queue []func()
 	u.async = func(f func()) { queue = append(queue, f) }
-	run := func() {
+	step = func() {
+		f := queue[0]
+		queue = queue[1:]
+		f()
+	}
+	run = func() {
 		for len(queue) > 0 {
-			f := queue[0]
-			queue = queue[1:]
-			f()
+			step()
 		}
 	}
-	now := time.Date(2026, 11, 2, 9, 0, 0, 0, time.UTC)
-	u.now = func() time.Time { return now }
+	now = new(time.Time)
+	*now = time.Date(2026, 11, 2, 9, 0, 0, 0, time.UTC)
+	u.now = func() time.Time { return *now }
 	u.UseCache(&cache.Cache{Dir: t.TempDir()})
 	t.Cleanup(u.Close)
 	u.Start()
@@ -317,13 +320,18 @@ func TestCachedHub(t *testing.T) {
 	}
 	test.Tap(button(t, w, "Disconnect"))
 	run()
+	return u, w, run, step, renamed, now
+}
 
+// A hub seen before shows at once from the cache, then is checked for
+// changes in the background.
+func TestCachedHub(t *testing.T) {
+	_, w, run, step, renamed, now := cachedApp(t)
 	// The hub changes; the next visit shows the cache at once.
-	renamed = true
-	now = now.Add(5 * time.Minute)
+	*renamed = true
+	*now = now.Add(5 * time.Minute)
 	test.Tap(button(t, w, "Lounge (X2, 192.168.1.20)"))
-	queue[0]() // connect
-	queue = queue[1:]
+	step() // connect
 	got := texts(w)
 	if !strings.Contains(got, "Watch Google TV") || !strings.Contains(got, "as it was 5 minutes ago. Checking for changes") {
 		t.Fatalf("from the cache:\n%s", got)
@@ -333,6 +341,36 @@ func TestCachedHub(t *testing.T) {
 	got = texts(w)
 	if !strings.Contains(got, "Movie Night") || strings.Contains(got, "Watch Google TV") || !strings.Contains(got, "Updated with the hub's changes.") {
 		t.Errorf("after the check:\n%s", got)
+	}
+}
+
+// Edits made on the cached copy wait for the check to be reviewed; if the
+// hub changed meanwhile, the user picks what to keep.
+func TestCachedHubEdited(t *testing.T) {
+	u, w, run, step, renamed, _ := cachedApp(t)
+	*renamed = true
+	test.Tap(button(t, w, "Lounge (X2, 192.168.1.20)"))
+	step() // connect, showing the cache
+	if err := u.work.Config.RenameDevice("3D Player", "Blu-ray"); err != nil {
+		t.Fatal(err)
+	}
+	u.browse.showChanges()
+	if !button(t, w, "Review changes").Disabled() {
+		t.Error("review allowed before the hub was checked")
+	}
+	run()
+	if got := texts(w); !strings.Contains(got, "The hub was changed elsewhere") {
+		t.Fatalf("no choice offered:\n%s", got)
+	}
+	test.Tap(button(t, w, "Keep my changes"))
+	got := texts(w)
+	// The kept copy still has the activity's old name: applying would
+	// rename it back, which the list shows as an edit.
+	if !strings.Contains(got, "Your changes are kept") || !strings.Contains(got, "Blu-ray") || !strings.Contains(got, "Watch Google TV\nEdited") {
+		t.Errorf("after keeping:\n%s", got)
+	}
+	if button(t, w, "Review changes").Disabled() {
+		t.Error("review still disabled after the check")
 	}
 }
 
@@ -459,5 +497,42 @@ func TestConnectByAddress(t *testing.T) {
 				t.Errorf("missing %q in:\n%s", tc.want, got)
 			}
 		})
+	}
+}
+
+// A device is edited: renamed, a command renamed, saved, and marked
+// edited; the activities follow.
+func TestEditDevice(t *testing.T) {
+	u, w := newApp(t, backend.Hub{Name: "Lounge", Model: "X2", Firmware: 9, Addr: lounge})
+	test.Tap(button(t, w, "Lounge (X2, 192.168.1.20)"))
+	list(t, w).Select(6) // Receiver
+	test.Tap(button(t, w, "Edit"))
+	if got := texts(w); !strings.Contains(got, "Edit Receiver") || !strings.Contains(got, "What the remote's keys do") {
+		t.Fatalf("not the editor:\n%s", got)
+	}
+	var entries []*widget.Entry
+	walk(w, func(o fyne.CanvasObject) {
+		if e, ok := o.(*widget.Entry); ok {
+			entries = append(entries, e)
+		}
+	})
+	entries[0].SetText("AVR") // the device's name
+	for _, e := range entries[2:] {
+		if e.Text == "Mute" {
+			e.SetText("Silence")
+		}
+	}
+	assertScreens(t, w, "edit-device")
+	test.Tap(button(t, w, "Save"))
+	got := texts(w)
+	if !strings.Contains(got, "Saved. Review your changes") || !strings.Contains(got, "AVR") || !strings.Contains(got, "Edited") {
+		t.Fatalf("after saving:\n%s", got)
+	}
+	for _, a := range u.work.Config.Activities {
+		for _, k := range a.Buttons {
+			if strings.HasPrefix(k.Short, "Receiver:") || k.Short == "AVR: Mute" {
+				t.Errorf("%s still runs %q", a.Name, k.Short)
+			}
+		}
 	}
 }

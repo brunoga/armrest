@@ -49,8 +49,9 @@ func activityView(a *profile.Activity) fyne.CanvasObject {
 }
 
 // deviceView shows a device: its commands, keys, power, inputs and
-// macros. With send, each command has a Test button that sends it.
-func deviceView(d *profile.Device, send func(command string)) fyne.CanvasObject {
+// macros. With send, each command has a Test button that sends it; with
+// edit, an Edit button calls it.
+func deviceView(d *profile.Device, send func(command string), edit func()) fyne.CanvasObject {
 	sub := d.Brand
 	if look := describeLook(d.Icon, d.Color); look != "" {
 		if sub != "" {
@@ -58,7 +59,13 @@ func deviceView(d *profile.Device, send func(command string)) fyne.CanvasObject 
 		}
 		sub += look
 	}
-	parts := []fyne.CanvasObject{heading(d.Name, sub)}
+	head := heading(d.Name, sub)
+	if edit != nil {
+		b := widget.NewButtonWithIcon("Edit", theme.DocumentCreateIcon(), edit)
+		b.Importance = widget.HighImportance
+		head = container.NewBorder(nil, nil, nil, container.NewVBox(b), head)
+	}
+	parts := []fyne.CanvasObject{head}
 
 	var cmds []fyne.CanvasObject
 	for _, c := range d.Commands {

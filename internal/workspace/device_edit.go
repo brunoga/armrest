@@ -1,0 +1,257 @@
+package workspace
+
+import (
+	"errors"
+	"fmt"
+	"strconv"
+	"strings"
+
+	"go.yaml.in/yaml/v3"
+
+	"github.com/brunoga/sofabaton/profile"
+)
+
+// DeviceEdit is a device as its editor holds it.
+type DeviceEdit struct {
+	// Original is the device's name before the edit.
+	Original    string
+	Name, Brand string
+	Icon        profile.Icon
+	Color       profile.Color
+	// Commands are in the order the remote lists them.
+	Commands []CommandEdit
+	// Keys bind keys of the remote (by name) to commands (by their names
+	// in Commands).
+	Keys profile.Buttons
+	// PowerOn and PowerOff name commands, or are both empty.
+	PowerOn, PowerOff string
+	// Inputs name the commands that select each input; NoInputs says the
+	// device switches none (as opposed to not set).
+	Inputs   []string
+	NoInputs bool
+}
+
+// CommandEdit is a command in the editor.
+type CommandEdit struct {
+	// Original is its name before the edit, or empty for a new one.
+	Original string
+	Name     string
+	// Code is its code in the device's protocol. A command whose signal
+	// is not a code (learned, or a descriptor of another protocol) has
+	// none, and keeps its signal.
+	Code string
+	// Fixed says the signal is not a code, and cannot be edited.
+	Fixed bool
+}
+
+// EditDevice is the editor's start for the device named name.
+func (w *Workspace) EditDevice(name string) (DeviceEdit, error) {
+	d := w.Config.Device(name)
+	if d == nil {
+		return DeviceEdit{}, fmt.Errorf("no device %q", name)
+	}
+	e := DeviceEdit{Original: d.Name, Name: d.Name, Brand: d.Brand, Icon: d.Icon, Color: d.Color, Keys: profile.Buttons{}}
+	for _, c := range d.Commands {
+		ce := CommandEdit{Original: c.Name, Name: c.Name, Fixed: c.Code == nil}
+		if c.Code != nil {
+			ce.Code = codeText(*c.Code)
+		}
+		e.Commands = append(e.Commands, ce)
+	}
+	for k, v := range d.Buttons {
+		e.Keys[k] = v
+	}
+	if d.Power != nil {
+		e.PowerOn, e.PowerOff = d.Power.On, d.Power.Off
+	}
+	e.Inputs = append(e.Inputs, d.Inputs...)
+	e.NoInputs = d.Inputs != nil && len(d.Inputs) == 0
+	return e, nil
+}
+
+func codeText(c profile.Code) string {
+	if c.Decimal {
+		return strconv.Itoa(int(c.Value))
+	}
+	return fmt.Sprintf("0x%02X", c.Value)
+}
+
+// CanAddCommands reports whether new commands can be given as codes: the
+// device has an IR protocol.
+func (w *Workspace) CanAddCommands(device string) bool {
+	d := w.Config.Device(device)
+	return d != nil && d.IR != nil
+}
+
+// ActivitiesUsing names the activities that use the device.
+func (w *Workspace) ActivitiesUsing(device string) []string {
+	var out []string
+	for _, a := range w.Config.Activities {
+		for _, m := range a.Devices {
+			if strings.EqualFold(m.Device, device) {
+				out = append(out, a.Name)
+				break
+			}
+		}
+	}
+	return out
+}
+
+// SaveDevice makes the configuration hold the edit: renames of the device
+// and its commands carry to the activities, and removed commands leave
+// what used them. Nothing changes if the edit is not valid.
+func (w *Workspace) SaveDevice(e DeviceEdit) error {
+	cfg, err := cloneConfig(w.Config)
+	if err != nil {
+		return err
+	}
+	d := cfg.Device(e.Original)
+	if d == nil {
+		return fmt.Errorf("no device %q", e.Original)
+	}
+	name := strings.TrimSpace(e.Name)
+	if name == "" {
+		return &FieldError{Field: "name", Msg: "The device needs a name."}
+	}
+	var proto Protocol
+	if d.IR != nil {
+		proto, _ = ProtocolNamed(d.IR.Protocol)
+	}
+
+	// Check the commands before changing anything.
+	seen := map[string]bool{}
+	kept := map[string]bool{}
+	for i, c := range e.Commands {
+		c.Name = strings.TrimSpace(c.Name)
+		if c.Name == "" {
+			return &FieldError{Field: "command", Index: i, Msg: fmt.Sprintf("Command %d needs a name.", i+1)}
+		}
+		if seen[strings.ToLower(c.Name)] {
+			return &FieldError{Field: "command", Index: i, Msg: fmt.Sprintf("There are two commands named %q.", c.Name)}
+		}
+		seen[strings.ToLower(c.Name)] = true
+		if c.Original != "" {
+			kept[strings.ToLower(c.Original)] = true
+		}
+		if c.Fixed {
+			continue
+		}
+		if d.IR == nil {
+			return &FieldError{Field: "command", Index: i, Msg: fmt.Sprintf("%s: this device has no IR protocol, so a command cannot be given as a code.", c.Name)}
+		}
+		if v, err := strconv.ParseUint(strings.TrimSpace(c.Code), 0, 16); err != nil || v > uint64(proto.MaxCode) {
+			return &FieldError{Field: "command", Index: i, Msg: fmt.Sprintf("%s: the code is a number from 0 to %d (0x%X).", c.Name, proto.MaxCode, proto.MaxCode)}
+		}
+	}
+	if len(e.Commands) == 0 {
+		return &FieldError{Field: "commands", Msg: "A device needs at least one command."}
+	}
+
+	// Removed commands go, with what used them; renames carry over,
+	// through temporary names so that swaps work.
+	for _, c := range append([]profile.Command(nil), d.Commands...) {
+		if !kept[strings.ToLower(c.Name)] {
+			if err := cfg.RemoveCommand(d.Name, c.Name); err != nil {
+				return err
+			}
+		}
+	}
+	for i, c := range e.Commands {
+		if c.Original != "" && c.Original != strings.TrimSpace(c.Name) {
+			if err := cfg.RenameCommand(d.Name, c.Original, fmt.Sprintf("\x00%d", i)); err != nil {
+				return err
+			}
+		}
+	}
+	for i, c := range e.Commands {
+		if c.Original != "" && c.Original != strings.TrimSpace(c.Name) {
+			if err := cfg.RenameCommand(d.Name, fmt.Sprintf("\x00%d", i), strings.TrimSpace(c.Name)); err != nil {
+				return err
+			}
+		}
+	}
+	if name != d.Name {
+		if err := cfg.RenameDevice(d.Name, name); err != nil {
+			return &FieldError{Field: "name", Msg: err.Error()}
+		}
+	}
+
+	// The device's own fields, in the editor's order.
+	byName := map[string]profile.Command{}
+	for _, c := range d.Commands {
+		byName[strings.ToLower(c.Name)] = c
+	}
+	var cmds []profile.Command
+	for _, c := range e.Commands {
+		n := strings.TrimSpace(c.Name)
+		pc := byName[strings.ToLower(n)]
+		pc.Name = n
+		if !c.Fixed {
+			code := strings.TrimSpace(c.Code)
+			v, _ := strconv.ParseUint(code, 0, 16)
+			pc.Code = &profile.Code{Value: uint16(v), Decimal: !strings.HasPrefix(strings.ToLower(code), "0x")}
+			pc.Descriptor, pc.Data = "", ""
+		}
+		cmds = append(cmds, pc)
+	}
+	d.Brand = strings.TrimSpace(e.Brand)
+	d.Icon, d.Color = e.Icon, e.Color
+	d.Commands = cmds
+	has := func(n string) bool { return n != "" && seen[strings.ToLower(n)] }
+	d.Buttons = nil
+	for k, v := range e.Keys {
+		if !has(v.Short) {
+			continue
+		}
+		if !has(v.Long) {
+			v.Long = ""
+		}
+		if d.Buttons == nil {
+			d.Buttons = profile.Buttons{}
+		}
+		d.Buttons[k] = v
+	}
+	switch {
+	case e.PowerOn == "" && e.PowerOff == "":
+		d.Power = nil
+	case has(e.PowerOn) && has(e.PowerOff):
+		d.Power = &profile.Power{On: e.PowerOn, Off: e.PowerOff}
+	default:
+		return &FieldError{Field: "power", Msg: "Pick both the command that turns the device on and the one that turns it off, or neither."}
+	}
+	d.Inputs = nil
+	if e.NoInputs {
+		d.Inputs = profile.InputList{}
+	}
+	for _, in := range e.Inputs {
+		if has(in) {
+			d.Inputs = append(d.Inputs, in)
+		}
+	}
+	if err := d.Validate(); err != nil {
+		return fmt.Errorf("the device is not valid: %w", err)
+	}
+	if err := cfg.Validate(); err != nil {
+		return err
+	}
+	w.Config = cfg
+	return nil
+}
+
+// RemoveDevice removes a device, and from the activities that use it.
+func (w *Workspace) RemoveDevice(name string) error {
+	return w.Config.RemoveDevice(name)
+}
+
+// cloneConfig is a deep copy of cfg, through YAML.
+func cloneConfig(cfg *profile.Config) (*profile.Config, error) {
+	b, err := yaml.Marshal(cfg)
+	if err != nil {
+		return nil, err
+	}
+	var out profile.Config
+	if err := yaml.Unmarshal(b, &out); err != nil {
+		return nil, errors.New("copying the configuration: " + err.Error())
+	}
+	return &out, nil
+}

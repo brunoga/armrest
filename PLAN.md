@@ -263,9 +263,21 @@ drag-reorder lists.
       (suggested names), power on and off; commands named like a key go
       on it (Volume Up on Vol+). Problems are said in words, at the
       field.
-- [ ] Phase 3c: "send now" to test each command of a device on the hub,
-      then editing devices (rename, commands, keys, power, inputs,
-      macros, icon and color), and deleting them. Edits
+- [x] Phase 3c: Test sends a device's command from the hub. The device
+      editor: name, brand, icon and color; commands (rename, recode, add,
+      move, delete; renames carry to the activities, deletes take what
+      used them); keys (press and hold); power; inputs; deleting the
+      device. Checked on the X2: a ZZ-test device added, edited and
+      deleted, each read back exactly as intended.
+- [x] Found on the X2: the hub keeps a command's record when its signal
+      is rewritten, so cached signals cannot be trusted. The background
+      check reads every signal again; reading back after applying reads
+      the written devices' signals again; Review waits for the check; if
+      the hub changed under the user's edits, they choose.
+- [ ] Not possible yet: clearing a key of a device on the hub (the frame
+      that does it on an activity deletes a command on a device). Review
+      warns that the key stays. Needs a capture of what the app sends.
+- [ ] Phase 3d: device macros in the editor. Edits
       change the workspace's config; Review applies it to a fresh
       simulated copy of the hub (`ApplyConfig`, by id) and lists what
       that did, which is exactly what Apply will do to the hub, with a

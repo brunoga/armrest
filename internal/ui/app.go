@@ -39,6 +39,10 @@ type App struct {
 	hub backend.Hub
 	// work is the connected hub's configuration, once read.
 	work *workspace.Workspace
+	// checking is set while the hub is checked against the cache.
+	checking bool
+	// browse is the browse screen last shown.
+	browse *browseScreen
 }
 
 // New returns the app for win.
@@ -62,6 +66,7 @@ func (a *App) Close() {
 		a.client = nil
 	}
 	a.work = nil
+	a.checking = false
 }
 
 // connect opens a client of h, with a progress dialog, and shows the home

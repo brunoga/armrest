@@ -47,9 +47,11 @@ func Read(ctx context.Context, c *hub.Client, progress func(done, total int, nam
 	return Refresh(ctx, c, nil, progress)
 }
 
-// Refresh is Read for a hub read before into old (a cached dump): the
-// commands that did not change keep old's signals, which makes it about
-// twice as fast. A nil old reads everything.
+// Refresh is Read for a hub read before into old: the commands whose
+// record did not change keep old's signals, which makes it about twice as
+// fast. The hub keeps a command's record when its signal is rewritten, so
+// old must hold only signals known to be current (see ReadBack); a nil old
+// reads everything.
 func Refresh(ctx context.Context, c *hub.Client, old *dump.File, progress func(done, total int, name string)) (*Workspace, error) {
 	var err error
 	for try := 0; try < Attempts; try++ {
@@ -71,11 +73,40 @@ func Refresh(ctx context.Context, c *hub.Client, old *dump.File, progress func(d
 // Again is the name Read's progress gets when it starts over.
 const Again = "(again)"
 
+// ReadBack reads the hub after the workspace's edits were applied to it:
+// the signals of the devices the edits changed are read again, the others'
+// kept.
+func (w *Workspace) ReadBack(ctx context.Context, c *hub.Client, progress func(done, total int, name string)) (*Workspace, error) {
+	stale := map[byte]bool{}
+	for _, d := range w.Config.Devices {
+		if w.DeviceState(d) == Edited {
+			stale[d.ID] = true
+		}
+	}
+	old := *w.Dump
+	old.Entities = nil
+	for _, e := range w.Dump.Entities {
+		if stale[e.ID] {
+			cp := *e
+			cp.Data = nil
+			e = &cp
+		}
+		old.Entities = append(old.Entities, e)
+	}
+	return Refresh(ctx, c, &old, progress)
+}
+
 // Same reports whether w and o hold the same configuration. The hub
 // changes some bytes on its own (a device's power state), so dumps can
 // differ where configurations do not.
 func (w *Workspace) Same(o *Workspace) bool {
 	return sameConfig(w.Config, o.Config)
+}
+
+// SameBase reports whether w and o were read from the same configuration,
+// whatever their edits.
+func (w *Workspace) SameBase(o *Workspace) bool {
+	return sameConfig(w.base, o.base)
 }
 
 func sameConfig(a, b *profile.Config) bool { return sameYAML(a, b) }

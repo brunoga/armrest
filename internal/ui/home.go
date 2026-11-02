@@ -10,6 +10,7 @@ import (
 
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/container"
+	"fyne.io/fyne/v2/dialog"
 	"fyne.io/fyne/v2/theme"
 	"fyne.io/fyne/v2/widget"
 
@@ -103,34 +104,64 @@ func (a *App) remember(h backend.Hub, w *workspace.Workspace) {
 // checkForChanges reads the hub again in the background, reusing what the
 // cached entry has, and updates s if the hub changed.
 func (a *App) checkForChanges(h backend.Hub, s *browseScreen, e *cache.Entry) {
+	a.checking = true
+	s.showChanges()
 	s.setStatus(true, fmt.Sprintf("Showing the hub as it was %s. Checking for changes…", ago(e.Saved, a.now())))
 	c := a.client
 	a.async(func() {
-		w, err := workspace.Refresh(context.Background(), c, e.Dump, nil)
+		// Every signal is read again: the hub keeps a command's record when
+		// its signal is rewritten, so the cache cannot tell which changed.
+		w, err := workspace.Read(context.Background(), c, nil)
 		fyne.Do(func() {
 			if a.client != c {
 				return // disconnected meanwhile
 			}
+			a.checking = false
+			s := a.browse
 			switch {
 			case err != nil:
 				s.setStatus(false, fmt.Sprintf("Showing the hub as it was %s: checking it for changes failed. %s", ago(e.Saved, a.now()), readFailure(err)))
-			case a.work.Changed():
-				// The user started editing: their edits stay. They were
-				// made on the cached copy, which Review says if it matters.
-				a.remember(h, w)
-				s.setStatus(false, "Checked the hub. Your changes are kept.")
-			case a.work.Same(w):
+				s.showChanges()
+				return
+			case a.work.Same(w) || (a.work.Changed() && a.work.SameBase(w)):
+				// Nothing changed on the hub: keep the edits, if any, on
+				// the fresh read.
+				w.Config = a.work.Config
 				a.work = w
 				a.remember(h, w)
 				s.setStatus(false, "Up to date.")
-			default:
+			case !a.work.Changed():
 				a.work = w
 				a.remember(h, w)
 				s.reload()
 				s.setStatus(false, "Updated with the hub's changes.")
+			default:
+				a.remember(h, w)
+				a.hubChangedUnderEdits(w)
 			}
+			s.showChanges()
 		})
 	})
+}
+
+// hubChangedUnderEdits asks what to do when the hub changed since it was
+// cached and the user has edits made on the cached copy.
+func (a *App) hubChangedUnderEdits(fresh *workspace.Workspace) {
+	d := dialog.NewCustomConfirm("The hub was changed elsewhere",
+		"Start over", "Keep my changes",
+		wrapped("Since this device last saw it, the hub was changed by another app. Your changes were made on the older copy, and writing them could undo those changes. Start over from the hub as it is now (your changes are lost), or keep them?"),
+		func(startOver bool) {
+			if startOver {
+				a.work = fresh
+				a.showBrowse(a.hub).setStatus(false, "Showing the hub as it is now.")
+				return
+			}
+			// The edits stay, now compared with the hub as it is.
+			fresh.Config = a.work.Config
+			a.work = fresh
+			a.showBrowse(a.hub).setStatus(false, "Your changes are kept. Review them carefully before applying.")
+		}, a.win)
+	d.Show()
 }
 
 // ago is how long before now t was, in words.
@@ -178,6 +209,8 @@ type browseScreen struct {
 	footer *fyne.Container
 	// changes offers to review the edits, when there are any.
 	changes *fyne.Container
+	review  *widget.Button
+	pending *widget.Label
 }
 
 // browseRow is a row of the list: a heading, an activity, a device, or
@@ -203,6 +236,7 @@ func (r browseRow) text() string {
 
 func (a *App) showBrowse(h backend.Hub) *browseScreen {
 	s := &browseScreen{app: a}
+	a.browse = s
 	a.win.SetContent(s.content(h))
 	return s
 }
@@ -292,11 +326,20 @@ func (s *browseScreen) selectDevice(name string) {
 
 // showChanges shows the pending-changes bar if the workspace has edits.
 func (s *browseScreen) showChanges() {
-	if s.app.work.Changed() {
-		s.changes.Show()
-	} else {
+	if !s.app.work.Changed() {
 		s.changes.Hide()
+		return
 	}
+	// Changes are planned against the hub as it is: not before the
+	// background check read it.
+	if s.app.checking {
+		s.review.Disable()
+		s.pending.SetText("You have changes that are not on the hub yet. Review them once the hub is checked.")
+	} else {
+		s.review.Enable()
+		s.pending.SetText("You have changes that are not on the hub yet.")
+	}
+	s.changes.Show()
 }
 
 // reload shows the workspace again after it changed, keeping the detail
@@ -366,7 +409,8 @@ func (s *browseScreen) content(h backend.Hub) fyne.CanvasObject {
 		case r.activity != nil:
 			s.split.show(r.activity.Name, activityView(r.activity))
 		case r.device != nil:
-			s.split.show(r.device.Name, deviceView(r.device, s.sender(r.device)))
+			d := r.device
+			s.split.show(d.Name, deviceView(d, s.sender(d), func() { s.app.showEditDevice(d.Name) }))
 		default:
 			s.list.Unselect(i)
 		}
@@ -388,10 +432,10 @@ func (s *browseScreen) content(h backend.Hub) fyne.CanvasObject {
 	s.footer = container.NewBorder(widget.NewSeparator(), nil, s.busy, nil, s.status)
 	s.footer.Hide()
 
-	review := widget.NewButtonWithIcon("Review changes", theme.DocumentIcon(), s.app.showReview)
-	review.Importance = widget.HighImportance
-	pending := wrapped("You have changes that are not on the hub yet.")
-	s.changes = container.NewBorder(widget.NewSeparator(), nil, nil, review, pending)
+	s.review = widget.NewButtonWithIcon("Review changes", theme.DocumentIcon(), s.app.showReview)
+	s.review.Importance = widget.HighImportance
+	s.pending = wrapped("")
+	s.changes = container.NewBorder(widget.NewSeparator(), nil, nil, container.NewCenter(s.review), s.pending)
 	s.showChanges()
 	return container.NewBorder(s.header(h), container.NewVBox(s.changes, s.footer), nil, nil, s.split)
 }

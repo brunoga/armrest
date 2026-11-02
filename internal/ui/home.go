@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
 
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/container"
@@ -13,6 +14,7 @@ import (
 	"github.com/brunoga/armrest/internal/backend"
 	"github.com/brunoga/armrest/internal/workspace"
 	"github.com/brunoga/sofabaton/profile"
+	"github.com/brunoga/sofabaton/session"
 )
 
 // showHome reads the connected hub, showing how far it got, then shows
@@ -28,9 +30,15 @@ func (a *App) showHome(h backend.Hub) {
 		cancel()
 		a.disconnect()
 	})
+	retry := widget.NewButtonWithIcon("Try again", theme.ViewRefreshIcon(), func() {
+		a.Close()
+		a.connect(h)
+	})
+	retry.Importance = widget.HighImportance
+	retry.Hide()
+	intro := wrapped("This takes a few seconds for each device and activity. Keep the app open until it is done.")
 	a.win.SetContent(column(container.NewPadded(container.NewVBox(
-		title, wrapped("This takes a few seconds for each device and activity."),
-		bar, step, container.NewHBox(cancelBtn)))))
+		title, intro, bar, step, container.NewHBox(retry, cancelBtn)))))
 
 	c := a.client
 	a.async(func() {
@@ -52,14 +60,27 @@ func (a *App) showHome(h backend.Hub) {
 			case errors.Is(err, context.Canceled):
 				// Cancel went back to the hubs already.
 			case err != nil:
-				step.SetText("Reading the hub failed: " + err.Error())
+				title.SetText("Could not read " + info.Name)
+				intro.Hide()
+				bar.Hide()
+				step.SetText(readFailure(err))
 				cancelBtn.SetText("Back")
+				cancelBtn.SetIcon(theme.NavigateBackIcon())
+				retry.Show()
 			default:
 				a.work = w
 				a.showBrowse(h)
 			}
 		})
 	})
+}
+
+// readFailure is why reading the hub failed, in words.
+func readFailure(err error) string {
+	if errors.Is(err, session.ErrClosed) || errors.Is(err, context.DeadlineExceeded) || errors.Is(err, io.EOF) {
+		return "The connection to the hub was lost. This happens when the device sleeps or leaves the Wi-Fi network while reading. Try again, and keep the app open until it is done."
+	}
+	return "Reading the hub failed: " + err.Error()
 }
 
 // browseScreen lists the activities and devices, and shows the one

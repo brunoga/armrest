@@ -242,10 +242,15 @@ drag-reorder lists.
       does not hold together is read again). The browse screen lists
       activities and devices and shows each read-only: beside the list
       on wide windows, one at a time with Back on phones.
-- [ ] Faster start: cache each hub's last dump on the device, show it at
-      once, and check the hub for changes in the background, fetching
-      command signals only for commands whose entry changed (measured on
-      the X2: lists 1 s, structure 13 s, 134 signals 19 s).
+- [x] Faster start: each hub's last dump is cached on the device and
+      shown at once; the hub is checked for changes in the background,
+      fetching command signals only for commands whose entry changed
+      (`dump.Refresh`): 14 s instead of 31 s on the X2, and nobody waits
+      for it. Writes never trust the cache: applying reads each device
+      and activity it changes from the hub. Later, maybe: if entity
+      records change with their contents, a 1 s check of the lists.
+- [x] A lost connection while reading (a phone that slept) is explained,
+      with Try again; it used to show an empty hub.
 - [ ] Phase 3: creating devices from scratch, then editing them. Edits
       change the workspace's config; Review applies it to a fresh
       simulated copy of the hub (`ApplyConfig`, by id) and lists what

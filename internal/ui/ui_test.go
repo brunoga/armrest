@@ -15,6 +15,7 @@ import (
 	"fyne.io/fyne/v2/widget"
 
 	"github.com/brunoga/armrest/internal/backend"
+	"github.com/brunoga/armrest/internal/cache"
 	"github.com/brunoga/armrest/internal/demo"
 	"github.com/brunoga/sofabaton/hub"
 	"github.com/brunoga/sofabaton/hubsim"
@@ -258,6 +259,76 @@ func TestReadFailure(t *testing.T) {
 	test.Tap(button(t, w, "Try again"))
 	if got := texts(w); !strings.Contains(got, "Activities (4)") {
 		t.Errorf("not read again:\n%s", got)
+	}
+}
+
+// A hub seen before shows at once from the cache, then is checked for
+// changes in the background.
+func TestCachedHub(t *testing.T) {
+	a := test.NewTempApp(t)
+	w := test.NewWindow(nil)
+	t.Cleanup(w.Close)
+	w.Resize(fyne.NewSize(720, 640))
+	renamed := false
+	back := backend.Backend{
+		Discover: func(context.Context) ([]backend.Hub, error) {
+			return []backend.Hub{{Name: "Lounge", Model: "X2", Firmware: 9, Addr: lounge}}, nil
+		},
+		Dial: func(ctx context.Context, _ netip.Addr) (*hub.Client, error) {
+			d, _ := demo.Dump()
+			m, err := d.Model()
+			if err != nil {
+				return nil, err
+			}
+			if renamed {
+				m.Activities[0].Name = "Movie Night"
+			}
+			return hub.Open(ctx, hubsim.Pipe(hubsim.FromModel(m)), hub.Options{})
+		},
+	}
+	u := New(w, back)
+	// Work runs when the test says, so the screen can be seen before the
+	// check is done.
+	var queue []func()
+	u.async = func(f func()) { queue = append(queue, f) }
+	run := func() {
+		for len(queue) > 0 {
+			f := queue[0]
+			queue = queue[1:]
+			f()
+		}
+	}
+	now := time.Date(2026, 11, 2, 9, 0, 0, 0, time.UTC)
+	u.now = func() time.Time { return now }
+	u.UseCache(&cache.Cache{Storage: a.Storage()})
+	t.Cleanup(u.Close)
+	u.Start()
+	run()
+
+	// First visit: read, then cached.
+	test.Tap(button(t, w, "Lounge (X2, 192.168.1.20)"))
+	run()
+	if got := texts(w); !strings.Contains(got, "Watch Google TV") {
+		t.Fatalf("first visit:\n%s", got)
+	}
+	test.Tap(button(t, w, "Disconnect"))
+	run()
+
+	// The hub changes; the next visit shows the cache at once.
+	renamed = true
+	now = now.Add(5 * time.Minute)
+	test.Tap(button(t, w, "Lounge (X2, 192.168.1.20)"))
+	queue[0]() // connect
+	queue = queue[1:]
+	got := texts(w)
+	if !strings.Contains(got, "Watch Google TV") || !strings.Contains(got, "as it was 5 minutes ago. Checking for changes") {
+		t.Fatalf("from the cache:\n%s", got)
+	}
+	assertScreens(t, w, "cached")
+	run()
+	got = texts(w)
+	if !strings.Contains(got, "Movie Night") || strings.Contains(got, "Watch Google TV") || !strings.Contains(got, "Updated with the hub's changes.") {
+		t.Errorf("after the check:\n%s", got)
 	}
 }
 

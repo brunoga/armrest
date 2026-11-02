@@ -8,8 +8,11 @@
 package workspace
 
 import (
+	"bytes"
 	"context"
 	"fmt"
+
+	"go.yaml.in/yaml/v3"
 
 	"github.com/brunoga/sofabaton/dump"
 	"github.com/brunoga/sofabaton/hub"
@@ -37,13 +40,20 @@ const Attempts = 2
 // one being read; the name is Again when a read that did not hold
 // together starts over. ctx cancels it between them.
 func Read(ctx context.Context, c *hub.Client, progress func(done, total int, name string)) (*Workspace, error) {
+	return Refresh(ctx, c, nil, progress)
+}
+
+// Refresh is Read for a hub read before into old (a cached dump): the
+// commands that did not change keep old's signals, which makes it about
+// twice as fast. A nil old reads everything.
+func Refresh(ctx context.Context, c *hub.Client, old *dump.File, progress func(done, total int, name string)) (*Workspace, error) {
 	var err error
 	for try := 0; try < Attempts; try++ {
 		if try > 0 && progress != nil {
 			progress(0, 1, Again)
 		}
 		var d *dump.File
-		if d, err = dump.ReadProgress(ctx, c, Tool, nil, progress); err != nil {
+		if d, err = dump.Refresh(ctx, c, old, Tool, nil, progress); err != nil {
 			return nil, err
 		}
 		var w *Workspace
@@ -56,6 +66,15 @@ func Read(ctx context.Context, c *hub.Client, progress func(done, total int, nam
 
 // Again is the name Read's progress gets when it starts over.
 const Again = "(again)"
+
+// Same reports whether w and o hold the same configuration. The hub
+// changes some bytes on its own (a device's power state), so dumps can
+// differ where configurations do not.
+func (w *Workspace) Same(o *Workspace) bool {
+	a, err1 := yaml.Marshal(w.Config)
+	b, err2 := yaml.Marshal(o.Config)
+	return err1 == nil && err2 == nil && bytes.Equal(a, b)
+}
 
 // FromDump is the workspace of a dump.
 func FromDump(ctx context.Context, d *dump.File) (*Workspace, error) {

@@ -12,6 +12,7 @@ import (
 	"fyne.io/fyne/v2/widget"
 
 	"github.com/brunoga/armrest/internal/backend"
+	"github.com/brunoga/armrest/internal/cache"
 	"github.com/brunoga/armrest/internal/workspace"
 	"github.com/brunoga/sofabaton/hub"
 )
@@ -28,6 +29,11 @@ type App struct {
 	// with fyne.Do. Tests run it in place.
 	async func(func())
 
+	// cache keeps each hub's last configuration; nil caches nothing.
+	cache *cache.Cache
+	// now is the time; tests fix it.
+	now func() time.Time
+
 	client *hub.Client
 	// work is the connected hub's configuration, once read.
 	work *workspace.Workspace
@@ -35,8 +41,12 @@ type App struct {
 
 // New returns the app for win.
 func New(win fyne.Window, back backend.Backend) *App {
-	return &App{win: win, back: back, async: func(f func()) { go f() }}
+	return &App{win: win, back: back, async: func(f func()) { go f() }, now: time.Now}
 }
+
+// UseCache keeps each hub's configuration in c, to show the hub at once
+// the next time.
+func (a *App) UseCache(c *cache.Cache) { a.cache = c }
 
 // Start shows the first screen and looks for hubs.
 func (a *App) Start() {

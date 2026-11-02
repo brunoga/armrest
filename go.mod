@@ -4,7 +4,8 @@ go 1.27.3
 
 require (
 	fyne.io/fyne/v2 v2.8.2
-	github.com/brunoga/sofabaton v0.1.1-0.20261102131327-f833dbf915a7
+	github.com/brunoga/sofabaton v0.1.1-0.20261102133358-ddca80643b2e
+	go.yaml.in/yaml/v3 v3.0.5
 )
 
 require (
@@ -37,7 +38,6 @@ require (
 	github.com/srwiley/rasterx v0.0.0-20220730225603-2ab79fcdd4ef // indirect
 	github.com/stretchr/testify v1.11.1 // indirect
 	github.com/yuin/goldmark v1.8.2 // indirect
-	go.yaml.in/yaml/v3 v3.0.5 // indirect
 	golang.org/x/image v0.24.0 // indirect
 	golang.org/x/net v0.61.0 // indirect
 	golang.org/x/sys v0.49.0 // indirect

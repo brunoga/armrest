@@ -118,7 +118,7 @@ func heading(title, sub string) fyne.CanvasObject {
 func section(title, empty string, objs []fyne.CanvasObject) fyne.CanvasObject {
 	if len(objs) == 0 {
 		l := wrapped(empty)
-		l.Importance = widget.LowImportance
+		l.TextStyle.Italic = true
 		objs = []fyne.CanvasObject{l}
 	}
 	return widget.NewCard(title, "", container.NewVBox(objs...))

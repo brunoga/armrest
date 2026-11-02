@@ -114,6 +114,11 @@ func (a *App) checkForChanges(h backend.Hub, s *browseScreen, e *cache.Entry) {
 			switch {
 			case err != nil:
 				s.setStatus(false, fmt.Sprintf("Showing the hub as it was %s: checking it for changes failed. %s", ago(e.Saved, a.now()), readFailure(err)))
+			case a.work.Changed():
+				// The user started editing: their edits stay. They were
+				// made on the cached copy, which Review says if it matters.
+				a.remember(h, w)
+				s.setStatus(false, "Checked the hub. Your changes are kept.")
 			case a.work.Same(w):
 				a.work = w
 				a.remember(h, w)
@@ -171,13 +176,17 @@ type browseScreen struct {
 	status *widget.Label
 	busy   *widget.Activity
 	footer *fyne.Container
+	// changes offers to review the edits, when there are any.
+	changes *fyne.Container
 }
 
-// browseRow is a row of the list: a heading, an activity or a device.
+// browseRow is a row of the list: a heading, an activity, a device, or
+// the row that adds a device.
 type browseRow struct {
 	heading  string
 	activity *profile.Activity
 	device   *profile.Device
+	add      bool
 }
 
 func (r browseRow) text() string {
@@ -186,6 +195,8 @@ func (r browseRow) text() string {
 		return r.activity.Name
 	case r.device != nil:
 		return r.device.Name
+	case r.add:
+		return "Add a device…"
 	}
 	return r.heading
 }
@@ -223,6 +234,45 @@ func (s *browseScreen) buildRows() {
 	for _, d := range cfg.Devices {
 		s.rows = append(s.rows, browseRow{device: d})
 	}
+	s.rows = append(s.rows, browseRow{add: true})
+}
+
+// state is how the row's device or activity differs from the hub's, in
+// words.
+func (s *browseScreen) state(r browseRow) string {
+	st := workspace.Unchanged
+	switch {
+	case r.activity != nil:
+		st = s.app.work.ActivityState(r.activity)
+	case r.device != nil:
+		st = s.app.work.DeviceState(r.device)
+	}
+	switch st {
+	case workspace.New:
+		return "New"
+	case workspace.Edited:
+		return "Edited"
+	}
+	return ""
+}
+
+// selectDevice shows the device named name.
+func (s *browseScreen) selectDevice(name string) {
+	for i, r := range s.rows {
+		if r.device != nil && r.device.Name == name {
+			s.list.Select(i)
+			return
+		}
+	}
+}
+
+// showChanges shows the pending-changes bar if the workspace has edits.
+func (s *browseScreen) showChanges() {
+	if s.app.work.Changed() {
+		s.changes.Show()
+	} else {
+		s.changes.Hide()
+	}
 }
 
 // reload shows the workspace again after it changed, keeping the detail
@@ -252,20 +302,26 @@ func (s *browseScreen) content(h backend.Hub) fyne.CanvasObject {
 			icon := widget.NewIcon(theme.MediaPlayIcon())
 			l := widget.NewLabel("")
 			l.Truncation = fyne.TextTruncateEllipsis
-			return container.NewBorder(nil, nil, icon, nil, l)
+			state := widget.NewLabel("")
+			state.TextStyle.Italic = true
+			return container.NewBorder(nil, nil, icon, state, l)
 		},
 		func(i widget.ListItemID, o fyne.CanvasObject) {
 			r := s.rows[i]
 			row := o.(*fyne.Container)
-			l, icon := row.Objects[0].(*widget.Label), row.Objects[1].(*widget.Icon)
+			l, icon, state := row.Objects[0].(*widget.Label), row.Objects[1].(*widget.Icon), row.Objects[2].(*widget.Label)
 			l.SetText(r.text())
 			l.TextStyle.Bold = r.heading != ""
+			state.SetText(s.state(r))
 			switch {
 			case r.activity != nil:
 				icon.SetResource(theme.MediaPlayIcon())
 				icon.Show()
 			case r.device != nil:
 				icon.SetResource(theme.ComputerIcon())
+				icon.Show()
+			case r.add:
+				icon.SetResource(theme.ContentAddIcon())
 				icon.Show()
 			default:
 				icon.Hide()
@@ -274,6 +330,11 @@ func (s *browseScreen) content(h backend.Hub) fyne.CanvasObject {
 		})
 	s.list.OnSelected = func(i widget.ListItemID) {
 		r := s.rows[i]
+		if r.add {
+			s.list.Unselect(i)
+			s.app.showAddDevice()
+			return
+		}
 		if r.heading == "" {
 			s.shown = &r
 		}
@@ -302,7 +363,13 @@ func (s *browseScreen) content(h backend.Hub) fyne.CanvasObject {
 	s.busy = widget.NewActivity()
 	s.footer = container.NewBorder(widget.NewSeparator(), nil, s.busy, nil, s.status)
 	s.footer.Hide()
-	return container.NewBorder(s.header(h), s.footer, nil, nil, s.split)
+
+	review := widget.NewButtonWithIcon("Review changes", theme.DocumentIcon(), s.app.showReview)
+	review.Importance = widget.HighImportance
+	pending := wrapped("You have changes that are not on the hub yet.")
+	s.changes = container.NewBorder(widget.NewSeparator(), nil, nil, review, pending)
+	s.showChanges()
+	return container.NewBorder(s.header(h), container.NewVBox(s.changes, s.footer), nil, nil, s.split)
 }
 
 func (s *browseScreen) header(h backend.Hub) fyne.CanvasObject {

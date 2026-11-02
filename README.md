@@ -22,6 +22,17 @@ Debian and Ubuntu: `sudo apt install gcc libgl1-mesa-dev xorg-dev libwayland-dev
 libxkbcommon-dev wayland-protocols`). See
 [Fyne's prerequisites](https://docs.fyne.io/started/).
 
+Each build is a single file that needs nothing beyond what its OS
+provides (CI checks this with `scripts/check-deps.sh`):
+
+- **Windows:** Windows' own DLLs only (MinGW's runtime is linked in).
+- **macOS:** system frameworks only. Apple does not allow fully static
+  programs.
+- **Linux:** the C library, OpenGL and the Wayland client library (X11
+  through OpenGL). OpenGL comes from the system's graphics driver, so no
+  OpenGL program can be fully static there.
+- **Android:** the system libraries every device has.
+
 For Android, CI builds an APK on every change (the `armrest-android`
 artifact of a CI run); install it with `adb install -r Armrest.apk`.
 

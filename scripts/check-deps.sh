@@ -4,11 +4,23 @@
 # libraries. Anything else (a MinGW runtime DLL, a Homebrew library) would
 # have to ship with the app.
 #
-# usage: check-deps.sh <binary>
+# usage: check-deps.sh <binary or .apk>
 set -euo pipefail
 bin=$1
 
-case "$(uname -s)" in
+os=$(uname -s)
+case "$bin" in *.apk) os=Android ;; esac
+
+case "$os" in
+Android)
+	# The app's native libraries may only need the NDK's stable system
+	# libraries, which every Android device has.
+	dir=$(mktemp -d)
+	trap 'rm -rf "$dir"' EXIT
+	unzip -q "$bin" 'lib/*' -d "$dir"
+	deps=$(for so in "$dir"/lib/*/*.so; do readelf -d "$so"; done | sed -n 's/.*Shared library: \[\(.*\)\]/\1/p' | sort -u)
+	allowed='^(libc|libm|libdl|liblog|libandroid|libEGL|libGLESv[123]|libGLESv1_CM|libvulkan|libz|libjnigraphics|libmediandk|libOpenSLES|libaaudio|libnativewindow)\.so$'
+	;;
 Linux)
 	# The libraries named in the binary itself; GLFW loads the optional
 	# ones (Xrandr, Xcursor, xkbcommon...) with dlopen when present.

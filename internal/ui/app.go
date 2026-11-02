@@ -9,6 +9,7 @@ import (
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/container"
 	"fyne.io/fyne/v2/dialog"
+	"fyne.io/fyne/v2/driver/desktop"
 	"fyne.io/fyne/v2/widget"
 
 	"github.com/brunoga/armrest/internal/backend"
@@ -31,6 +32,10 @@ type App struct {
 
 	// cache keeps each hub's last configuration; nil caches nothing.
 	cache *cache.Cache
+	// readAt is when the workspace's hub was read, and saved the edits
+	// cached with it.
+	readAt time.Time
+	saved  []byte
 	// now is the time; tests fix it.
 	now func() time.Time
 
@@ -56,6 +61,7 @@ func (a *App) UseCache(c *cache.Cache) { a.cache = c }
 
 // Start shows the first screen and looks for hubs.
 func (a *App) Start() {
+	a.shortcuts()
 	a.showHubs()
 }
 
@@ -67,6 +73,24 @@ func (a *App) Close() {
 	}
 	a.work = nil
 	a.checking = false
+	a.readAt, a.saved = time.Time{}, nil
+}
+
+// shortcuts are the window's keyboard shortcuts: undo and redo, on the
+// browse screen.
+func (a *App) shortcuts() {
+	c := a.win.Canvas()
+	on := func(f func(*browseScreen)) func(fyne.Shortcut) {
+		return func(fyne.Shortcut) {
+			if s := a.browse; s != nil && a.work != nil && a.win.Content() == s.root {
+				f(s)
+			}
+		}
+	}
+	undo, redo := on((*browseScreen).undo), on((*browseScreen).redo)
+	c.AddShortcut(&desktop.CustomShortcut{KeyName: fyne.KeyZ, Modifier: fyne.KeyModifierShortcutDefault}, undo)
+	c.AddShortcut(&desktop.CustomShortcut{KeyName: fyne.KeyZ, Modifier: fyne.KeyModifierShortcutDefault | fyne.KeyModifierShift}, redo)
+	c.AddShortcut(&desktop.CustomShortcut{KeyName: fyne.KeyY, Modifier: fyne.KeyModifierShortcutDefault}, redo)
 }
 
 // connect opens a client of h, with a progress dialog, and shows the home

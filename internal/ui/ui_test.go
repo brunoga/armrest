@@ -386,6 +386,62 @@ func TestCachedHubEdited(t *testing.T) {
 	}
 }
 
+// Edits are undone and redone from the browse screen, and outlive the
+// app: the next visit to the hub has them, checked against the hub.
+func TestUndoAndKeptEdits(t *testing.T) {
+	u, w, run, step, _, _ := cachedApp(t)
+	test.Tap(button(t, w, "Lounge (X2, 192.168.1.20)"))
+	run()
+	undo, redo := u.browse.undoBtn, u.browse.redoBtn
+	if !undo.Disabled() || !redo.Disabled() {
+		t.Fatal("undo or redo before any edit")
+	}
+	// As the activity editor's Delete does.
+	if err := u.work.RemoveActivity("Play PC"); err != nil {
+		t.Fatal(err)
+	}
+	u.backToBrowse()
+	undo, redo = u.browse.undoBtn, u.browse.redoBtn
+	if undo.Disabled() || !redo.Disabled() || listed(u, "Play PC") {
+		t.Fatal("after deleting")
+	}
+	test.Tap(undo)
+	if got := texts(w); !listed(u, "Play PC") || !strings.Contains(got, "Undone: deleting Play PC.") || u.browse.changes.Visible() {
+		t.Fatalf("after undoing:\n%s", got)
+	}
+	if !undo.Disabled() || redo.Disabled() {
+		t.Fatal("undo and redo after undoing")
+	}
+	test.Tap(redo)
+	if got := texts(w); listed(u, "Play PC") || !strings.Contains(got, "Redone: deleting Play PC.") || !u.browse.changes.Visible() {
+		t.Fatalf("after redoing:\n%s", got)
+	}
+
+	// The app is closed and opened again.
+	u.Close()
+	u.showHubs()
+	run()
+	test.Tap(button(t, w, "Lounge (X2, 192.168.1.20)"))
+	step() // connect, showing the cache
+	if got := texts(w); listed(u, "Play PC") || !u.browse.changes.Visible() {
+		t.Fatalf("the edits are not back:\n%s", got)
+	}
+	run()
+	if got := texts(w); listed(u, "Play PC") || !strings.Contains(got, "Up to date.") || button(t, w, "Review changes").Disabled() {
+		t.Fatalf("after the check:\n%s", got)
+	}
+}
+
+// listed reports whether the browse list has a row named name.
+func listed(u *App, name string) bool {
+	for _, r := range u.browse.rows {
+		if r.text() == name {
+			return true
+		}
+	}
+	return false
+}
+
 // A device added from a template is marked new, reviewed and applied,
 // then is on the hub.
 func TestAddDevice(t *testing.T) {

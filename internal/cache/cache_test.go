@@ -17,11 +17,11 @@ func TestCache(t *testing.T) {
 		t.Fatal("an entry before saving")
 	}
 	now := time.Date(2026, 11, 2, 9, 0, 0, 0, time.UTC)
-	if err := c.Save(d, now); err != nil {
+	if err := c.Save(Entry{Saved: now, Dump: d, Edits: []byte("devices: []\n")}); err != nil {
 		t.Fatal(err)
 	}
 	e := c.Load(d.Info.ID)
-	if e == nil || !e.Saved.Equal(now) || len(e.Dump.Entities) != len(d.Entities) {
+	if e == nil || !e.Saved.Equal(now) || len(e.Dump.Entities) != len(d.Entities) || string(e.Edits) != "devices: []\n" {
 		t.Fatalf("loaded %+v", e)
 	}
 	if _, err := e.Dump.Model(); err != nil {

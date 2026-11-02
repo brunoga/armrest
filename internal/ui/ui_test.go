@@ -332,6 +332,55 @@ func TestCachedHub(t *testing.T) {
 	}
 }
 
+// A device added from a template is marked new, reviewed and applied,
+// then is on the hub.
+func TestAddDevice(t *testing.T) {
+	u, w := newApp(t, backend.Hub{Name: "Lounge", Model: "X2", Firmware: 9, Addr: lounge})
+	test.Tap(button(t, w, "Lounge (X2, 192.168.1.20)"))
+	l := list(t, w)
+	l.Select(l.Length() - 1) // Add a device…
+	got := texts(w)
+	if !strings.Contains(got, "Add a device") || !strings.Contains(got, "Pick your device's model") {
+		t.Fatalf("not the add screen:\n%s", got)
+	}
+	var search *widget.Entry
+	walk(w, func(o fyne.CanvasObject) {
+		if e, ok := o.(*widget.Entry); ok && search == nil {
+			search = e
+		}
+	})
+	test.Type(search, "ugoos")
+	assertScreens(t, w, "add-device")
+	templates := list(t, w)
+	if templates.Length() != 1 {
+		t.Fatalf("%d templates match ugoos", templates.Length())
+	}
+	templates.Select(0)
+	test.Tap(button(t, w, "Add"))
+
+	got = texts(w)
+	for _, want := range []string{"Ugoos AM6B Plus", "New", "Review changes", "Added Ugoos AM6B Plus."} {
+		if !strings.Contains(got, want) {
+			t.Errorf("after adding: missing %q in:\n%s", want, got)
+		}
+	}
+	assertScreens(t, w, "device-added")
+
+	test.Tap(button(t, w, "Review changes"))
+	if got := texts(w); !strings.Contains(got, "Add device Ugoos AM6B Plus") || !strings.Contains(got, "Nothing has been written yet") {
+		t.Fatalf("review:\n%s", got)
+	}
+	assertScreens(t, w, "review")
+	test.Tap(button(t, w, "Apply to the hub"))
+	got = texts(w)
+	if !strings.Contains(got, "Your changes are on the hub.") || !strings.Contains(got, "Ugoos AM6B Plus") || strings.Contains(got, "\nNew\n") {
+		t.Errorf("after applying:\n%s", got)
+	}
+	if u.work.Changed() {
+		t.Error("changes still pending after applying")
+	}
+}
+
 func TestDemoHub(t *testing.T) {
 	_, w := newApp(t)
 	test.Tap(button(t, w, "Open the demo hub"))

@@ -124,6 +124,14 @@ func section(title, empty string, objs []fyne.CanvasObject) fyne.CanvasObject {
 	return widget.NewCard(title, "", container.NewVBox(objs...))
 }
 
+// card is a card whose title wraps, for titles that hold names.
+func card(title string, content fyne.CanvasObject) fyne.CanvasObject {
+	t := widget.NewLabelWithStyle(title, fyne.TextAlignLeading, fyne.TextStyle{Bold: true})
+	t.SizeName = theme.SizeNameSubHeadingText
+	t.Wrapping = fyne.TextWrapWord
+	return widget.NewCard("", "", container.NewVBox(t, content))
+}
+
 func subsection(title string, objs []fyne.CanvasObject) fyne.CanvasObject {
 	t := widget.NewLabelWithStyle(title, fyne.TextAlignLeading, fyne.TextStyle{Bold: true})
 	return container.NewVBox(append([]fyne.CanvasObject{t}, objs...)...)

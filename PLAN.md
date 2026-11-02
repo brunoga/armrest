@@ -251,6 +251,13 @@ drag-reorder lists.
       records change with their contents, a 1 s check of the lists.
 - [x] A lost connection while reading (a phone that slept) is explained,
       with Try again; it used to show an empty hub.
+- [x] Phase 3a: Review and Apply, and adding a device from a built-in
+      template. Review applies the edits to a simulated copy of the hub
+      and lists what that wrote; Apply makes the same writes on the hub
+      with progress (Stop between writes), then reads the hub back. New
+      and edited devices and activities are marked in the list. Checked
+      on the X2: a ZZ-test device added (31 writes, 1m38s) and deleted
+      (1m35s), each plan exactly that.
 - [ ] Phase 3: creating devices from scratch, then editing them. Edits
       change the workspace's config; Review applies it to a fresh
       simulated copy of the hub (`ApplyConfig`, by id) and lists what

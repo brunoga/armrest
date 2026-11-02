@@ -35,6 +35,8 @@ type App struct {
 	now func() time.Time
 
 	client *hub.Client
+	// hub is the hub client is connected to.
+	hub backend.Hub
 	// work is the connected hub's configuration, once read.
 	work *workspace.Workspace
 }
@@ -81,7 +83,7 @@ func (a *App) connect(h backend.Hub) {
 				return
 			}
 			a.Close()
-			a.client = c
+			a.client, a.hub = c, h
 			a.showHome(h)
 		})
 	})

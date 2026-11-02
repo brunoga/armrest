@@ -35,7 +35,10 @@ type App struct {
 	// readAt is when the workspace's hub was read, and saved the edits
 	// cached with it.
 	readAt time.Time
-	saved  []byte
+	// tab is the browse screen's tab shown last, shown again on coming
+	// back from an editor.
+	tab   int
+	saved []byte
 	// now is the time; tests fix it.
 	now func() time.Time
 
@@ -78,6 +81,7 @@ func (a *App) Close() {
 	a.work = nil
 	a.checking = false
 	a.readAt, a.saved = time.Time{}, nil
+	a.tab = hubTab
 }
 
 // shortcuts are the window's keyboard shortcuts: undo and redo, on the

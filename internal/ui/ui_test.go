@@ -18,8 +18,8 @@ import (
 	"github.com/brunoga/armrest/internal/cache"
 	"github.com/brunoga/armrest/internal/demo"
 	"github.com/brunoga/sofabaton/hub"
-	"github.com/brunoga/sofabaton/profile"
 	"github.com/brunoga/sofabaton/hubsim"
+	"github.com/brunoga/sofabaton/profile"
 	"github.com/brunoga/sofabaton/transport"
 	"github.com/brunoga/sofabaton/wire"
 )
@@ -170,16 +170,17 @@ func TestBrowse(t *testing.T) {
 	u, w := newApp(t, backend.Hub{Name: "Lounge", Model: "X2", Firmware: 9, Addr: lounge})
 	test.Tap(button(t, w, "Lounge (X2, 192.168.1.20)"))
 	got := texts(w)
-	for _, want := range []string{"X2 HUB", "X2, firmware 9, at 192.168.1.20", "Activities (4)", "Watch Google TV",
-		"Devices (3)", "Receiver", "Pick an activity or a device"} {
+	if !listed(u, "Watch Google TV") || !listed(u, "Receiver") {
+		t.Error("not listed")
+	}
+	for _, want := range []string{"X2 HUB", "X2, firmware 9, at 192.168.1.20", "Activities (4)", "Devices (3)", "Pick a device to see"} {
 		if !strings.Contains(got, want) {
 			t.Errorf("missing %q in:\n%s", want, got)
 		}
 	}
 	assertScreens(t, w, "browse")
 
-	l := list(t, w)
-	l.Select(1) // Watch Google TV
+	pickRow(t, u, "Watch Google TV")
 	got = texts(w)
 	for _, want := range []string{"When it starts", "When it ends", "Favorites", "Keys"} {
 		if !strings.Contains(got, want) {
@@ -200,41 +201,34 @@ func TestBrowse(t *testing.T) {
 
 	// On a phone, Back goes from the device to the list.
 	w.Resize(sizes[0].size)
-	test.Tap(button(t, w, "Back"))
-	if l.Visible() != true {
+	for _, o := range u.browse.devices.split.bar.Objects {
+		if b, ok := o.(*widget.Button); ok && b.Text == "Back" {
+			test.Tap(b)
+		}
+	}
+	if !u.browse.devices.list.Visible() {
 		t.Error("the list is not back")
 	}
 
-	menu(t, u, "Disconnect")
+	hubAction(t, u, "Disconnect")
 	if got := texts(w); !strings.Contains(got, "Hubs on your network") {
 		t.Errorf("not back at the hubs:\n%s", got)
 	}
 }
 
-// pickRow selects the browse list's row of that text.
+// pickRow shows the device or activity of that name, in its tab.
 func pickRow(t *testing.T, u *App, text string) {
 	t.Helper()
-	for i, r := range u.browse.rows {
-		if r.text() == text {
-			u.browse.list.Select(i)
-			return
+	for i, b := range []*browseList{u.browse.devices, u.browse.activities} {
+		for j, r := range b.rows {
+			if r.text() == text {
+				u.browse.tabs.SelectIndex(devicesTab + i)
+				b.list.Select(j)
+				return
+			}
 		}
 	}
 	t.Fatalf("no row %q", text)
-}
-
-func list(t *testing.T, w fyne.Window) *widget.List {
-	t.Helper()
-	var l *widget.List
-	walk(w, func(o fyne.CanvasObject) {
-		if x, ok := o.(*widget.List); ok {
-			l = x
-		}
-	})
-	if l == nil {
-		t.Fatal("no list")
-	}
-	return l
 }
 
 // A hub that stops answering while it is read (the phone slept, say) is
@@ -355,10 +349,10 @@ func cachedApp(t *testing.T) (u *App, w fyne.Window, run func(), step func(), re
 	// First visit: read, then cached.
 	test.Tap(button(t, w, "Lounge (X2, 192.168.1.20)"))
 	run()
-	if got := texts(w); !strings.Contains(got, "Watch Google TV") {
-		t.Fatalf("first visit:\n%s", got)
+	if !listed(u, "Watch Google TV") {
+		t.Fatalf("first visit:\n%s", texts(w))
 	}
-	menu(t, u, "Disconnect")
+	hubAction(t, u, "Disconnect")
 	run()
 	return u, w, run, step, renamed, now
 }
@@ -366,20 +360,20 @@ func cachedApp(t *testing.T) (u *App, w fyne.Window, run func(), step func(), re
 // A hub seen before shows at once from the cache, then is checked for
 // changes in the background.
 func TestCachedHub(t *testing.T) {
-	_, w, run, step, renamed, now := cachedApp(t)
+	u, w, run, step, renamed, now := cachedApp(t)
 	// The hub changes; the next visit shows the cache at once.
 	*renamed = true
 	*now = now.Add(5 * time.Minute)
 	test.Tap(button(t, w, "Lounge (X2, 192.168.1.20)"))
 	step() // connect
 	got := texts(w)
-	if !strings.Contains(got, "Watch Google TV") || !strings.Contains(got, "as it was 5 minutes ago. Checking for changes") {
+	if !listed(u, "Watch Google TV") || !strings.Contains(got, "as it was 5 minutes ago. Checking for changes") {
 		t.Fatalf("from the cache:\n%s", got)
 	}
 	assertScreens(t, w, "cached")
 	run()
 	got = texts(w)
-	if !strings.Contains(got, "Movie Night") || strings.Contains(got, "Watch Google TV") || !strings.Contains(got, "Updated with the hub's changes.") {
+	if !listed(u, "Movie Night") || listed(u, "Watch Google TV") || !strings.Contains(got, "Updated with the hub's changes.") {
 		t.Errorf("after the check:\n%s", got)
 	}
 }
@@ -406,7 +400,7 @@ func TestCachedHubEdited(t *testing.T) {
 	got := texts(w)
 	// The kept copy still has the activity's old name: applying would
 	// rename it back, which the list shows as an edit.
-	if !strings.Contains(got, "Your changes are kept") || !strings.Contains(got, "Blu-ray") || !strings.Contains(got, "Watch Google TV\nEdited") {
+	if !strings.Contains(got, "Your changes are kept") || !listed(u, "Blu-ray") || u.browse.state(browseRow{activity: u.work.Config.Activity("Watch Google TV")}) != "Edited" {
 		t.Errorf("after keeping:\n%s", got)
 	}
 	if button(t, w, "Review changes").Disabled() {
@@ -460,23 +454,20 @@ func TestUndoAndKeptEdits(t *testing.T) {
 	}
 }
 
-// menu picks the browse screen's menu item named label.
-func menu(t *testing.T, u *App, label string) {
+// hubAction taps the hub tab's button labelled label.
+func hubAction(t *testing.T, u *App, label string) {
 	t.Helper()
-	for _, it := range u.browse.menu.Items {
-		if it.Label == label {
-			it.Action()
-			return
-		}
-	}
-	t.Fatalf("no menu item %q", label)
+	u.browse.tabs.SelectIndex(hubTab)
+	test.Tap(button(t, u.win, label))
 }
 
 // listed reports whether the browse list has a row named name.
 func listed(u *App, name string) bool {
-	for _, r := range u.browse.rows {
-		if r.text() == name {
-			return true
+	for _, b := range []*browseList{u.browse.devices, u.browse.activities} {
+		for _, r := range b.rows {
+			if r.text() == name {
+				return true
+			}
 		}
 	}
 	return false
@@ -487,8 +478,7 @@ func listed(u *App, name string) bool {
 func TestAddDevice(t *testing.T) {
 	u, w := newApp(t, backend.Hub{Name: "Lounge", Model: "X2", Firmware: 9, Addr: lounge})
 	test.Tap(button(t, w, "Lounge (X2, 192.168.1.20)"))
-	l := list(t, w)
-	l.Select(l.Length() - 1) // Add a device…
+	pickRow(t, u, "Add a device…")
 	got := texts(w)
 	if !strings.Contains(got, "Add a device") || !strings.Contains(got, "Pick your device's model") {
 		t.Fatalf("not the add screen:\n%s", got)
@@ -536,8 +526,7 @@ func TestAddDevice(t *testing.T) {
 func TestScratchDevice(t *testing.T) {
 	u, w := newApp(t, backend.Hub{Name: "Lounge", Model: "X2", Firmware: 9, Addr: lounge})
 	test.Tap(button(t, w, "Lounge (X2, 192.168.1.20)"))
-	l := list(t, w)
-	l.Select(l.Length() - 1)
+	pickRow(t, u, "Add a device…")
 	test.Tap(button(t, w, "Start from scratch"))
 	if got := texts(w); !strings.Contains(got, "How does the device's remote send its codes?") {
 		t.Fatalf("not the scratch screen:\n%s", got)
@@ -580,7 +569,7 @@ func TestScratchDevice(t *testing.T) {
 func TestDemoHub(t *testing.T) {
 	_, w := newApp(t)
 	test.Tap(button(t, w, "Open the demo hub"))
-	if got := texts(w); !strings.Contains(got, "Demo hub: a simulated X2, firmware 9") {
+	if got := texts(w); !strings.Contains(got, "demo hub: a simulated X2, firmware 9") {
 		t.Errorf("not the demo hub:\n%s", got)
 	}
 }
@@ -838,4 +827,19 @@ func drawing(t *testing.T, u *App, keys profile.Buttons) {
 	p.refresh()
 	w.SetContent(container.NewVScroll(column(container.NewPadded(p.box))))
 	assertScreens(t, w, "keys")
+}
+
+// list is the last list on w.
+func list(t *testing.T, w fyne.Window) *widget.List {
+	t.Helper()
+	var l *widget.List
+	walk(w, func(o fyne.CanvasObject) {
+		if x, ok := o.(*widget.List); ok {
+			l = x
+		}
+	})
+	if l == nil {
+		t.Fatal("no list")
+	}
+	return l
 }

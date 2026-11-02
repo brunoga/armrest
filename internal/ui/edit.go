@@ -22,7 +22,7 @@ func (a *App) screen(title string, back func(), content fyne.CanvasObject) {
 	t.Truncation = fyne.TextTruncateEllipsis
 	bar := container.NewBorder(nil, widget.NewSeparator(),
 		widget.NewButtonWithIcon("Back", theme.NavigateBackIcon(), back), nil, t)
-	a.win.SetContent(container.NewBorder(bar, nil, nil, nil, content))
+	a.show(container.NewBorder(bar, nil, nil, nil, content), backTo(back))
 	// Wrapped text learns its height from its width: lay out again now
 	// that the widths are known.
 	content.Refresh()
@@ -192,7 +192,8 @@ func (a *App) applyPlan(p *workspace.Plan) {
 	note := wrapped("Keep the app open until it is done. Adding or deleting a device takes the hub a minute or two.")
 	ctx, cancel := context.WithCancel(context.Background())
 	stop := widget.NewButtonWithIcon("Stop", theme.MediaStopIcon(), cancel)
-	a.win.SetContent(column(container.NewPadded(container.NewVBox(title, note, bar, step, container.NewHBox(stop)))))
+	a.show(column(container.NewPadded(container.NewVBox(title, note, bar, step, container.NewHBox(stop)))), stay)
+	a.awake(true)
 
 	c, w, h := a.client, a.work, a.hub
 	a.async(func() {
@@ -232,16 +233,17 @@ func (a *App) readBack(h backend.Hub, old *workspace.Workspace, writeErr error) 
 	a.async(func() {
 		w, err := old.ReadBack(context.Background(), c, nil)
 		fyne.Do(func() {
+			a.awake(false)
 			if a.client != c {
 				return
 			}
 			if err != nil {
-				a.win.SetContent(column(container.NewPadded(container.NewVBox(
+				a.show(column(container.NewPadded(container.NewVBox(
 					wrapped("Reading the hub back failed: "+readFailure(err)),
 					container.NewHBox(widget.NewButtonWithIcon("Reconnect", theme.ViewRefreshIcon(), func() {
 						a.Close()
 						a.connect(h)
-					}))))))
+					}))))), backTo(a.disconnect))
 				return
 			}
 			a.work = w

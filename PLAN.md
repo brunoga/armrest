@@ -321,6 +321,11 @@ drag-reorder lists.
       bottom on phones, at the top elsewhere; it opens on Hub, and comes
       back from an editor to the tab it left. Undo, Redo and the changes
       to review are on every tab.
+- [x] Phase 6 (part): Back (Escape on desktop) goes back in the app:
+      out of an editor, from a device or activity to the list on phones,
+      to the hub's tab, and only then out of the app; it does nothing
+      while writing. The screen stays on while reading or writing the
+      hub.
 - [ ] Later: the profile library server (section 10).
 
 ## 10. The profile library server (later; not built yet)

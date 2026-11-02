@@ -6,6 +6,7 @@ import (
 	"net/netip"
 	"strings"
 	"testing"
+	"time"
 
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/container"
@@ -16,7 +17,9 @@ import (
 	"github.com/brunoga/armrest/internal/backend"
 	"github.com/brunoga/armrest/internal/demo"
 	"github.com/brunoga/sofabaton/hub"
+	"github.com/brunoga/sofabaton/hubsim"
 	"github.com/brunoga/sofabaton/transport"
+	"github.com/brunoga/sofabaton/wire"
 )
 
 var lounge = netip.MustParseAddr("192.168.1.20")
@@ -214,6 +217,48 @@ func list(t *testing.T, w fyne.Window) *widget.List {
 		t.Fatal("no list")
 	}
 	return l
+}
+
+// A hub that stops answering while it is read (the phone slept, say) is
+// explained, and Try again reads it again.
+func TestReadFailure(t *testing.T) {
+	test.NewTempApp(t)
+	w := test.NewWindow(nil)
+	t.Cleanup(w.Close)
+	w.Resize(fyne.NewSize(720, 640))
+	var dials int
+	back := backend.Backend{
+		Discover: func(context.Context) ([]backend.Hub, error) {
+			return []backend.Hub{{Name: "Lounge", Model: "X2", Firmware: 9, Addr: lounge}}, nil
+		},
+		Dial: func(ctx context.Context, _ netip.Addr) (*hub.Client, error) {
+			dials++
+			d, _ := demo.Dump()
+			m, err := d.Model()
+			if err != nil {
+				return nil, err
+			}
+			h := hubsim.FromModel(m)
+			if dials == 1 {
+				h.Handle(wire.FamReqButtons, func(wire.Frame) []wire.Frame { return nil })
+			}
+			return hub.Open(ctx, hubsim.Pipe(h), hub.Options{Timeout: 10 * time.Millisecond})
+		},
+	}
+	u := New(w, back)
+	u.async = func(f func()) { f() }
+	t.Cleanup(u.Close)
+	u.Start()
+
+	test.Tap(button(t, w, "Lounge (X2, 192.168.1.20)"))
+	if got := texts(w); !strings.Contains(got, "Could not read X2 HUB") || !strings.Contains(got, "connection to the hub was lost") {
+		t.Fatalf("no explanation:\n%s", got)
+	}
+	assertScreens(t, w, "read-failure")
+	test.Tap(button(t, w, "Try again"))
+	if got := texts(w); !strings.Contains(got, "Activities (4)") {
+		t.Errorf("not read again:\n%s", got)
+	}
 }
 
 func TestDemoHub(t *testing.T) {

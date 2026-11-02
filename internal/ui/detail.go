@@ -49,8 +49,8 @@ func activityView(a *profile.Activity) fyne.CanvasObject {
 }
 
 // deviceView shows a device: its commands, keys, power, inputs and
-// macros.
-func deviceView(d *profile.Device) fyne.CanvasObject {
+// macros. With send, each command has a Test button that sends it.
+func deviceView(d *profile.Device, send func(command string)) fyne.CanvasObject {
 	sub := d.Brand
 	if look := describeLook(d.Icon, d.Color); look != "" {
 		if sub != "" {
@@ -60,11 +60,22 @@ func deviceView(d *profile.Device) fyne.CanvasObject {
 	}
 	parts := []fyne.CanvasObject{heading(d.Name, sub)}
 
-	var cmds []string
+	var cmds []fyne.CanvasObject
 	for _, c := range d.Commands {
-		cmds = append(cmds, c.Name)
+		name := wrapped(c.Name)
+		if send == nil {
+			cmds = append(cmds, name)
+			continue
+		}
+		test := widget.NewButtonWithIcon("Test", theme.MediaPlayIcon(), func() { send(c.Name) })
+		cmds = append(cmds, container.NewBorder(nil, nil, nil, test, name))
 	}
-	parts = append(parts, section(fmt.Sprintf("Commands (%d)", len(cmds)), "No commands.", lines(cmds)))
+	if send != nil && len(cmds) > 0 {
+		hint := wrapped("Test sends a command from the hub, to check that the device responds.")
+		hint.TextStyle.Italic = true
+		cmds = append([]fyne.CanvasObject{hint}, cmds...)
+	}
+	parts = append(parts, section(fmt.Sprintf("Commands (%d)", len(d.Commands)), "No commands.", cmds))
 	parts = append(parts, keysSection(d.Buttons))
 
 	var power []fyne.CanvasObject

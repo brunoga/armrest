@@ -256,6 +256,30 @@ func (s *browseScreen) state(r browseRow) string {
 	return ""
 }
 
+// sender sends d's commands from the hub, or is nil while d is not on
+// the hub.
+func (s *browseScreen) sender(d *profile.Device) func(string) {
+	if s.app.work.DeviceState(d) == workspace.New {
+		return nil
+	}
+	return func(command string) {
+		w, c := s.app.work, s.app.client
+		s.setStatus(true, fmt.Sprintf("Sending %s…", command))
+		s.app.async(func() {
+			ctx, cancel := context.WithTimeout(context.Background(), ConnectTimeout)
+			defer cancel()
+			err := w.Send(ctx, c, d.Name, command)
+			fyne.Do(func() {
+				if err != nil {
+					s.setStatus(false, fmt.Sprintf("Could not send %s: %v", command, err))
+					return
+				}
+				s.setStatus(false, fmt.Sprintf("Sent %s. Did %s respond?", command, d.Name))
+			})
+		})
+	}
+}
+
 // selectDevice shows the device named name.
 func (s *browseScreen) selectDevice(name string) {
 	for i, r := range s.rows {
@@ -342,7 +366,7 @@ func (s *browseScreen) content(h backend.Hub) fyne.CanvasObject {
 		case r.activity != nil:
 			s.split.show(r.activity.Name, activityView(r.activity))
 		case r.device != nil:
-			s.split.show(r.device.Name, deviceView(r.device))
+			s.split.show(r.device.Name, deviceView(r.device, s.sender(r.device)))
 		default:
 			s.list.Unselect(i)
 		}

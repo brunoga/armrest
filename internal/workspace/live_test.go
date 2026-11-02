@@ -161,6 +161,11 @@ func TestLiveAddDevice(t *testing.T) {
 	}
 	e.Commands[2].Code = "0x7F"
 	e.Keys["Red"] = profile.Key{Short: e.Commands[3].Name}
+	// And clear one.
+	if _, ok := e.Keys["Home"]; !ok {
+		t.Fatalf("the template binds no Home: %v", e.Keys)
+	}
+	delete(e.Keys, "Home")
 	if err := w.SaveDevice(e); err != nil {
 		t.Fatal(err)
 	}

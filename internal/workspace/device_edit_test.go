@@ -3,6 +3,7 @@ package workspace
 import (
 	"context"
 	"errors"
+	"slices"
 	"strings"
 	"testing"
 
@@ -159,8 +160,8 @@ func TestReadBackRecoded(t *testing.T) {
 	}
 }
 
-// Clearing a key of a device the hub has is warned of: it stays.
-func TestKeptKeys(t *testing.T) {
+// Clearing a key of a device the hub has clears it.
+func TestClearKey(t *testing.T) {
 	w := demoWorkspace(t)
 	name := "Projector/Google TV"
 	e, _ := w.EditDevice(name)
@@ -175,12 +176,8 @@ func TestKeptKeys(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	var warned bool
-	for _, c := range p.Changes {
-		warned = warned || c.Warning && strings.Contains(c.Title, "keeps what OK does")
-	}
-	if !warned {
-		t.Errorf("no warning:\n%s", titles(p))
+	if len(p.Changes) != 1 || p.Changes[0].Warning || !slices.Contains(p.Changes[0].Details, "button      OK unbound") {
+		t.Fatalf("plan:\n%s", titles(p))
 	}
 }
 

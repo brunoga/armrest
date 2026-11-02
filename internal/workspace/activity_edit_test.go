@@ -127,4 +127,3 @@ func TestSaveActivityProblems(t *testing.T) {
 		t.Error("a failed save changed the configuration")
 	}
 }
-

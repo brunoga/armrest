@@ -278,6 +278,33 @@ func TestReadFailure(t *testing.T) {
 	}
 }
 
+// TestReading is the screen before the hub's first answer: the bar at
+// nothing, and the line under it sweeping.
+func TestReading(t *testing.T) {
+	u, w := newApp(t, backend.Hub{Name: "Lounge", Model: "X2", Firmware: 9, Addr: lounge})
+	// Connect, but not read.
+	calls := 0
+	u.async = func(f func()) {
+		if calls++; calls == 1 {
+			f()
+		}
+	}
+	test.Tap(button(t, w, "Lounge (X2, 192.168.1.20)"))
+	var p *pulse
+	walk(w, func(o fyne.CanvasObject) {
+		if o, ok := o.(*pulse); ok {
+			p = o
+		}
+	})
+	if p == nil || !p.Visible() {
+		t.Fatal("no line sweeping")
+	}
+	// Still, halfway, for the pictures.
+	p.anim.Stop()
+	p.sweep(0.5)
+	assertScreens(t, w, "reading")
+}
+
 // cachedApp is the app with a cache, whose work runs when the test calls
 // run. The hub's first activity is renamed when *renamed is set.
 func cachedApp(t *testing.T) (u *App, w fyne.Window, run func(), step func(), renamed *bool, now *time.Time) {

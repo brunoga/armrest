@@ -46,14 +46,12 @@ func (a *App) showHome(h backend.Hub) {
 
 	title := widget.NewLabelWithStyle("Reading "+info.Name, fyne.TextAlignLeading, fyne.TextStyle{Bold: true})
 	title.SizeName = theme.SizeNameHeadingText
-	// The bar moves on its own until the hub says how much there is
-	// (its first answer takes a few seconds), and the spinner shows the
-	// read is alive while each device takes its time.
+	// The hub's first answers take a few seconds before the bar moves:
+	// the line under it shows the read is alive meanwhile, and while each
+	// device takes its time.
 	bar := widget.NewProgressBar()
-	bar.Hide()
-	waiting := widget.NewProgressBarInfinite()
-	spin := widget.NewActivity()
-	spin.Start()
+	alive := newPulse()
+	alive.Start()
 	step := wrapped("Asking the hub what it has…")
 	ctx, cancel := context.WithCancel(context.Background())
 	cancelBtn := widget.NewButtonWithIcon("Cancel", theme.CancelIcon(), func() {
@@ -68,18 +66,13 @@ func (a *App) showHome(h backend.Hub) {
 	retry.Hide()
 	intro := wrapped("This takes a few seconds for each device and activity. Keep the app open until it is done.")
 	a.win.SetContent(column(container.NewPadded(container.NewVBox(
-		title, intro, waiting, bar, container.NewBorder(nil, nil, spin, nil, step), container.NewHBox(retry, cancelBtn)))))
+		title, intro, bar, alive, step, container.NewHBox(retry, cancelBtn)))))
 
 	c := a.client
 	a.async(func() {
 		defer cancel()
 		w, err := workspace.Read(ctx, c, func(done, total int, name string) {
 			fyne.Do(func() {
-				if !bar.Visible() {
-					waiting.Stop()
-					waiting.Hide()
-					bar.Show()
-				}
 				bar.SetValue(float64(done) / float64(max(total, 1)))
 				switch name {
 				case "":
@@ -91,8 +84,7 @@ func (a *App) showHome(h backend.Hub) {
 			})
 		})
 		fyne.Do(func() {
-			waiting.Stop()
-			spin.Stop()
+			alive.Stop()
 			switch {
 			case errors.Is(err, context.Canceled):
 				// Cancel went back to the hubs already.
@@ -100,8 +92,6 @@ func (a *App) showHome(h backend.Hub) {
 				title.SetText("Could not read " + info.Name)
 				intro.Hide()
 				bar.Hide()
-				waiting.Hide()
-				spin.Hide()
 				step.SetText(readFailure(err))
 				cancelBtn.SetText("Back")
 				cancelBtn.SetIcon(theme.NavigateBackIcon())

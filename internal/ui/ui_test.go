@@ -776,6 +776,9 @@ func TestKeyPad(t *testing.T) {
 	var free, set string
 	for _, row := range remoteRows {
 		for _, k := range row {
+			if k == "" {
+				continue
+			}
 			if _, ok := d.Buttons[k]; ok {
 				set = k
 			} else if free == "" {

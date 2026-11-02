@@ -15,19 +15,26 @@ import (
 	"github.com/brunoga/sofabaton/record"
 )
 
-// remoteRows are the remote's keys as the drawing groups them, top to
-// bottom: power and navigation, volume and channels, playback, the color
-// keys, then A to C and the numbers (which the X1 remotes lack).
+// remoteRows are the remote's keys as on the X2, top to bottom ("" is
+// a gap): power over the screen, the ring around OK, then Back, Home and
+// Menu; volume and channels each side of Guide and Mute; playback; the
+// color keys; A to C.
 var remoteRows = [][]string{
-	{"Power", "Home", "Menu"},
-	{"Back", "Up", "Exit"},
+	{"", "Power", ""},
+	{"", "Up", ""},
 	{"Left", "OK", "Right"},
-	{"Guide", "Down", "DVR"},
-	{"Vol+", "Mute", "Ch+"},
-	{"Vol-", "Play", "Ch-"},
-	{"Rewind", "Pause", "Forward"},
+	{"", "Down", ""},
+	{"Back", "Home", "Menu"},
+	{"Vol+", "Guide", "Ch+"},
+	{"Vol-", "Mute", "Ch-"},
+	{"Rewind", "Play", "Forward"},
+	{"DVR", "Pause", "Exit"},
 	{"Red", "Green", "Yellow", "Blue"},
 	{"A", "B", "C"},
+}
+
+// numberRows are the number keys, which the remote shows on its screen.
+var numberRows = [][]string{
 	{"1", "2", "3"},
 	{"4", "5", "6"},
 	{"7", "8", "9"},
@@ -69,23 +76,31 @@ func newKeyPad(win fyne.Window, model string, keys profile.Buttons, picker func(
 		}
 	}
 	x1 := strings.HasPrefix(strings.ToUpper(model), "X1")
-	rows := container.NewVBox()
-	for _, row := range remoteRows {
-		grid := container.NewGridWithColumns(len(row))
-		shown := false
-		for _, k := range row {
-			b, _ := record.ParseButton(k)
-			if x1 && b.X2Only() && p.row(k) == nil {
-				grid.Add(layout.NewSpacer())
-				continue
+	grids := func(rows [][]string) *fyne.Container {
+		out := container.NewVBox()
+		for _, row := range rows {
+			grid := container.NewGridWithColumns(len(row))
+			shown := false
+			for _, k := range row {
+				b, _ := record.ParseButton(k)
+				if k == "" || x1 && b.X2Only() && p.row(k) == nil {
+					grid.Add(layout.NewSpacer())
+					continue
+				}
+				p.buttons[k] = widget.NewButton(k, func() { p.open(k) })
+				grid.Add(p.buttons[k])
+				shown = true
 			}
-			p.buttons[k] = widget.NewButton(k, func() { p.open(k) })
-			grid.Add(p.buttons[k])
-			shown = true
+			if shown {
+				out.Add(grid)
+			}
 		}
-		if shown {
-			rows.Add(grid)
-		}
+		return out
+	}
+	rows := grids(remoteRows)
+	if numbers := grids(numberRows); len(numbers.Objects) > 0 {
+		rows.Add(widget.NewLabelWithStyle("Number keys, on the remote's screen", fyne.TextAlignCenter, fyne.TextStyle{Italic: true}))
+		rows.Add(numbers)
 	}
 	p.box = container.New(&centerLayout{width: PadWidth}, container.NewVBox(rows, p.list))
 	p.refresh()
@@ -176,7 +191,7 @@ func (p *keyPad) refresh() {
 // drawingOrder is the keys of bs as the drawing has them, row by row.
 func drawingOrder(bs profile.Buttons) []string {
 	var out []string
-	for _, row := range remoteRows {
+	for _, row := range append(remoteRows, numberRows...) {
 		for _, k := range row {
 			if _, ok := bs[k]; ok {
 				out = append(out, k)

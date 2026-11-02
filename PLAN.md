@@ -258,7 +258,14 @@ drag-reorder lists.
       and edited devices and activities are marked in the list. Checked
       on the X2: a ZZ-test device added (31 writes, 1m38s) and deleted
       (1m35s), each plan exactly that.
-- [ ] Phase 3: creating devices from scratch, then editing them. Edits
+- [x] Phase 3b: a device from scratch: name and brand, the IR protocol
+      (NEC, Denon's two) and its parameters, commands as name and code
+      (suggested names), power on and off; commands named like a key go
+      on it (Volume Up on Vol+). Problems are said in words, at the
+      field.
+- [ ] Phase 3c: "send now" to test each command of a device on the hub,
+      then editing devices (rename, commands, keys, power, inputs,
+      macros, icon and color), and deleting them. Edits
       change the workspace's config; Review applies it to a fresh
       simulated copy of the hub (`ApplyConfig`, by id) and lists what
       that did, which is exactly what Apply will do to the hub, with a

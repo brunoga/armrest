@@ -21,9 +21,11 @@ linters:
         - fmt.Fprintln
     gosec:
       excludes:
-        # G302 and G306 want files written 0600 or less. What the app
-        # writes (workspaces, dumps) is the user's to read and share, so it
-        # gets the usual 0666 less the umask, as os.Create does.
+        # G301, G302 and G306 want directories 0750 and files 0600 or
+        # less. What the app writes (workspaces, dumps, its cache) is the
+        # user's, in the user's or the app's own storage, so it gets the
+        # usual 0777 and 0666 less the umask, as os.Mkdir and os.Create do.
+        - G301
         - G302
         - G306
     staticcheck:

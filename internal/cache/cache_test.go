@@ -4,14 +4,11 @@ import (
 	"testing"
 	"time"
 
-	"fyne.io/fyne/v2/test"
-
 	"github.com/brunoga/armrest/internal/demo"
 )
 
 func TestCache(t *testing.T) {
-	a := test.NewTempApp(t)
-	c := Cache{Storage: a.Storage()}
+	c := Cache{Dir: t.TempDir()}
 	d, err := demo.Dump()
 	if err != nil {
 		t.Fatal(err)
@@ -32,5 +29,8 @@ func TestCache(t *testing.T) {
 	}
 	if err := c.Forget(d.Info.ID); err != nil || c.Load(d.Info.ID) != nil {
 		t.Errorf("forget: %v", err)
+	}
+	if c.Load("../x") != nil || c.Forget("../x") == nil {
+		t.Error("a path as a hub id")
 	}
 }

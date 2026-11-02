@@ -21,7 +21,7 @@ func main() {
 	w := a.NewWindow("Armrest")
 	w.Resize(fyne.NewSize(720, 640))
 	u := ui.New(w, backend.Network())
-	u.UseCache(&cache.Cache{Storage: a.Storage()})
+	u.UseCache(&cache.Cache{Dir: a.Storage().RootURI().Path()})
 	w.SetOnClosed(u.Close)
 	u.Start()
 	w.ShowAndRun()

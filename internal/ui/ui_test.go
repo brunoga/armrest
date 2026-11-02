@@ -265,7 +265,7 @@ func TestReadFailure(t *testing.T) {
 // A hub seen before shows at once from the cache, then is checked for
 // changes in the background.
 func TestCachedHub(t *testing.T) {
-	a := test.NewTempApp(t)
+	test.NewTempApp(t)
 	w := test.NewWindow(nil)
 	t.Cleanup(w.Close)
 	w.Resize(fyne.NewSize(720, 640))
@@ -300,7 +300,7 @@ func TestCachedHub(t *testing.T) {
 	}
 	now := time.Date(2026, 11, 2, 9, 0, 0, 0, time.UTC)
 	u.now = func() time.Time { return now }
-	u.UseCache(&cache.Cache{Storage: a.Storage()})
+	u.UseCache(&cache.Cache{Dir: t.TempDir()})
 	t.Cleanup(u.Close)
 	u.Start()
 	run()

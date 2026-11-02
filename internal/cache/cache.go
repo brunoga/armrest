@@ -3,13 +3,14 @@
 package cache
 
 import (
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
+	"os"
+	"path/filepath"
 	"time"
-
-	"fyne.io/fyne/v2"
 
 	"github.com/brunoga/sofabaton/dump"
 )
@@ -20,17 +21,23 @@ type Entry struct {
 	Dump  *dump.File `json:"dump"`
 }
 
-// Cache stores entries in an app's storage, one file per hub id.
+// Cache stores entries in a directory (the app's storage), one file per
+// hub id.
 type Cache struct {
-	Storage fyne.Storage
+	Dir string
 }
 
-func name(hubID string) string { return "hub-" + hubID + ".json" }
+func (c Cache) path(hubID string) string {
+	return filepath.Join(c.Dir, "hub-"+hubID+".json")
+}
 
 // Load is the hub's entry, or nil if there is none or it cannot be read
 // (a cache is only ever a shortcut).
 func (c Cache) Load(hubID string) *Entry {
-	r, err := c.Storage.Open(name(hubID))
+	if !validID(hubID) {
+		return nil
+	}
+	r, err := os.Open(c.path(hubID))
 	if err != nil {
 		return nil
 	}
@@ -44,25 +51,45 @@ func (c Cache) Load(hubID string) *Entry {
 
 // Save stores d as the hub's entry, read now.
 func (c Cache) Save(d *dump.File, now time.Time) error {
-	if d == nil || d.Info.ID == "" {
+	if d == nil || !validID(d.Info.ID) {
 		return errors.New("cache: a dump without a hub id")
 	}
-	// Save overwrites, Create makes a new file; neither does both.
-	w, err := c.Storage.Save(name(d.Info.ID))
-	if err != nil {
-		w, err = c.Storage.Create(name(d.Info.ID))
+	if err := os.MkdirAll(c.Dir, 0o777); err != nil {
+		return fmt.Errorf("cache: %w", err)
 	}
+	// Written aside and renamed, so a crash never leaves half an entry.
+	tmp, err := os.CreateTemp(c.Dir, "hub-*.tmp")
 	if err != nil {
 		return fmt.Errorf("cache: %w", err)
 	}
-	if err := json.NewEncoder(w).Encode(Entry{Saved: now, Dump: d}); err != nil {
-		_ = w.Close()
+	defer func() { _ = os.Remove(tmp.Name()) }()
+	if err := json.NewEncoder(tmp).Encode(Entry{Saved: now, Dump: d}); err != nil {
+		_ = tmp.Close()
 		return fmt.Errorf("cache: %w", err)
 	}
-	return w.Close()
+	if err := tmp.Close(); err != nil {
+		return fmt.Errorf("cache: %w", err)
+	}
+	if err := os.Rename(tmp.Name(), c.path(d.Info.ID)); err != nil {
+		return fmt.Errorf("cache: %w", err)
+	}
+	return nil
 }
 
 // Forget removes the hub's entry.
 func (c Cache) Forget(hubID string) error {
-	return c.Storage.Remove(name(hubID))
+	if !validID(hubID) {
+		return errors.New("cache: not a hub id")
+	}
+	return os.Remove(c.path(hubID))
+}
+
+// validID reports whether id is a hub id (hex), so it is safe in a file
+// name.
+func validID(id string) bool {
+	if id == "" || len(id) > 64 {
+		return false
+	}
+	_, err := hex.DecodeString(id)
+	return err == nil
 }

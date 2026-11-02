@@ -52,9 +52,9 @@ func (w *Workspace) EditActivity(name string) (ActivityEdit, error) {
 	}
 	e := ActivityEdit{
 		Original: a.Name, Name: a.Name, Icon: a.Icon, Color: a.Color,
-		Devices:  slices.Clone(a.Devices),
-		Keys:     profile.Buttons{},
-		PowerOn:  slices.Clone(a.PowerOn), PowerOff: slices.Clone(a.PowerOff),
+		Devices: slices.Clone(a.Devices),
+		Keys:    profile.Buttons{},
+		PowerOn: slices.Clone(a.PowerOn), PowerOff: slices.Clone(a.PowerOff),
 		Favorites: slices.Clone([]string(a.Favorites)),
 	}
 	for k, v := range a.Buttons {

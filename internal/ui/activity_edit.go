@@ -561,8 +561,8 @@ func (ed *activityEditor) edit() workspace.ActivityEdit {
 	e := workspace.ActivityEdit{
 		Original: ed.e.Original, Name: ed.name.Text,
 		Icon: parseIcon(ed.icon.Selected), Color: parseColor(ed.color.Selected),
-		Keys:     profile.Buttons{},
-		PowerOn:  ed.powerOn.steps(), PowerOff: ed.powerOff.steps(),
+		Keys:    profile.Buttons{},
+		PowerOn: ed.powerOn.steps(), PowerOff: ed.powerOff.steps(),
 	}
 	for _, m := range ed.members {
 		e.Devices = append(e.Devices, profile.Member{Device: m.device.Selected, Input: pick(m.input)})

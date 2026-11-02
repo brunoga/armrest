@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"regexp"
-	"sort"
 	"strconv"
 	"strings"
 
@@ -43,40 +42,7 @@ func (w *Workspace) Plan(ctx context.Context) (*Plan, error) {
 	if err := profile.ApplyConfig(ctx, sim, w.Config, applyOptions(r.line)); err != nil {
 		return nil, fmt.Errorf("workspace: %w", err)
 	}
-	p := r.plan()
-	p.Changes = append(p.Changes, w.keptKeys()...)
-	return p, nil
-}
-
-// keptKeys warns of the keys cleared on devices the hub has: the hub
-// cannot clear a device's key yet (the frame that does it on an activity
-// deletes a command on a device), so they stay as they are.
-func (w *Workspace) keptKeys() []Change {
-	var out []Change
-	for _, d := range w.Config.Devices {
-		if d.ID == 0 {
-			continue
-		}
-		for _, b := range w.base.Devices {
-			if b.ID != d.ID {
-				continue
-			}
-			var kept []string
-			for k := range b.Buttons {
-				if _, ok := d.Buttons[k]; !ok {
-					kept = append(kept, k)
-				}
-			}
-			if len(kept) > 0 {
-				sort.Strings(kept)
-				out = append(out, Change{
-					Title:   fmt.Sprintf("%s keeps what %s does: clearing a device's key is not possible yet", d.Name, strings.Join(kept, ", ")),
-					Warning: true,
-				})
-			}
-		}
-	}
-	return out
+	return r.plan(), nil
 }
 
 // Apply writes the edits to the hub c is connected to, calling progress

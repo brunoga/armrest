@@ -219,7 +219,7 @@ func (a *App) applyPlan(p *workspace.Plan) {
 func (a *App) readBack(h backend.Hub, old *workspace.Workspace, writeErr error) {
 	c := a.client
 	a.async(func() {
-		w, err := workspace.Refresh(context.Background(), c, old.Dump, nil)
+		w, err := old.ReadBack(context.Background(), c, nil)
 		fyne.Do(func() {
 			if a.client != c {
 				return

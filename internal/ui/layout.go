@@ -21,23 +21,5 @@ const ReadableWidth = 720
 // column centers o at most ReadableWidth wide, using the full width of
 // narrower windows.
 func column(o fyne.CanvasObject) fyne.CanvasObject {
-	return container.New(columnLayout{}, o)
-}
-
-type columnLayout struct{}
-
-func (columnLayout) Layout(objs []fyne.CanvasObject, size fyne.Size) {
-	w := min(size.Width, ReadableWidth)
-	for _, o := range objs {
-		o.Resize(fyne.NewSize(w, size.Height))
-		o.Move(fyne.NewPos((size.Width-w)/2, 0))
-	}
-}
-
-func (columnLayout) MinSize(objs []fyne.CanvasObject) fyne.Size {
-	var s fyne.Size
-	for _, o := range objs {
-		s = s.Max(o.MinSize())
-	}
-	return s
+	return container.New(&centerLayout{width: ReadableWidth}, o)
 }

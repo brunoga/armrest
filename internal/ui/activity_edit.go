@@ -40,9 +40,7 @@ type activityEditor struct {
 	icon, color  *widget.Select
 	members      []*memberRow
 	memberList   *fyne.Container
-	keys         []*keyRow
-	keyList      *fyne.Container
-	addKey       *widget.Select
+	pad          *keyPad
 	powerOn      *stepsEditor
 	powerOff     *stepsEditor
 	macros       []*actMacroBox
@@ -140,24 +138,12 @@ func (ed *activityEditor) content() fyne.CanvasObject {
 		wrapped("The devices the activity uses, and the input each is switched to."),
 		ed.memberList, container.NewHBox(addDevice)))
 
-	ed.keyList = container.NewVBox()
-	for _, k := range keyNames(e.Keys) {
-		ed.addKeyRow(k, e.Keys[k])
-	}
-	ed.addKey = widget.NewSelect(nil, func(k string) {
-		if k == "" {
-			return
-		}
-		ed.addKeyRow(k, profile.Key{})
-		ed.addKey.ClearSelected()
-		ed.refreshKeyChoices()
-		ed.refresh()
-	})
-	ed.addKey.PlaceHolder = "Set another key…"
-	ed.refreshKeyChoices()
+	ed.pad = newKeyPad(ed.app.win, ed.app.work.Dump.Info.Model, e.Keys, func(selected string) *widget.Select {
+		return ed.picker(&ed.keyPickers, selected)
+	}, ed.refresh)
 	keys := widget.NewCard("Keys", "", container.NewVBox(
 		wrapped("What the remote's keys do during the activity."),
-		ed.keyList, ed.addKey))
+		ed.pad.box))
 
 	ed.powerOn = ed.newSteps(e.PowerOn, true, true)
 	ed.powerOff = ed.newSteps(e.PowerOff, true, false)
@@ -254,6 +240,9 @@ func (ed *activityEditor) refresh() {
 		}
 		m.input.Refresh()
 	}
+	if ed.pad != nil {
+		ed.pad.refresh()
+	}
 }
 
 func (ed *activityEditor) picker(list *[]*widget.Select, selected string) *widget.Select {
@@ -287,41 +276,6 @@ func (ed *activityEditor) addMember(m profile.Member) {
 	}
 	ed.members = append(ed.members, r)
 	ed.memberList.Add(r.box)
-}
-
-func (ed *activityEditor) addKeyRow(key string, k profile.Key) {
-	r := &keyRow{key: key, short: ed.picker(&ed.keyPickers, k.Short), long: ed.picker(&ed.keyPickers, k.Long)}
-	title := widget.NewLabelWithStyle(key, fyne.TextAlignLeading, fyne.TextStyle{Bold: true})
-	remove := widget.NewButtonWithIcon("", theme.DeleteIcon(), func() {
-		for i, o := range ed.keys {
-			if o == r {
-				ed.keys = append(ed.keys[:i], ed.keys[i+1:]...)
-				break
-			}
-		}
-		ed.keyList.Remove(r.box)
-		ed.refreshKeyChoices()
-	})
-	r.box = container.NewVBox(
-		container.NewBorder(nil, nil, nil, remove, title),
-		widget.NewForm(widget.NewFormItem("Press", r.short), widget.NewFormItem("Hold", r.long)))
-	ed.keys = append(ed.keys, r)
-	ed.keyList.Add(r.box)
-}
-
-func (ed *activityEditor) refreshKeyChoices() {
-	set := map[string]bool{}
-	for _, r := range ed.keys {
-		set[r.key] = true
-	}
-	var free []string
-	for _, k := range remoteKeys() {
-		if !set[k] {
-			free = append(free, k)
-		}
-	}
-	ed.addKey.Options = free
-	ed.addKey.Refresh()
 }
 
 // newSteps makes a steps editor; for starting and ending (power), nil
@@ -573,11 +527,7 @@ func (ed *activityEditor) edit() workspace.ActivityEdit {
 			e.Keys[k] = v
 		}
 	}
-	for _, r := range ed.keys {
-		if s := pick(r.short); s != "" {
-			e.Keys[r.key] = profile.Key{Short: s, Long: pick(r.long)}
-		}
-	}
+	ed.pad.set(e.Keys)
 	for _, b := range ed.macros {
 		e.Macros = append(e.Macros, workspace.ActivityMacroEdit{Original: b.original, Name: b.name.Text, Steps: b.steps.steps()})
 	}

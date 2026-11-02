@@ -310,12 +310,12 @@ drag-reorder lists.
       are renamed back) or on another hub (matched by name; the hub's
       others are deleted), the user agrees to a restore first, then
       reviews it. Undo takes it back before applying.
-- [ ] Later in the editors: the remote's drawing for keys (the list of
-      keys is long on a phone). Edits
-      change the workspace's config; Review applies it to a fresh
-      simulated copy of the hub (`ApplyConfig`, by id) and lists what
-      that did, which is exactly what Apply will do to the hub, with a
-      known step count for the progress bar.
+- [x] The remote's drawing for keys, in the device and activity editors:
+      its keys grouped as on the remote (the X1 remotes' missing keys
+      left out), those set marked; tapping one shows what pressing and
+      holding it runs, to change or clear it, and the keys set are listed
+      under it with what they run. Schematic for now; the remote's real
+      layout and look come with phase 8.
 - [ ] Later: the profile library server (section 10).
 
 ## 10. The profile library server (later; not built yet)

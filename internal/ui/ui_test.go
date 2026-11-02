@@ -161,22 +161,59 @@ func TestNoHubs(t *testing.T) {
 	}
 }
 
-func TestConnectAndDisconnect(t *testing.T) {
+func TestBrowse(t *testing.T) {
 	_, w := newApp(t, backend.Hub{Name: "Lounge", Model: "X2", Firmware: 9, Addr: lounge})
 	test.Tap(button(t, w, "Lounge (X2, 192.168.1.20)"))
 	got := texts(w)
-	for _, want := range []string{"X2 HUB", "X2, firmware 9, at 192.168.1.20", "<Activities>", "Watch Google TV",
-		"<Devices>", "Receiver", "4 activities, 3 devices."} {
+	for _, want := range []string{"X2 HUB", "X2, firmware 9, at 192.168.1.20", "Activities (4)", "Watch Google TV",
+		"Devices (3)", "Receiver", "Pick an activity or a device"} {
 		if !strings.Contains(got, want) {
 			t.Errorf("missing %q in:\n%s", want, got)
 		}
 	}
-	assertScreens(t, w, "home")
+	assertScreens(t, w, "browse")
+
+	l := list(t, w)
+	l.Select(1) // Watch Google TV
+	got = texts(w)
+	for _, want := range []string{"When it starts", "When it ends", "Favorites", "Keys"} {
+		if !strings.Contains(got, want) {
+			t.Errorf("activity: missing %q in:\n%s", want, got)
+		}
+	}
+	assertScreens(t, w, "activity")
+
+	l.Select(7) // Projector/Google TV
+	if got := texts(w); !strings.Contains(got, "Commands (") || !strings.Contains(got, "Power") {
+		t.Errorf("device:\n%s", got)
+	}
+	assertScreens(t, w, "device")
+
+	// On a phone, Back goes from the device to the list.
+	w.Resize(sizes[0].size)
+	test.Tap(button(t, w, "Back"))
+	if l.Visible() != true {
+		t.Error("the list is not back")
+	}
 
 	test.Tap(button(t, w, "Disconnect"))
 	if got := texts(w); !strings.Contains(got, "Hubs on your network") {
 		t.Errorf("not back at the hubs:\n%s", got)
 	}
+}
+
+func list(t *testing.T, w fyne.Window) *widget.List {
+	t.Helper()
+	var l *widget.List
+	walk(w, func(o fyne.CanvasObject) {
+		if x, ok := o.(*widget.List); ok {
+			l = x
+		}
+	})
+	if l == nil {
+		t.Fatal("no list")
+	}
+	return l
 }
 
 func TestDemoHub(t *testing.T) {
@@ -189,7 +226,7 @@ func TestDemoHub(t *testing.T) {
 
 func TestConnectByAddress(t *testing.T) {
 	for _, tc := range []struct{ addr, want string }{
-		{"192.168.1.20", "4 activities, 3 devices."},
+		{"192.168.1.20", "Activities (4)"},
 		{"192.168.1.99", "is busy with another app"},
 		{"lounge", `"lounge" is not an IPv4 address`},
 	} {

@@ -230,4 +230,20 @@ drag-reorder lists.
       screenshot tests in light and dark. CI builds Linux, Windows, macOS
       and an Android APK, each needing only what its OS provides. Checked
       on the X2 from Linux and from an Android phone (2026-11-02).
-- [ ] Phase 1: the library work (L1–L4) in `sofabaton`.
+- [x] Phase 1 (library, sofabaton #49 and #50): `profile.Snapshot`,
+      `profile.ApplyConfig` (match by id or name, create, delete,
+      prune), consistent config edits (`RenameDevice`, `RenameCommand`,
+      `RemoveDevice`, `RemoveActivity`), progress and cancellation,
+      `dump.ReadProgress`, and reads retried when the hub drops one. The
+      busy error was already there (`transport.ErrRefused`).
+- [x] Phase 2: reading a hub keeps its lossless dump and takes the
+      configuration from a simulated copy made from it (35 s on the X2,
+      against 80 s for reading the profiles from the hub; a read that
+      does not hold together is read again). The browse screen lists
+      activities and devices and shows each read-only: beside the list
+      on wide windows, one at a time with Back on phones.
+- [ ] Phase 3: activity editing. Plan: edits change the workspace's
+      config; Review applies it to a fresh simulated copy of the hub
+      (`ApplyConfig`, by id) and lists what that did, which is exactly
+      what Apply will do to the hub, with a known step count for the
+      progress bar.

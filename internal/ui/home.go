@@ -11,84 +11,160 @@ import (
 	"fyne.io/fyne/v2/widget"
 
 	"github.com/brunoga/armrest/internal/backend"
-	"github.com/brunoga/sofabaton/hub"
-	"github.com/brunoga/sofabaton/record"
+	"github.com/brunoga/armrest/internal/workspace"
+	"github.com/brunoga/sofabaton/profile"
 )
 
-// homeScreen shows the connected hub's devices and activities.
-type homeScreen struct {
-	app        *App
-	devices    *fyne.Container
-	activities *fyne.Container
-	status     *widget.Label
-}
-
+// showHome reads the connected hub, showing how far it got, then shows
+// its activities and devices.
 func (a *App) showHome(h backend.Hub) {
-	s := &homeScreen{app: a}
-	a.win.SetContent(s.content(h))
-	s.load()
+	info := a.client.Info()
+	title := widget.NewLabelWithStyle("Reading "+info.Name, fyne.TextAlignLeading, fyne.TextStyle{Bold: true})
+	title.SizeName = theme.SizeNameHeadingText
+	bar := widget.NewProgressBar()
+	step := wrapped("Asking the hub what it has…")
+	ctx, cancel := context.WithCancel(context.Background())
+	cancelBtn := widget.NewButtonWithIcon("Cancel", theme.CancelIcon(), func() {
+		cancel()
+		a.disconnect()
+	})
+	a.win.SetContent(column(container.NewPadded(container.NewVBox(
+		title, wrapped("This takes a few seconds for each device and activity."),
+		bar, step, container.NewHBox(cancelBtn)))))
+
+	c := a.client
+	a.async(func() {
+		defer cancel()
+		w, err := workspace.Read(ctx, c, func(done, total int, name string) {
+			fyne.Do(func() {
+				bar.SetValue(float64(done) / float64(max(total, 1)))
+				switch name {
+				case "":
+				case workspace.Again:
+					step.SetText("The hub gave an answer that does not add up: reading it again…")
+				default:
+					step.SetText(fmt.Sprintf("Reading %s (%d of %d)", name, done+1, total))
+				}
+			})
+		})
+		fyne.Do(func() {
+			switch {
+			case errors.Is(err, context.Canceled):
+				// Cancel went back to the hubs already.
+			case err != nil:
+				step.SetText("Reading the hub failed: " + err.Error())
+				cancelBtn.SetText("Back")
+			default:
+				a.work = w
+				a.showBrowse(h)
+			}
+		})
+	})
 }
 
-func (s *homeScreen) content(h backend.Hub) fyne.CanvasObject {
+// browseScreen lists the activities and devices, and shows the one
+// picked.
+type browseScreen struct {
+	app   *App
+	rows  []browseRow
+	list  *widget.List
+	split *listDetail
+}
+
+// browseRow is a row of the list: a heading, an activity or a device.
+type browseRow struct {
+	heading  string
+	activity *profile.Activity
+	device   *profile.Device
+}
+
+func (r browseRow) text() string {
+	switch {
+	case r.activity != nil:
+		return r.activity.Name
+	case r.device != nil:
+		return r.device.Name
+	}
+	return r.heading
+}
+
+func (a *App) showBrowse(h backend.Hub) {
+	s := &browseScreen{app: a}
+	a.win.SetContent(s.content(h))
+}
+
+func (s *browseScreen) content(h backend.Hub) fyne.CanvasObject {
+	cfg := s.app.work.Config
+	s.rows = append(s.rows, browseRow{heading: fmt.Sprintf("Activities (%d)", len(cfg.Activities))})
+	for _, a := range cfg.Activities {
+		s.rows = append(s.rows, browseRow{activity: a})
+	}
+	s.rows = append(s.rows, browseRow{heading: fmt.Sprintf("Devices (%d)", len(cfg.Devices))})
+	for _, d := range cfg.Devices {
+		s.rows = append(s.rows, browseRow{device: d})
+	}
+
+	s.list = widget.NewList(
+		func() int { return len(s.rows) },
+		func() fyne.CanvasObject {
+			icon := widget.NewIcon(theme.MediaPlayIcon())
+			l := widget.NewLabel("")
+			l.Truncation = fyne.TextTruncateEllipsis
+			return container.NewBorder(nil, nil, icon, nil, l)
+		},
+		func(i widget.ListItemID, o fyne.CanvasObject) {
+			r := s.rows[i]
+			row := o.(*fyne.Container)
+			l, icon := row.Objects[0].(*widget.Label), row.Objects[1].(*widget.Icon)
+			l.SetText(r.text())
+			l.TextStyle.Bold = r.heading != ""
+			switch {
+			case r.activity != nil:
+				icon.SetResource(theme.MediaPlayIcon())
+				icon.Show()
+			case r.device != nil:
+				icon.SetResource(theme.ComputerIcon())
+				icon.Show()
+			default:
+				icon.Hide()
+			}
+			l.Refresh()
+		})
+	s.list.OnSelected = func(i widget.ListItemID) {
+		r := s.rows[i]
+		switch {
+		case r.activity != nil:
+			s.split.show(r.activity.Name, activityView(r.activity))
+		case r.device != nil:
+			s.split.show(r.device.Name, deviceView(r.device))
+		default:
+			s.list.Unselect(i)
+		}
+	}
+
+	s.split = newListDetail(s.list)
+	s.split.onBack = s.list.UnselectAll
+	hint := wrapped("Pick an activity or a device to see what it does.")
+	hint.Importance = widget.LowImportance
+	s.split.body.Objects = []fyne.CanvasObject{container.NewPadded(container.NewVBox(hint))}
+
+	return container.NewBorder(s.header(h), nil, nil, nil, s.split)
+}
+
+func (s *browseScreen) header(h backend.Hub) fyne.CanvasObject {
 	info := s.app.client.Info()
 	name := widget.NewLabelWithStyle(info.Name, fyne.TextAlignLeading, fyne.TextStyle{Bold: true})
-	name.SizeName = theme.SizeNameHeadingText
 	detail := fmt.Sprintf("%v, firmware %d", info.Variant, info.Firmware)
 	if h.Demo {
 		detail = "Demo hub: a simulated " + detail
 	} else {
 		detail += ", at " + h.Addr.String()
 	}
-	header := container.NewBorder(nil, nil, nil,
-		container.NewVBox(widget.NewButtonWithIcon("Disconnect", theme.LogoutIcon(), s.app.disconnect)),
-		container.NewVBox(name, wrapped(detail)))
-
-	s.devices = container.NewVBox()
-	s.activities = container.NewVBox()
-	s.status = wrapped("Reading the hub…")
-	tabs := container.NewAppTabs(
-		container.NewTabItemWithIcon("Activities", theme.MediaPlayIcon(), container.NewVScroll(s.activities)),
-		container.NewTabItemWithIcon("Devices", theme.ComputerIcon(), container.NewVScroll(s.devices)),
-	)
-	return column(container.NewPadded(container.NewBorder(header, s.status, nil, nil, tabs)))
-}
-
-// load reads the hub's lists.
-func (s *homeScreen) load() {
-	c := s.app.client
-	s.app.async(func() {
-		ctx := context.Background()
-		devs, err := c.Devices(ctx)
-		var acts []*record.Entity
-		if err == nil {
-			acts, err = c.Activities(ctx)
-			if errors.Is(err, hub.ErrNotFound) {
-				acts, err = nil, nil
-			}
-		}
-		fyne.Do(func() {
-			if err != nil {
-				s.status.SetText("Reading the hub failed: " + err.Error())
-				return
-			}
-			s.status.SetText(fmt.Sprintf("%d activities, %d devices.", len(acts), len(devs)))
-			fill(s.activities, acts, "No activities yet.")
-			fill(s.devices, devs, "No devices yet.")
-		})
-	})
-}
-
-func fill(list *fyne.Container, ents []*record.Entity, empty string) {
-	list.RemoveAll()
-	if len(ents) == 0 {
-		list.Add(widget.NewLabel(empty))
-		return
-	}
-	for _, e := range ents {
-		text := e.Name
-		if e.Brand != "" {
-			text += "  ·  " + e.Brand
-		}
-		list.Add(widget.NewLabel(text))
-	}
+	sub := widget.NewLabel(detail)
+	sub.Truncation = fyne.TextTruncateEllipsis
+	return container.NewVBox(
+		container.NewBorder(nil, nil, nil,
+			container.NewVBox(widget.NewButtonWithIcon("Disconnect", theme.LogoutIcon(), s.app.disconnect)),
+			container.NewVBox(name, sub)),
+		widget.NewSeparator())
 }

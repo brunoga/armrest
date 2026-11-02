@@ -12,9 +12,10 @@ run:
 test:
 	go test -race $(PKG)
 
-# Against the hubs on the network; only reads.
+# Against the hubs on the network, one package at a time (they share the
+# discovery port); only reads.
 test-live:
-	go test -tags live -count=1 -v -run Live $(PKG)
+	go test -tags live -count=1 -p 1 -v -run Live $(PKG)
 
 # The quick pre-push check: tidy, vet, lint and the tests (screenshots
 # included).

@@ -12,6 +12,7 @@ import (
 	"fyne.io/fyne/v2/widget"
 
 	"github.com/brunoga/armrest/internal/backend"
+	"github.com/brunoga/armrest/internal/workspace"
 	"github.com/brunoga/sofabaton/hub"
 )
 
@@ -28,6 +29,8 @@ type App struct {
 	async func(func())
 
 	client *hub.Client
+	// work is the connected hub's configuration, once read.
+	work *workspace.Workspace
 }
 
 // New returns the app for win.
@@ -46,6 +49,7 @@ func (a *App) Close() {
 		_ = a.client.Close()
 		a.client = nil
 	}
+	a.work = nil
 }
 
 // connect opens a client of h, with a progress dialog, and shows the home

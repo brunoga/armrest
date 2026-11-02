@@ -46,3 +46,65 @@ func TestSaveOpen(t *testing.T) {
 		}
 	}
 }
+
+// A file restored onto a hub is matched to it by name, whatever its ids:
+// applying makes the hub hold the file.
+func TestRestore(t *testing.T) {
+	ctx := context.Background()
+	file := demoWorkspace(t)
+	if err := file.RemoveActivity("Play PC"); err != nil {
+		t.Fatal(err)
+	}
+	e, _ := file.EditDevice("Receiver")
+	e.Brand = "Marantz"
+	if err := file.SaveDevice(e); err != nil {
+		t.Fatal(err)
+	}
+	// Another hub's ids.
+	for _, d := range file.Config.Devices {
+		d.ID += 50
+	}
+	for _, a := range file.Config.Activities {
+		a.ID += 50
+	}
+
+	w := demoWorkspace(t)
+	if err := w.Restore(file.Config, false); err != nil {
+		t.Fatal(err)
+	}
+	if w.DeviceState(w.Config.Device("Receiver")) != Edited || w.DeviceState(w.Config.Device("3D Player")) != Unchanged {
+		t.Fatal("not matched by name")
+	}
+	p, err := w.Plan(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := titles(p); got != "Change device Receiver\nDelete activity Play PC" && got != "Delete activity Play PC\nChange device Receiver" {
+		t.Fatalf("plan:\n%s", got)
+	}
+	if w.Undo() != "restoring the file" || w.Changed() {
+		t.Fatal("undo")
+	}
+}
+
+// Restored onto its own hub, a file keeps its ids: what was renamed on
+// the hub since is renamed back.
+func TestRestoreSameHub(t *testing.T) {
+	file := demoWorkspace(t)
+	w := demoWorkspace(t)
+	e, _ := w.EditDevice("Receiver")
+	e.Name = "AVR"
+	if err := w.SaveDevice(e); err != nil {
+		t.Fatal(err)
+	}
+	// As if the hub had been changed so, and read again.
+	w.base = w.Config
+	w.undo = nil
+	if err := w.Restore(file.Config, true); err != nil {
+		t.Fatal(err)
+	}
+	d := w.Config.Device("Receiver")
+	if d == nil || w.DeviceState(d) != Edited || len(w.Config.Devices) != 3 {
+		t.Fatalf("devices %+v", w.Config.Devices)
+	}
+}

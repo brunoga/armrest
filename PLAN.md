@@ -302,10 +302,14 @@ drag-reorder lists.
       opening it (or an sbx dump) from the hubs screen, without the hub:
       browse, edit, undo, review. "Connect to the hub and apply" reads
       its hub whole and reviews the edits against it; a hub changed since
-      asks as for the cache; another hub is refused (until 5c).
-- [ ] Phase 5c: backup and restore: a file applied to a hub that changed
-      since, or to another hub, is a restore (matched by name), with the
-      plan first.
+      asks first (5c).
+- [x] Phase 5c: backup and restore. A saved file is a backup; "Restore
+      to a hub…" (the file's menu) or applying its changes makes a hub
+      hold what the file has. On its own hub as it was, that is the
+      file's changes; on its hub changed since (matched by id: renames
+      are renamed back) or on another hub (matched by name; the hub's
+      others are deleted), the user agrees to a restore first, then
+      reviews it. Undo takes it back before applying.
 - [ ] Later in the editors: the remote's drawing for keys (the list of
       keys is long on a phone). Edits
       change the workspace's config; Review applies it to a fresh

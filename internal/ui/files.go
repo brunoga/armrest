@@ -149,20 +149,17 @@ func (a *App) applyFile() {
 	a.showHubs()
 }
 
-// adoptFile takes the opened file's changes onto w, its hub just read
-// from h, and reviews them.
+// adoptFile takes the opened file onto w, its hub (or another) just read
+// from h, and reviews what applying it writes. On the hub it was saved
+// from, as it was then, that is the file's changes; on a hub changed
+// since, or on another, applying it restores the file there, which the
+// user agrees to first.
 func (a *App) adoptFile(h backend.Hub, w *workspace.Workspace) {
 	f := a.file
 	info := a.client.Info()
-	if id := hex.EncodeToString(info.ID[:]); id != f.work.Dump.Info.ID {
-		a.Close()
-		a.showHubs()
-		dialog.ShowInformation("Another hub",
-			fmt.Sprintf("%s is not the hub %s is from (%s). Connect to that one to apply the file.", info.Name, f.name, f.work.Dump.Info.Name), a.win)
-		return
-	}
-	a.file = nil
-	if !f.work.Changed() || f.work.SameBase(w) {
+	sameHub := hex.EncodeToString(info.ID[:]) == f.work.Dump.Info.ID
+	if sameHub && f.work.SameBase(w) {
+		a.file = nil
 		w.KeepEdits(f.work)
 		a.work = w
 		a.remember(h, w)
@@ -170,11 +167,32 @@ func (a *App) adoptFile(h backend.Hub, w *workspace.Workspace) {
 		if w.Changed() {
 			a.showReview()
 		} else {
-			a.browse.setStatus(false, "The file has no changes to apply.")
+			a.browse.setStatus(false, "The hub is as the file has it: there is nothing to apply.")
 		}
 		return
 	}
-	// The hub changed since the file's copy of it was read.
-	a.work = f.work
-	a.hubChangedUnderEdits(w)
+	title := "The hub changed since"
+	text := fmt.Sprintf("%s was changed since %s was saved. Applying the file makes the hub as the file has it again, undoing those changes too.", info.Name, f.name)
+	if !sameHub {
+		title = "Restore onto another hub"
+		text = fmt.Sprintf("%s was saved from another hub, %s. Applying it makes %s hold what the file has: devices and activities are matched by name, those it lacks are added, and its others are deleted.", f.name, f.work.Dump.Info.Name, info.Name)
+	}
+	text += " You see every change before anything is written."
+	dialog.NewCustomConfirm(title, "Review", "Cancel", wrapped(text), func(ok bool) {
+		if !ok {
+			// Back to the file, as it was.
+			a.Close()
+			a.showFile()
+			return
+		}
+		if err := w.Restore(f.work.Config, sameHub); err != nil {
+			dialog.ShowError(fmt.Errorf("the file cannot be restored: %w", err), a.win)
+			return
+		}
+		a.file = nil
+		a.work = w
+		a.remember(h, w)
+		a.showBrowse(h)
+		a.showReview()
+	}, a.win).Show()
 }

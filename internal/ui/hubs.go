@@ -61,7 +61,7 @@ func (s *hubsScreen) content() fyne.CanvasObject {
 			func() { s.app.connect(backend.DemoHub) }))))
 
 	files := widget.NewCard("Saved files", "", container.NewVBox(
-		wrapped("A hub saved to a file, with any changes: look at it and change it without the hub, then apply it later. Hub dumps made with sbx open too."),
+		wrapped("Save a hub to a file from its ⋮ menu: as a backup, or with changes to apply later. Open the file here to look at it and change it without the hub, then apply or restore it. Hub dumps made with sbx open too."),
 		container.NewHBox(widget.NewButtonWithIcon("Open a file…", theme.FolderOpenIcon(), s.app.openFile))))
 
 	cards := container.NewVBox(title, sub)

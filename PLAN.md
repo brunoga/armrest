@@ -199,8 +199,8 @@ drag-reorder lists.
 | 0 Spikes | A Fyne app that discovers the hub and lists devices: on Linux, Windows, macOS and Android. | each platform lists your hub's devices; the risks below are known, not guessed |
 | 1 Library | L1–L4 in `sofabaton` | the whole-hub plan and apply pass against the simulator and on the X2 |
 | 2 Browse | Hubs, Home, read-only Device and Activity screens, the demo backend, screenshot tests | your hub's configuration shows correctly |
-| 3 Activities | Activity editing: devices and inputs, keys, macros, favorites, icon and color. Review and apply. | an activity made and edited only in the app works on the remote |
-| 4 Devices | Device editing, the add-device wizard from templates and codes, "send now" | a device added from a template in the app works |
+| 3 Devices | **Creating devices from scratch** (the main reason for the app): the add-device wizard from the built-in templates or from an IR protocol and codes, "send now" to test each command, then device editing (commands, keys, power, inputs, macros, icon and color). Review and apply. | a device made only in the app works on the remote |
+| 4 Activities | Activity editing: devices and inputs, keys, macros, favorites, icon and color | an activity made and edited only in the app works on the remote |
 | 5 Workspaces | Saving and opening workspaces, backup and restore, undo | offline edits applied later |
 | 6 Android | Packaging, touch layouts, permissions | installed on your phone, edits your hub |
 | 7 iOS | Packaging, signing, Local Network permissions | installed on an iPhone, edits your hub |
@@ -242,8 +242,81 @@ drag-reorder lists.
       does not hold together is read again). The browse screen lists
       activities and devices and shows each read-only: beside the list
       on wide windows, one at a time with Back on phones.
-- [ ] Phase 3: activity editing. Plan: edits change the workspace's
-      config; Review applies it to a fresh simulated copy of the hub
-      (`ApplyConfig`, by id) and lists what that did, which is exactly
-      what Apply will do to the hub, with a known step count for the
-      progress bar.
+- [ ] Faster start: cache each hub's last dump on the device, show it at
+      once, and check the hub for changes in the background, fetching
+      command signals only for commands whose entry changed (measured on
+      the X2: lists 1 s, structure 13 s, 134 signals 19 s).
+- [ ] Phase 3: creating devices from scratch, then editing them. Edits
+      change the workspace's config; Review applies it to a fresh
+      simulated copy of the hub (`ApplyConfig`, by id) and lists what
+      that did, which is exactly what Apply will do to the hub, with a
+      known step count for the progress bar.
+- [ ] Later: the profile library server (section 10).
+
+## 10. The profile library server (later; not built yet)
+
+An **optional** service the app can connect to for device profiles
+(remote-control code sets), so users rarely type codes by hand. The app
+works fully without it: the built-in templates and creating from scratch
+stay first-class, and the server's address is a setting (ours by
+default, self-hostable).
+
+**What it does:**
+
+- **Browse and search** public profiles by brand, model, device type and
+  transport, and download one into the add-device wizard.
+- **Upload** a device's profile from the app (one the user made or
+  edited). An upload is **private**: only its owner sees it until an
+  admin reviews it and makes it public. Owners can update, withdraw and
+  delete their own uploads from the app; every operation a user needs
+  is in the app.
+- **Admin UI** (web, admins only): the review queue, approve or reject
+  with a note to the uploader, edit metadata, merge duplicates, unpublish
+  or delete, manage users and admins, and see an audit log.
+
+**Data:** a profile is the same YAML the library reads (`profile.Load`,
+like `templates/`), with metadata (brand, model, type, transport,
+source, notes), an owner, a state (private, in review, public,
+rejected), versions (every change keeps the previous one), and download
+counts. Uploads never carry anything from the user's hub beyond the
+device's profile: no hub ids, names or other devices.
+
+**Security** (designed in from the start, not added later):
+
+- **Transport:** HTTPS only (HSTS); the app refuses plain HTTP except to
+  a self-hosted address the user explicitly marks as trusted.
+- **Accounts:** sign-in through an established provider (OpenID Connect:
+  Google, GitHub, Apple) or passkeys; no passwords stored by us. The app
+  uses the OAuth device or PKCE flow, keeps tokens in the platform's
+  secure storage (Keychain, Android Keystore), and tokens are
+  short-lived with refresh and revocation.
+- **Authorization:** every request is checked server-side: users act
+  only on their own uploads; admin actions need the admin role and a
+  recent sign-in (step-up). Object ids are not guessable, and listing
+  never leaks private uploads.
+- **Untrusted input:** uploads are parsed strictly with the library
+  (size limits, nesting limits, known fields only, no YAML anchors or
+  aliases), validated (protocols, code ranges, command counts), and
+  stored as data, never executed or rendered as HTML. Text fields are
+  length-limited and escaped in the admin UI. The parsers stay fuzzed.
+- **Abuse:** rate limits per user and per address on uploads, sign-ins
+  and searches; upload quotas; reports from users; moderation before
+  anything is public.
+- **Admin UI:** separate admin origin or path with strict CSP, CSRF
+  protection, SameSite cookies, session timeouts, and an audit log of
+  every admin action.
+- **Operations:** least-privilege service account, secrets outside the
+  code (environment or a secret store), dependency and container
+  scanning in CI, encrypted backups with tested restores, logs without
+  tokens or personal data, and a published security contact.
+- **Privacy:** collect only what is needed (account id, display name,
+  uploads); users can export and delete their account and uploads.
+- **Content:** uploaders agree that their profiles are shared under an
+  open license; IR codes are facts about devices, but brand names and
+  logos stay out of the app's look (see Trademarks).
+
+**Shape:** a Go server in its own repository (or `cmd/` here, decided
+then), a small JSON API used by the app, the admin UI as server-rendered
+pages, and a database (SQLite to start, PostgreSQL if it grows). The
+library gains a profile-metadata type the app, the server and `sbx`
+share.

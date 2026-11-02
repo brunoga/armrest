@@ -166,7 +166,7 @@ func TestNoHubs(t *testing.T) {
 }
 
 func TestBrowse(t *testing.T) {
-	_, w := newApp(t, backend.Hub{Name: "Lounge", Model: "X2", Firmware: 9, Addr: lounge})
+	u, w := newApp(t, backend.Hub{Name: "Lounge", Model: "X2", Firmware: 9, Addr: lounge})
 	test.Tap(button(t, w, "Lounge (X2, 192.168.1.20)"))
 	got := texts(w)
 	for _, want := range []string{"X2 HUB", "X2, firmware 9, at 192.168.1.20", "Activities (4)", "Watch Google TV",
@@ -187,7 +187,7 @@ func TestBrowse(t *testing.T) {
 	}
 	assertScreens(t, w, "activity")
 
-	l.Select(7) // Projector/Google TV
+	pickRow(t, u, "Projector/Google TV")
 	if got := texts(w); !strings.Contains(got, "Test sends a command from the hub") || !strings.Contains(got, "Power") {
 		t.Errorf("device:\n%s", got)
 	}
@@ -208,6 +208,18 @@ func TestBrowse(t *testing.T) {
 	if got := texts(w); !strings.Contains(got, "Hubs on your network") {
 		t.Errorf("not back at the hubs:\n%s", got)
 	}
+}
+
+// pickRow selects the browse list's row of that text.
+func pickRow(t *testing.T, u *App, text string) {
+	t.Helper()
+	for i, r := range u.browse.rows {
+		if r.text() == text {
+			u.browse.list.Select(i)
+			return
+		}
+	}
+	t.Fatalf("no row %q", text)
 }
 
 func list(t *testing.T, w fyne.Window) *widget.List {
@@ -505,7 +517,7 @@ func TestConnectByAddress(t *testing.T) {
 func TestEditDevice(t *testing.T) {
 	u, w := newApp(t, backend.Hub{Name: "Lounge", Model: "X2", Firmware: 9, Addr: lounge})
 	test.Tap(button(t, w, "Lounge (X2, 192.168.1.20)"))
-	list(t, w).Select(6) // Receiver
+	pickRow(t, u, "Receiver")
 	test.Tap(button(t, w, "Edit"))
 	if got := texts(w); !strings.Contains(got, "Edit Receiver") || !strings.Contains(got, "What the remote's keys do") {
 		t.Fatalf("not the editor:\n%s", got)
@@ -556,5 +568,82 @@ func TestEditDevice(t *testing.T) {
 	d := u.work.Config.Device("AVR")
 	if m := d.Macros[len(d.Macros)-1]; m.Name != "Quiet" || len(m.Steps) != 1 || m.Steps[0].Command != "Silence" {
 		t.Errorf("macro: %+v", m)
+	}
+}
+
+// An activity is edited and saved; a new one is made with the usual
+// start and end.
+func TestEditActivity(t *testing.T) {
+	u, w := newApp(t, backend.Hub{Name: "Lounge", Model: "X2", Firmware: 9, Addr: lounge})
+	test.Tap(button(t, w, "Lounge (X2, 192.168.1.20)"))
+
+	// Saving what the editor shows, untouched, changes nothing.
+	for _, n := range []string{"Watch Google TV", "Play Switch 2", "Watch 3D Movies", "Play PC"} {
+		pickRow(t, u, n)
+		test.Tap(button(t, w, "Edit"))
+		test.Tap(button(t, w, "Save"))
+		if u.work.Changed() {
+			t.Fatalf("saving %s untouched changed it", n)
+		}
+	}
+	for _, n := range []string{"Receiver", "Projector/Google TV", "3D Player"} {
+		pickRow(t, u, n)
+		test.Tap(button(t, w, "Edit"))
+		test.Tap(button(t, w, "Save"))
+		if u.work.Changed() {
+			t.Fatalf("saving %s untouched changed it", n)
+		}
+	}
+
+	pickRow(t, u, "Play PC")
+	test.Tap(button(t, w, "Edit"))
+	got := texts(w)
+	for _, want := range []string{"Edit Play PC", "When it starts", "Favorites", "Add a device"} {
+		if !strings.Contains(got, want) {
+			t.Fatalf("missing %q in the editor:\n%s", want, got)
+		}
+	}
+	assertScreens(t, w, "edit-activity")
+	var name *widget.Entry
+	walk(w, func(o fyne.CanvasObject) {
+		if e, ok := o.(*widget.Entry); ok && name == nil {
+			name = e
+		}
+	})
+	name.SetText("PC Games")
+	test.Tap(button(t, w, "Save"))
+	if got := texts(w); !strings.Contains(got, "PC Games") || !strings.Contains(got, "Saved.") {
+		t.Fatalf("after saving:\n%s", got)
+	}
+	if u.work.Config.Activity("PC Games") == nil {
+		t.Fatal("not renamed")
+	}
+
+	// A new activity: one device, the usual start and end.
+	pickRow(t, u, "Add an activity…")
+	walk(w, func(o fyne.CanvasObject) {
+		if e, ok := o.(*widget.Entry); ok && e.PlaceHolder == "Watch TV" {
+			e.SetText("Movie Night")
+		}
+	})
+	test.Tap(button(t, w, "Save"))
+	if got := texts(w); !strings.Contains(got, "An activity needs at least one device.") {
+		t.Errorf("no device, no problem shown:\n%s", got)
+	}
+	test.Tap(button(t, w, "Add a device"))
+	var device *widget.Select
+	walk(w, func(o fyne.CanvasObject) {
+		if s, ok := o.(*widget.Select); ok && s.PlaceHolder == "Pick a device" {
+			device = s
+		}
+	})
+	device.SetSelected("3D Player")
+	test.Tap(button(t, w, "Save"))
+	a := u.work.Config.Activity("Movie Night")
+	if a == nil || len(a.Devices) != 1 || a.PowerOn != nil {
+		t.Fatalf("Movie Night: %+v\n%s", a, texts(w))
+	}
+	if got := texts(w); !strings.Contains(got, "Movie Night\nNew") {
+		t.Errorf("not listed as new:\n%s", got)
 	}
 }

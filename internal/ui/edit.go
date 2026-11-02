@@ -23,6 +23,9 @@ func (a *App) screen(title string, back func(), content fyne.CanvasObject) {
 	bar := container.NewBorder(nil, widget.NewSeparator(),
 		widget.NewButtonWithIcon("Back", theme.NavigateBackIcon(), back), nil, t)
 	a.win.SetContent(container.NewBorder(bar, nil, nil, nil, content))
+	// Wrapped text learns its height from its width: lay out again now
+	// that the widths are known.
+	content.Refresh()
 }
 
 // showAddDevice lets the user pick a template for a new device.

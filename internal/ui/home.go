@@ -216,10 +216,11 @@ type browseScreen struct {
 // browseRow is a row of the list: a heading, an activity, a device, or
 // the row that adds a device.
 type browseRow struct {
-	heading  string
-	activity *profile.Activity
-	device   *profile.Device
-	add      bool
+	heading     string
+	activity    *profile.Activity
+	device      *profile.Device
+	add         bool
+	addActivity bool
 }
 
 func (r browseRow) text() string {
@@ -230,6 +231,8 @@ func (r browseRow) text() string {
 		return r.device.Name
 	case r.add:
 		return "Add a device…"
+	case r.addActivity:
+		return "Add an activity…"
 	}
 	return r.heading
 }
@@ -264,6 +267,7 @@ func (s *browseScreen) buildRows() {
 	for _, a := range cfg.Activities {
 		s.rows = append(s.rows, browseRow{activity: a})
 	}
+	s.rows = append(s.rows, browseRow{addActivity: true})
 	s.rows = append(s.rows, browseRow{heading: fmt.Sprintf("Devices (%d)", len(cfg.Devices))})
 	for _, d := range cfg.Devices {
 		s.rows = append(s.rows, browseRow{device: d})
@@ -311,6 +315,16 @@ func (s *browseScreen) sender(d *profile.Device) func(string) {
 				s.setStatus(false, fmt.Sprintf("Sent %s. Did %s respond?", command, d.Name))
 			})
 		})
+	}
+}
+
+// selectActivity shows the activity named name.
+func (s *browseScreen) selectActivity(name string) {
+	for i, r := range s.rows {
+		if r.activity != nil && r.activity.Name == name {
+			s.list.Select(i)
+			return
+		}
 	}
 }
 
@@ -387,7 +401,7 @@ func (s *browseScreen) content(h backend.Hub) fyne.CanvasObject {
 			case r.device != nil:
 				icon.SetResource(theme.ComputerIcon())
 				icon.Show()
-			case r.add:
+			case r.add, r.addActivity:
 				icon.SetResource(theme.ContentAddIcon())
 				icon.Show()
 			default:
@@ -402,12 +416,22 @@ func (s *browseScreen) content(h backend.Hub) fyne.CanvasObject {
 			s.app.showAddDevice()
 			return
 		}
+		if r.addActivity {
+			s.list.Unselect(i)
+			if len(s.app.work.Config.Devices) == 0 {
+				s.setStatus(false, "Add a device first: an activity needs at least one.")
+				return
+			}
+			s.app.showEditActivity("")
+			return
+		}
 		if r.heading == "" {
 			s.shown = &r
 		}
 		switch {
 		case r.activity != nil:
-			s.split.show(r.activity.Name, activityView(r.activity))
+			act := r.activity
+			s.split.show(act.Name, activityView(act, func() { s.app.showEditActivity(act.Name) }))
 		case r.device != nil:
 			d := r.device
 			s.split.show(d.Name, deviceView(d, s.sender(d), func() { s.app.showEditDevice(d.Name) }))

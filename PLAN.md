@@ -287,7 +287,17 @@ drag-reorder lists.
 - [x] Phase 3d: device macros in the editor (steps that send a command
       or wait; renames carry to the activities' keys, removals take the
       keys that ran them). Keys can run macros too.
-- [ ] Later in the editor: the remote's drawing for keys (the list of
+- [x] Phase 4: activities: adding one ("Add an activity…") and the
+      activity editor: name, icon and color; devices and their inputs;
+      keys (press and hold: the devices' commands and macros, and the
+      activity's macros); what starting and ending it does (the usual
+      steps, recognized when the hub's are those, or custom: turn on,
+      turn off, switch input, send, wait); macros; favorites; deleting
+      it. Saving untouched changes nothing (tested for every activity
+      and device). Checked on the X2: a ZZ-test activity created (8
+      writes, 2m05s), edited (7, 1m44s) and deleted (1m28s), each read
+      back exactly as intended.
+- [ ] Later in the editors: the remote's drawing for keys (the list of
       keys is long on a phone). Edits
       change the workspace's config; Review applies it to a fresh
       simulated copy of the hub (`ApplyConfig`, by id) and lists what

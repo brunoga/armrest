@@ -13,9 +13,9 @@ import (
 )
 
 // activityView shows an activity: its devices, keys, power steps, macros
-// and favorites.
-func activityView(a *profile.Activity) fyne.CanvasObject {
-	parts := []fyne.CanvasObject{heading(a.Name, describeLook(a.Icon, a.Color))}
+// and favorites. With edit, an Edit button calls it.
+func activityView(a *profile.Activity, edit func()) fyne.CanvasObject {
+	parts := []fyne.CanvasObject{withEdit(heading(a.Name, describeLook(a.Icon, a.Color)), edit)}
 
 	var devs []string
 	for _, m := range a.Devices {
@@ -59,13 +59,7 @@ func deviceView(d *profile.Device, send func(command string), edit func()) fyne.
 		}
 		sub += look
 	}
-	head := heading(d.Name, sub)
-	if edit != nil {
-		b := widget.NewButtonWithIcon("Edit", theme.DocumentCreateIcon(), edit)
-		b.Importance = widget.HighImportance
-		head = container.NewBorder(nil, nil, nil, container.NewVBox(b), head)
-	}
-	parts := []fyne.CanvasObject{head}
+	parts := []fyne.CanvasObject{withEdit(heading(d.Name, sub), edit)}
 
 	var cmds []fyne.CanvasObject
 	for _, c := range d.Commands {
@@ -106,6 +100,16 @@ func deviceView(d *profile.Device, send func(command string), edit func()) fyne.
 	}
 	parts = append(parts, section("Macros", "No macros.", macros))
 	return page(parts)
+}
+
+// withEdit puts an Edit button calling edit beside head, if edit is set.
+func withEdit(head fyne.CanvasObject, edit func()) fyne.CanvasObject {
+	if edit == nil {
+		return head
+	}
+	b := widget.NewButtonWithIcon("Edit", theme.DocumentCreateIcon(), edit)
+	b.Importance = widget.HighImportance
+	return container.NewBorder(nil, nil, nil, container.NewVBox(b), head)
 }
 
 func keysSection(bs profile.Buttons) fyne.CanvasObject {

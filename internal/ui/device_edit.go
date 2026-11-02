@@ -497,14 +497,25 @@ func (ed *deviceEditor) refreshKeyChoices() {
 	for _, r := range ed.keys {
 		set[r.key] = true
 	}
+	var free []string
+	for _, k := range remoteKeys() {
+		if !set[k] {
+			free = append(free, k)
+		}
+	}
+	ed.addKey.Options = free
+	ed.addKey.Refresh()
+}
+
+// remoteKeys are the remote's keys, in its order.
+func remoteKeys() []string {
 	all := profile.Buttons{}
 	for b := record.ButtonC; b <= record.ButtonBlue; b++ {
-		if b.IsHardKey() && !set[b.String()] {
+		if isRemoteKey(b.String()) {
 			all[b.String()] = profile.Key{}
 		}
 	}
-	ed.addKey.Options = keyNames(all)
-	ed.addKey.Refresh()
+	return keyNames(all)
 }
 
 func (ed *deviceEditor) addInput(selected string) {

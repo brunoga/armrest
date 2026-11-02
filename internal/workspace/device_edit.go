@@ -29,6 +29,19 @@ type DeviceEdit struct {
 	// device switches none (as opposed to not set).
 	Inputs   []string
 	NoInputs bool
+	// Macros are the device's macros; activities with the device run
+	// them from their keys.
+	Macros []MacroEdit
+}
+
+// MacroEdit is a device macro in the editor.
+type MacroEdit struct {
+	// Original is its name before the edit, or empty for a new one.
+	Original string
+	Name     string
+	// Steps send the device's commands (by their names in Commands) or
+	// wait.
+	Steps []profile.DeviceStep
 }
 
 // CommandEdit is a command in the editor.
@@ -66,6 +79,9 @@ func (w *Workspace) EditDevice(name string) (DeviceEdit, error) {
 	}
 	e.Inputs = append(e.Inputs, d.Inputs...)
 	e.NoInputs = d.Inputs != nil && len(d.Inputs) == 0
+	for _, m := range d.Macros {
+		e.Macros = append(e.Macros, MacroEdit{Original: m.Name, Name: m.Name, Steps: append([]profile.DeviceStep(nil), m.Steps...)})
+	}
 	return e, nil
 }
 
@@ -146,6 +162,33 @@ func (w *Workspace) SaveDevice(e DeviceEdit) error {
 	if len(e.Commands) == 0 {
 		return &FieldError{Field: "commands", Msg: "A device needs at least one command."}
 	}
+	macros := map[string]bool{}
+	keptMacros := map[string]bool{}
+	for i, m := range e.Macros {
+		n := strings.TrimSpace(m.Name)
+		switch {
+		case n == "":
+			return &FieldError{Field: "macro", Index: i, Msg: fmt.Sprintf("Macro %d needs a name.", i+1)}
+		case macros[strings.ToLower(n)]:
+			return &FieldError{Field: "macro", Index: i, Msg: fmt.Sprintf("There are two macros named %q.", n)}
+		case seen[strings.ToLower(n)]:
+			return &FieldError{Field: "macro", Index: i, Msg: fmt.Sprintf("%q is a command's name; a macro needs another.", n)}
+		case len(m.Steps) == 0:
+			return &FieldError{Field: "macro", Index: i, Msg: fmt.Sprintf("%s: a macro needs at least one step.", n)}
+		}
+		macros[strings.ToLower(n)] = true
+		if m.Original != "" {
+			keptMacros[strings.ToLower(m.Original)] = true
+		}
+		for j, st := range m.Steps {
+			if st.Command == "" && st.Seconds == 0 {
+				return &FieldError{Field: "macro", Index: i, Msg: fmt.Sprintf("%s, step %d: pick a command, or wait at least a second.", n, j+1)}
+			}
+			if st.Command != "" && !seen[strings.ToLower(st.Command)] {
+				return &FieldError{Field: "macro", Index: i, Msg: fmt.Sprintf("%s, step %d: there is no command named %q.", n, j+1, st.Command)}
+			}
+		}
+	}
 
 	// Removed commands go, with what used them; renames carry over,
 	// through temporary names so that swaps work.
@@ -167,6 +210,27 @@ func (w *Workspace) SaveDevice(e DeviceEdit) error {
 		if c.Original != "" && c.Original != strings.TrimSpace(c.Name) {
 			if err := cfg.RenameCommand(d.Name, fmt.Sprintf("\x00%d", i), strings.TrimSpace(c.Name)); err != nil {
 				return err
+			}
+		}
+	}
+	for _, m := range append([]profile.DeviceMacro(nil), d.Macros...) {
+		if !keptMacros[strings.ToLower(m.Name)] {
+			if err := cfg.RemoveMacro(d.Name, m.Name); err != nil {
+				return err
+			}
+		}
+	}
+	for i, m := range e.Macros {
+		if m.Original != "" && m.Original != strings.TrimSpace(m.Name) {
+			if err := cfg.RenameMacro(d.Name, m.Original, fmt.Sprintf("\x00m%d", i)); err != nil {
+				return err
+			}
+		}
+	}
+	for i, m := range e.Macros {
+		if m.Original != "" && m.Original != strings.TrimSpace(m.Name) {
+			if err := cfg.RenameMacro(d.Name, fmt.Sprintf("\x00m%d", i), strings.TrimSpace(m.Name)); err != nil {
+				return &FieldError{Field: "macro", Index: i, Msg: err.Error()}
 			}
 		}
 	}
@@ -199,11 +263,12 @@ func (w *Workspace) SaveDevice(e DeviceEdit) error {
 	d.Commands = cmds
 	has := func(n string) bool { return n != "" && seen[strings.ToLower(n)] }
 	d.Buttons = nil
+	runnable := func(n string) bool { return has(n) || n != "" && macros[strings.ToLower(n)] }
 	for k, v := range e.Keys {
-		if !has(v.Short) {
+		if !runnable(v.Short) {
 			continue
 		}
-		if !has(v.Long) {
+		if !runnable(v.Long) {
 			v.Long = ""
 		}
 		if d.Buttons == nil {
@@ -226,6 +291,12 @@ func (w *Workspace) SaveDevice(e DeviceEdit) error {
 	for _, in := range e.Inputs {
 		if has(in) {
 			d.Inputs = append(d.Inputs, in)
+		}
+	}
+	if d.Macros != nil || len(e.Macros) > 0 {
+		d.Macros = profile.MacroList{}
+		for _, m := range e.Macros {
+			d.Macros = append(d.Macros, profile.DeviceMacro{Name: strings.TrimSpace(m.Name), Steps: m.Steps})
 		}
 	}
 	if err := d.Validate(); err != nil {

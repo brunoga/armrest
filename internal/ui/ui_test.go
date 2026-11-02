@@ -55,16 +55,30 @@ func (t variant) Color(n fyne.ThemeColorName, _ fyne.ThemeVariant) color.Color {
 	return t.Theme.Color(n, t.v)
 }
 
-// assertScreens compares w with the masters testdata/<name>-light.png and
-// testdata/<name>-dark.png.
+// sizes are the window sizes every screen is checked at: a phone, and a
+// tablet or desktop.
+var sizes = []struct {
+	name string
+	size fyne.Size
+}{{"phone", fyne.NewSize(360, 740)}, {"wide", fyne.NewSize(1024, 768)}}
+
+// assertScreens compares w with the masters testdata/<name>-<size>-<variant>.png,
+// at each of sizes, in light and dark.
 func assertScreens(t *testing.T, w fyne.Window, name string) {
 	t.Helper()
-	for _, v := range []struct {
-		name string
-		v    fyne.ThemeVariant
-	}{{"light", theme.VariantLight}, {"dark", theme.VariantDark}} {
-		fyne.CurrentApp().Settings().SetTheme(variant{theme.DefaultTheme(), v.v})
-		test.AssertRendersToImage(t, name+"-"+v.name+".png", w.Canvas())
+	defer w.Resize(w.Canvas().Size())
+	for _, sz := range sizes {
+		w.Resize(sz.size)
+		if min := w.Content().MinSize(); min.Width > sz.size.Width {
+			t.Errorf("%s at %s size: needs %v wide, more than the %v there is", name, sz.name, min.Width, sz.size.Width)
+		}
+		for _, v := range []struct {
+			name string
+			v    fyne.ThemeVariant
+		}{{"light", theme.VariantLight}, {"dark", theme.VariantDark}} {
+			fyne.CurrentApp().Settings().SetTheme(variant{theme.DefaultTheme(), v.v})
+			test.AssertRendersToImage(t, name+"-"+sz.name+"-"+v.name+".png", w.Canvas())
+		}
 	}
 }
 

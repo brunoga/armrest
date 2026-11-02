@@ -66,7 +66,9 @@ func (a *App) showAddDevice() {
 	}
 
 	intro := wrapped("Pick your device's model. Its commands, keys and power settings come with it, and you can change them before anything is written to the hub.")
-	top := container.NewVBox(intro, search, none)
+	scratch := widget.NewButtonWithIcon("Start from scratch", theme.DocumentCreateIcon(), a.showScratch)
+	notListed := container.NewBorder(nil, nil, nil, scratch, wrapped("Not listed? Make it from its IR codes."))
+	top := container.NewVBox(intro, notListed, search, none)
 	a.screen("Add a device", a.backToBrowse, column(container.NewPadded(container.NewBorder(top, nil, nil, nil, list))))
 }
 

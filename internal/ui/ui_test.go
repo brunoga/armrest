@@ -381,6 +381,52 @@ func TestAddDevice(t *testing.T) {
 	}
 }
 
+// A device made from scratch says what is wrong until it is right, then
+// is added with its keys set from its command names.
+func TestScratchDevice(t *testing.T) {
+	u, w := newApp(t, backend.Hub{Name: "Lounge", Model: "X2", Firmware: 9, Addr: lounge})
+	test.Tap(button(t, w, "Lounge (X2, 192.168.1.20)"))
+	l := list(t, w)
+	l.Select(l.Length() - 1)
+	test.Tap(button(t, w, "Start from scratch"))
+	if got := texts(w); !strings.Contains(got, "How does the device's remote send its codes?") {
+		t.Fatalf("not the scratch screen:\n%s", got)
+	}
+	var entries []*widget.Entry
+	var names []*widget.SelectEntry
+	walk(w, func(o fyne.CanvasObject) {
+		switch e := o.(type) {
+		case *widget.SelectEntry:
+			names = append(names, e)
+		case *widget.Entry:
+			entries = append(entries, e)
+		}
+	})
+	// Name, brand, system code, then the command's code (the Denon
+	// fields are not shown).
+	if len(entries) < 4 || len(names) != 1 {
+		t.Fatalf("%d entries, %d name entries", len(entries), len(names))
+	}
+	test.Tap(button(t, w, "Add the device"))
+	if got := texts(w); !strings.Contains(got, "The device needs a name.") {
+		t.Errorf("no problem shown:\n%s", got)
+	}
+	test.Type(entries[0], "Projector")
+	test.Type(entries[2], "0x00CE")
+	names[0].SetText("Volume Up")
+	test.Type(entries[3], "0x10")
+	test.Tap(button(t, w, "Add a command"))
+	assertScreens(t, w, "scratch")
+	test.Tap(button(t, w, "Add the device"))
+	got := texts(w)
+	if !strings.Contains(got, "Added Projector. Keys set from command names: Vol+.") || !strings.Contains(got, "New") {
+		t.Fatalf("not added:\n%s", got)
+	}
+	if d := u.work.Config.Device("Projector"); d == nil || len(d.Commands) != 1 {
+		t.Errorf("device: %+v", d)
+	}
+}
+
 func TestDemoHub(t *testing.T) {
 	_, w := newApp(t)
 	test.Tap(button(t, w, "Open the demo hub"))

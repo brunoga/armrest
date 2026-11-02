@@ -275,11 +275,15 @@ drag-reorder lists.
       the written devices' signals again; Review waits for the check; if
       the hub changed under the user's edits, they choose.
 - [ ] **To do (required): clearing a key of a device on the hub.** The
-      frame that does it on an activity deletes a command on a device, so
-      the library needs the app's own frame: capture the official app
-      clearing a device's key (sbx proxy), add it to the library
-      (sofabaton ROADMAP, Keys), then drop Review's warning that the key
-      stays.
+      frame that does it on an activity deletes a command on a device.
+      Upstream only clears activities' keys, and the official app may not
+      clear a device's key at all. Two routes: (1) if the app can, capture
+      it (sbx proxy) and add the frame to the library; (2) otherwise,
+      re-create the command the key runs (delete it and add it back, same
+      name and code): deleting a command drops its key binding, and the
+      activities' references are rewritten to the new id on apply. Check
+      (2) on the X2 with a ZZ-test device. Until then, Review warns that
+      the key stays.
 - [x] Phase 3d: device macros in the editor (steps that send a command
       or wait; renames carry to the activities' keys, removals take the
       keys that ran them). Keys can run macros too.

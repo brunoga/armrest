@@ -26,6 +26,10 @@ type listDetail struct {
 	body   *fyne.Container
 	rule   *canvas.Rectangle
 
+	// placeholder fills the detail when nothing is picked, on wide
+	// windows.
+	placeholder fyne.CanvasObject
+
 	showing bool // a detail is shown
 	narrow  bool
 	// onBack is called when Back leaves the detail, on narrow windows.
@@ -51,6 +55,17 @@ func (s *listDetail) show(title string, o fyne.CanvasObject) {
 	s.body.Objects = []fyne.CanvasObject{o}
 	s.body.Refresh()
 	s.showing = true
+	s.Refresh()
+}
+
+// clear shows the placeholder: nothing is picked.
+func (s *listDetail) clear() {
+	s.body.Objects = nil
+	if s.placeholder != nil {
+		s.body.Objects = []fyne.CanvasObject{s.placeholder}
+	}
+	s.body.Refresh()
+	s.showing = false
 	s.Refresh()
 }
 

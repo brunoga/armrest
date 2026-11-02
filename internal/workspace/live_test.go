@@ -25,10 +25,20 @@ func TestLive(t *testing.T) {
 		}
 		start := time.Now()
 		w, err := Read(ctx, c, nil)
-		_ = c.Close()
 		if err != nil {
+			_ = c.Close()
 			t.Fatalf("%v: %v", h, err)
 		}
 		t.Logf("%v: %d devices, %d activities, in %v", h, len(w.Config.Devices), len(w.Config.Activities), time.Since(start).Round(time.Second))
+		start = time.Now()
+		again, err := Refresh(ctx, c, w.Dump, nil)
+		_ = c.Close()
+		if err != nil {
+			t.Fatalf("%v: refresh: %v", h, err)
+		}
+		if !again.Same(w) {
+			t.Errorf("%v: the refresh differs", h)
+		}
+		t.Logf("%v: refreshed in %v", h, time.Since(start).Round(time.Second))
 	}
 }

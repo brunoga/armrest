@@ -580,7 +580,11 @@ func (s *browseScreen) header(h backend.Hub) fyne.CanvasObject {
 	}
 	sub := widget.NewLabel(detail)
 	sub.Truncation = fyne.TextTruncateEllipsis
-	s.menu = fyne.NewMenu("", fyne.NewMenuItem("Save to a file…", s.app.saveToFile), fyne.NewMenuItemSeparator(), leave)
+	items := []*fyne.MenuItem{fyne.NewMenuItem("Save to a file…", s.app.saveToFile)}
+	if s.app.offline() {
+		items = append(items, fyne.NewMenuItem("Restore to a hub…", s.app.applyFile))
+	}
+	s.menu = fyne.NewMenu("", append(items, fyne.NewMenuItemSeparator(), leave)...)
 	var more *widget.Button
 	more = widget.NewButtonWithIcon("", theme.MoreVerticalIcon(), func() {
 		c := fyne.CurrentApp().Driver().CanvasForObject(more)

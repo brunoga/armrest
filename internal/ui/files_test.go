@@ -2,7 +2,9 @@ package ui
 
 import (
 	"bytes"
+	"context"
 	"io"
+	"net/netip"
 	"strings"
 	"testing"
 	"time"
@@ -11,6 +13,9 @@ import (
 	"fyne.io/fyne/v2/test"
 
 	"github.com/brunoga/armrest/internal/backend"
+	"github.com/brunoga/armrest/internal/demo"
+	"github.com/brunoga/sofabaton/hub"
+	"github.com/brunoga/sofabaton/hubsim"
 )
 
 // memFile is a file the test pickers save to and open.
@@ -95,7 +100,7 @@ func TestFiles(t *testing.T) {
 	}
 }
 
-// A file applied to another hub is refused, and stays open.
+// A file applied to another hub restores it there, once the user agrees.
 func TestFileOtherHub(t *testing.T) {
 	u, w := newApp(t, backend.Hub{Name: "Lounge", Model: "X2", Firmware: 9, Addr: lounge})
 	var f memFile
@@ -105,20 +110,86 @@ func TestFileOtherHub(t *testing.T) {
 	if err := u.work.RemoveActivity("Play PC"); err != nil {
 		t.Fatal(err)
 	}
-	var b bytes.Buffer
 	d := *u.work.Dump
-	d.Info.ID = "0123456789ab"
+	d.Info.ID, d.Info.Name = "0123456789ab", "Bedroom"
 	u.work.Dump = &d
-	if err := u.work.Save(&b, time.Time{}); err != nil {
+	if err := u.work.Save(&f, time.Time{}); err != nil {
 		t.Fatal(err)
 	}
-	f.Write(b.Bytes())
 	menu(t, u, "Disconnect")
 	test.Tap(button(t, w, "Open a file…"))
-	test.Tap(button(t, w, "Review changes"))
-	test.Tap(button(t, w, "Connect to the hub and apply"))
+	menu(t, u, "Restore to a hub…")
 	test.Tap(button(t, w, "Lounge (X2, 192.168.1.20)"))
-	if got := texts(w); !strings.Contains(got, "is not the hub other.armrest is from") || u.file == nil || u.client != nil {
-		t.Fatalf("applied to another hub:\n%s", got)
+	if got := texts(w); !strings.Contains(got, "Restore onto another hub") || !strings.Contains(got, "saved from another hub, Bedroom") {
+		t.Fatalf("not asked:\n%s", got)
+	}
+	test.Tap(button(t, w, "Review"))
+	got := texts(w)
+	if !strings.Contains(got, "Delete activity Play PC") || u.file != nil {
+		t.Fatalf("the restore's review:\n%s", got)
+	}
+	test.Tap(button(t, w, "Apply to the hub"))
+	if got := texts(w); !strings.Contains(got, "Your changes are on the hub.") || listed(u, "Play PC") {
+		t.Fatalf("after restoring:\n%s", got)
+	}
+}
+
+// A backup restored onto its hub, changed since, undoes the change; or
+// Cancel goes back to the file.
+func TestBackup(t *testing.T) {
+	u, w := newApp(t, backend.Hub{Name: "Lounge", Model: "X2", Firmware: 9, Addr: lounge})
+	d, _ := demo.Dump()
+	m, err := d.Model()
+	if err != nil {
+		t.Fatal(err)
+	}
+	sim := hubsim.FromModel(m) // one hub, kept across connections
+	u.back.Dial = func(ctx context.Context, _ netip.Addr) (*hub.Client, error) {
+		return hub.Open(ctx, hubsim.Pipe(sim), hub.Options{})
+	}
+	var f memFile
+	var name string
+	filePickers(u, &f, &name)
+	test.Tap(button(t, w, "Lounge (X2, 192.168.1.20)"))
+	menu(t, u, "Save to a file…")
+	if !strings.Contains(texts(w), "Saved the hub to a file.") {
+		t.Fatalf("saving:\n%s", texts(w))
+	}
+	// The hub changes.
+	if err := u.work.RemoveActivity("Play PC"); err != nil {
+		t.Fatal(err)
+	}
+	u.backToBrowse()
+	test.Tap(button(t, w, "Review changes"))
+	test.Tap(button(t, w, "Apply to the hub"))
+	if listed(u, "Play PC") {
+		t.Fatal("not deleted")
+	}
+	menu(t, u, "Disconnect")
+
+	test.Tap(button(t, w, "Open a file…"))
+	if !listed(u, "Play PC") || u.browse.changes.Visible() {
+		t.Fatal("the backup")
+	}
+	restore := func() {
+		menu(t, u, "Restore to a hub…")
+		test.Tap(button(t, w, "Lounge (X2, 192.168.1.20)"))
+		if got := texts(w); !strings.Contains(got, "The hub changed since") {
+			t.Fatalf("not asked:\n%s", got)
+		}
+	}
+	restore()
+	test.Tap(button(t, w, "Cancel"))
+	if u.client != nil || u.file == nil || !listed(u, "Play PC") {
+		t.Fatal("cancel did not go back to the file")
+	}
+	restore()
+	test.Tap(button(t, w, "Review"))
+	if got := texts(w); !strings.Contains(got, "Add activity Play PC") {
+		t.Fatalf("the restore's review:\n%s", got)
+	}
+	test.Tap(button(t, w, "Apply to the hub"))
+	if got := texts(w); !strings.Contains(got, "Your changes are on the hub.") || !listed(u, "Play PC") || u.work.Changed() {
+		t.Fatalf("after restoring:\n%s", got)
 	}
 }

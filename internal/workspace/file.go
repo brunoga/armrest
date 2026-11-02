@@ -6,9 +6,11 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"strings"
 	"time"
 
 	"github.com/brunoga/sofabaton/dump"
+	"github.com/brunoga/sofabaton/profile"
 )
 
 // Format is the version of the workspace files Save writes.
@@ -78,4 +80,40 @@ func Open(ctx context.Context, r io.Reader) (*Workspace, time.Time, error) {
 		}
 	}
 	return w, f.Saved, nil
+}
+
+// Restore makes cfg, another hub's configuration or this hub's read
+// before, the workspace's edits: applying them makes the hub hold cfg.
+// Undo takes it back. Devices and activities are matched to the hub's by
+// id when sameHub (a rename since is renamed back), else by name (ids are
+// another hub's); those the hub lacks are new, and the hub's that cfg
+// lacks are deleted.
+func (w *Workspace) Restore(cfg *profile.Config, sameHub bool) error {
+	c, err := cloneConfig(cfg)
+	if err != nil {
+		return err
+	}
+	devNames, actNames := map[string]uint8{}, map[string]uint8{}
+	devIDs, actIDs := map[uint8]bool{}, map[uint8]bool{}
+	for _, d := range w.base.Devices {
+		devNames[strings.ToLower(d.Name)], devIDs[d.ID] = d.ID, true
+	}
+	for _, a := range w.base.Activities {
+		actNames[strings.ToLower(a.Name)], actIDs[a.ID] = a.ID, true
+	}
+	for _, d := range c.Devices {
+		if !sameHub || !devIDs[d.ID] {
+			d.ID = devNames[strings.ToLower(d.Name)]
+		}
+	}
+	for _, a := range c.Activities {
+		if !sameHub || !actIDs[a.ID] {
+			a.ID = actNames[strings.ToLower(a.Name)]
+		}
+	}
+	if err := c.Validate(); err != nil {
+		return err
+	}
+	w.commit(c, "restoring the file")
+	return nil
 }

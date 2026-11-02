@@ -183,3 +183,53 @@ func TestKeptKeys(t *testing.T) {
 		t.Errorf("no warning:\n%s", titles(p))
 	}
 }
+
+// A device's macros are added, renamed (the activities' keys follow) and
+// removed.
+func TestSaveDeviceMacros(t *testing.T) {
+	w := demoWorkspace(t)
+	name := "Projector/Google TV"
+	e, _ := w.EditDevice(name)
+	first := e.Commands[0].Name
+	e.Macros = append(e.Macros, MacroEdit{Name: "Twice", Steps: []profile.DeviceStep{{Command: first}, {Seconds: 1}, {Command: first}}})
+	if err := w.SaveDevice(e); err != nil {
+		t.Fatal(err)
+	}
+	act := w.Config.Activities[0]
+	act.Buttons["Blue"] = profile.Key{Short: name + ": Twice"}
+
+	e, _ = w.EditDevice(name)
+	last := len(e.Macros) - 1
+	if e.Macros[last].Name != "Twice" || len(e.Macros[last].Steps) != 3 {
+		t.Fatalf("macros: %+v", e.Macros)
+	}
+	e.Macros[last].Name = "Double"
+	if err := w.SaveDevice(e); err != nil {
+		t.Fatal(err)
+	}
+	if got := act.Buttons["Blue"].Short; got != name+": Double" {
+		// act is the old copy: SaveDevice replaced the configuration.
+		if got := w.Config.Activity(act.Name).Buttons["Blue"].Short; got != name+": Double" {
+			t.Errorf("Blue runs %q", got)
+		}
+	}
+	p, err := w.Plan(context.Background())
+	if err != nil || len(p.Changes) == 0 {
+		t.Errorf("plan: %v %+v", err, p)
+	}
+
+	e, _ = w.EditDevice(name)
+	bad := e
+	bad.Macros = append([]MacroEdit(nil), e.Macros...)
+	bad.Macros[len(bad.Macros)-1].Name = first
+	if err := w.SaveDevice(bad); err == nil {
+		t.Error("a macro took a command's name")
+	}
+	e.Macros = e.Macros[:len(e.Macros)-1]
+	if err := w.SaveDevice(e); err != nil {
+		t.Fatal(err)
+	}
+	if _, ok := w.Config.Activity(act.Name).Buttons["Blue"]; ok {
+		t.Error("Blue still runs the removed macro")
+	}
+}

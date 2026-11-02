@@ -277,7 +277,11 @@ drag-reorder lists.
 - [ ] Not possible yet: clearing a key of a device on the hub (the frame
       that does it on an activity deletes a command on a device). Review
       warns that the key stays. Needs a capture of what the app sends.
-- [ ] Phase 3d: device macros in the editor. Edits
+- [x] Phase 3d: device macros in the editor (steps that send a command
+      or wait; renames carry to the activities' keys, removals take the
+      keys that ran them). Keys can run macros too.
+- [ ] Later in the editor: the remote's drawing for keys (the list of
+      keys is long on a phone). Edits
       change the workspace's config; Review applies it to a fresh
       simulated copy of the hub (`ApplyConfig`, by id) and lists what
       that did, which is exactly what Apply will do to the hub, with a

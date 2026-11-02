@@ -41,9 +41,32 @@ type deviceEditor struct {
 	inputs    []*widget.Select
 	inputList *fyne.Container
 
-	// pickers are every command picker, refreshed when commands change.
-	pickers []*widget.Select
-	problem *widget.Label
+	macros    []*macroBox
+	macroList *fyne.Container
+
+	// pickers are every command picker, refreshed when commands change;
+	// keyPickers offer the macros too.
+	pickers    []*widget.Select
+	keyPickers []*widget.Select
+	problem    *widget.Label
+}
+
+// macroBox is a macro in the editor.
+type macroBox struct {
+	original string
+	name     *widget.Entry
+	steps    []*stepRow
+	list     *fyne.Container
+	box      fyne.CanvasObject
+	last     string
+}
+
+// stepRow is a macro step: a command picker, or a wait in seconds.
+type stepRow struct {
+	cmd  *widget.Select
+	wait *widget.Entry
+	hold uint8
+	box  fyne.CanvasObject
 }
 
 type cmdRow struct {
@@ -114,6 +137,9 @@ func (ed *deviceEditor) content() fyne.CanvasObject {
 
 	ed.keyList = container.NewVBox()
 	for _, k := range keyNames(e.Keys) {
+		if !isRemoteKey(k) {
+			continue // kept as they are (see edit)
+		}
 		ed.addKeyRow(k, e.Keys[k])
 	}
 	ed.addKey = widget.NewSelect(nil, func(k string) {
@@ -147,6 +173,17 @@ func (ed *deviceEditor) content() fyne.CanvasObject {
 		wrapped("The commands that switch the device to each of its inputs, in order. Activities pick one."),
 		ed.inputList, container.NewHBox(addInput)))
 
+	ed.macroList = container.NewVBox()
+	for _, m := range e.Macros {
+		ed.addMacro(m)
+	}
+	addMacro := widget.NewButtonWithIcon("Add a macro", theme.ContentAddIcon(), func() {
+		ed.addMacro(workspace.MacroEdit{})
+	})
+	macros := widget.NewCard("Macros", "", container.NewVBox(
+		wrapped("Sequences of this device's commands. Activities with the device can run them from their keys."),
+		ed.macroList, container.NewHBox(addMacro)))
+
 	save := widget.NewButtonWithIcon("Save", theme.DocumentSaveIcon(), ed.save)
 	save.Importance = widget.HighImportance
 	cancel := widget.NewButtonWithIcon("Cancel", theme.CancelIcon(), ed.app.backToBrowse)
@@ -156,7 +193,7 @@ func (ed *deviceEditor) content() fyne.CanvasObject {
 	note.TextStyle.Italic = true
 
 	ed.refreshPickers()
-	return container.NewVBox(device, commands, keys, power, inputs, ed.problem,
+	return container.NewVBox(device, commands, keys, power, inputs, macros, ed.problem,
 		container.NewGridWithColumns(2, save, cancel), note, widget.NewSeparator(), remove)
 }
 
@@ -288,10 +325,20 @@ func (ed *deviceEditor) picker(selected string) *widget.Select {
 	return s
 }
 
-// renamed follows a command's rename (or removal, to "") in the pickers.
+// keyPicker is a picker of a command or a macro, for a key.
+func (ed *deviceEditor) keyPicker(selected string) *widget.Select {
+	s := widget.NewSelect(nil, nil)
+	s.PlaceHolder = none
+	s.Selected = selected
+	ed.keyPickers = append(ed.keyPickers, s)
+	return s
+}
+
+// renamed follows a command's or macro's rename (or removal, to "") in
+// the pickers.
 func (ed *deviceEditor) renamed(from, to string) {
 	from, to = strings.TrimSpace(from), strings.TrimSpace(to)
-	for _, p := range ed.pickers {
+	for _, p := range append(append([]*widget.Select(nil), ed.pickers...), ed.keyPickers...) {
 		if from != "" && p.Selected == from {
 			p.Selected = to
 		}
@@ -301,13 +348,108 @@ func (ed *deviceEditor) renamed(from, to string) {
 
 func (ed *deviceEditor) refreshPickers() {
 	options := append([]string{none}, ed.names()...)
-	for _, p := range ed.pickers {
-		p.Options = options
-		if p.Selected == none {
-			p.Selected = ""
+	var macros []string
+	for _, m := range ed.macros {
+		if n := strings.TrimSpace(m.name.Text); n != "" {
+			macros = append(macros, n)
 		}
-		p.Refresh()
 	}
+	refresh := func(ps []*widget.Select, options []string) {
+		for _, p := range ps {
+			p.Options = options
+			if p.Selected == none {
+				p.Selected = ""
+			}
+			p.Refresh()
+		}
+	}
+	refresh(ed.pickers, options)
+	refresh(ed.keyPickers, append(options, macros...))
+}
+
+// addMacro adds a macro's box.
+func (ed *deviceEditor) addMacro(m workspace.MacroEdit) {
+	b := &macroBox{original: m.Original, name: widget.NewEntry(), list: container.NewVBox(), last: m.Name}
+	b.name.SetText(m.Name)
+	b.name.SetPlaceHolder("Macro name")
+	b.name.OnChanged = func(s string) {
+		ed.renamed(b.last, s)
+		b.last = s
+	}
+	for _, st := range m.Steps {
+		ed.addStep(b, st)
+	}
+	addCmd := widget.NewButtonWithIcon("Command", theme.ContentAddIcon(), func() {
+		ed.addStep(b, profile.DeviceStep{})
+		ed.refreshPickers()
+	})
+	addWait := widget.NewButtonWithIcon("Wait", theme.ContentAddIcon(), func() {
+		ed.addStep(b, profile.DeviceStep{Seconds: 1})
+	})
+	remove := widget.NewButtonWithIcon("", theme.DeleteIcon(), func() {
+		for i, o := range ed.macros {
+			if o == b {
+				ed.macros = append(ed.macros[:i], ed.macros[i+1:]...)
+				break
+			}
+		}
+		ed.macroList.Remove(b.box)
+		ed.renamed(b.last, "")
+	})
+	b.box = container.NewVBox(widget.NewSeparator(),
+		container.NewBorder(nil, nil, nil, remove, b.name),
+		b.list,
+		container.NewHBox(widget.NewLabel("Add a step:"), addCmd, addWait))
+	ed.macros = append(ed.macros, b)
+	ed.macroList.Add(b.box)
+}
+
+// addStep adds a step to a macro.
+func (ed *deviceEditor) addStep(b *macroBox, st profile.DeviceStep) {
+	r := &stepRow{hold: st.Hold}
+	var main fyne.CanvasObject
+	if st.Command != "" || st.Seconds == 0 {
+		r.cmd = ed.picker(st.Command)
+		main = r.cmd
+	} else {
+		r.wait = widget.NewEntry()
+		r.wait.SetText(strconv.Itoa(int(st.Seconds)))
+		main = container.NewBorder(nil, nil, widget.NewLabel("Wait"), widget.NewLabel("seconds"), r.wait)
+	}
+	more := widget.NewButtonWithIcon("", theme.MoreVerticalIcon(), nil)
+	more.OnTapped = func() {
+		menu := fyne.NewMenu("",
+			fyne.NewMenuItem("Move up", func() { ed.moveStep(b, r, -1) }),
+			fyne.NewMenuItem("Move down", func() { ed.moveStep(b, r, 1) }),
+			fyne.NewMenuItem("Delete", func() { ed.moveStep(b, r, 0) }))
+		widget.ShowPopUpMenuAtRelativePosition(menu, ed.app.win.Canvas(), fyne.NewPos(0, more.Size().Height), more)
+	}
+	r.box = container.NewBorder(nil, nil, nil, more, main)
+	b.steps = append(b.steps, r)
+	b.list.Add(r.box)
+}
+
+// moveStep moves a step by one, or deletes it (by 0).
+func (ed *deviceEditor) moveStep(b *macroBox, r *stepRow, by int) {
+	for i, o := range b.steps {
+		if o != r {
+			continue
+		}
+		if by == 0 {
+			b.steps = append(b.steps[:i], b.steps[i+1:]...)
+			break
+		}
+		j := i + by
+		if j >= 0 && j < len(b.steps) {
+			b.steps[i], b.steps[j] = b.steps[j], b.steps[i]
+		}
+		break
+	}
+	b.list.Objects = nil
+	for _, o := range b.steps {
+		b.list.Objects = append(b.list.Objects, o.box)
+	}
+	b.list.Refresh()
 }
 
 func pick(s *widget.Select) string {
@@ -317,9 +459,17 @@ func pick(s *widget.Select) string {
 	return s.Selected
 }
 
+// isRemoteKey reports whether a key name is a key of the remote. A
+// device's key map also has Power On and Power Off rows, which the app
+// binds to its power commands; the editor keeps them as they are.
+func isRemoteKey(name string) bool {
+	b, err := record.ParseButton(name)
+	return err == nil && b.IsHardKey() && b != record.ButtonPowerOn && b != record.ButtonPowerOff
+}
+
 // addKeyRow adds a key's row.
 func (ed *deviceEditor) addKeyRow(key string, k profile.Key) {
-	r := &keyRow{key: key, short: ed.picker(k.Short), long: ed.picker(k.Long)}
+	r := &keyRow{key: key, short: ed.keyPicker(k.Short), long: ed.keyPicker(k.Long)}
 	title := widget.NewLabelWithStyle(key, fyne.TextAlignLeading, fyne.TextStyle{Bold: true})
 	remove := widget.NewButtonWithIcon("", theme.DeleteIcon(), func() { ed.removeKeyRow(r) })
 	r.box = container.NewVBox(
@@ -392,6 +542,11 @@ func (ed *deviceEditor) edit() workspace.DeviceEdit {
 		}
 		e.Commands = append(e.Commands, c)
 	}
+	for k, v := range ed.e.Keys {
+		if !isRemoteKey(k) {
+			e.Keys[k] = v
+		}
+	}
 	for _, r := range ed.keys {
 		if s := pick(r.short); s != "" {
 			e.Keys[r.key] = profile.Key{Short: s, Long: pick(r.long)}
@@ -402,6 +557,21 @@ func (ed *deviceEditor) edit() workspace.DeviceEdit {
 			e.Inputs = append(e.Inputs, s)
 		}
 	}
+	for _, b := range ed.macros {
+		m := workspace.MacroEdit{Original: b.original, Name: b.name.Text}
+		for _, r := range b.steps {
+			if r.cmd != nil {
+				m.Steps = append(m.Steps, profile.DeviceStep{Command: pick(r.cmd), Hold: r.hold})
+				continue
+			}
+			v, err := strconv.ParseUint(strings.TrimSpace(r.wait.Text), 10, 8)
+			if err != nil {
+				v = 0 // reported as a step with nothing to do
+			}
+			m.Steps = append(m.Steps, profile.DeviceStep{Seconds: uint8(v)})
+		}
+		e.Macros = append(e.Macros, m)
+	}
 	return e
 }
 
@@ -411,6 +581,9 @@ func (ed *deviceEditor) save() {
 		var fe *workspace.FieldError
 		if errors.As(err, &fe) && fe.Field == "command" && fe.Index < len(ed.cmds) {
 			ed.app.win.Canvas().Focus(ed.cmds[fe.Index].name)
+		}
+		if errors.As(err, &fe) && fe.Field == "macro" && fe.Index < len(ed.macros) {
+			ed.app.win.Canvas().Focus(ed.macros[fe.Index].name)
 		}
 		ed.problem.SetText(err.Error())
 		ed.problem.Show()

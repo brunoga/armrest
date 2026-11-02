@@ -523,6 +523,24 @@ func TestEditDevice(t *testing.T) {
 		}
 	}
 	assertScreens(t, w, "edit-device")
+
+	// A macro of one step.
+	test.Tap(button(t, w, "Add a macro"))
+	test.Tap(button(t, w, "Command"))
+	var macroName *widget.Entry
+	var lastPicker *widget.Select
+	walk(w, func(o fyne.CanvasObject) {
+		switch x := o.(type) {
+		case *widget.Entry:
+			if x.PlaceHolder == "Macro name" {
+				macroName = x
+			}
+		case *widget.Select:
+			lastPicker = x
+		}
+	})
+	macroName.SetText("Quiet")
+	lastPicker.SetSelected("Silence")
 	test.Tap(button(t, w, "Save"))
 	got := texts(w)
 	if !strings.Contains(got, "Saved. Review your changes") || !strings.Contains(got, "AVR") || !strings.Contains(got, "Edited") {
@@ -534,5 +552,9 @@ func TestEditDevice(t *testing.T) {
 				t.Errorf("%s still runs %q", a.Name, k.Short)
 			}
 		}
+	}
+	d := u.work.Config.Device("AVR")
+	if m := d.Macros[len(d.Macros)-1]; m.Name != "Quiet" || len(m.Steps) != 1 || m.Steps[0].Command != "Silence" {
+		t.Errorf("macro: %+v", m)
 	}
 }

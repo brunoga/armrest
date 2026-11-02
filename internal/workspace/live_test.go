@@ -178,3 +178,122 @@ func TestLiveAddDevice(t *testing.T) {
 		t.Fatal("still on the hub")
 	}
 }
+
+// TestLiveActivity makes a ZZ-test activity with the hub's first device,
+// edits it and deletes it, reading each change back. It writes to the
+// hub, but touches no other activity, and no device.
+func TestLiveActivity(t *testing.T) {
+	ctx := context.Background()
+	b := backend.Network()
+	hubs, err := b.Discover(ctx)
+	if err != nil || len(hubs) != 1 {
+		t.Fatalf("want one hub, got %d (%v)", len(hubs), err)
+	}
+	c, err := b.Connect(ctx, hubs[0])
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer c.Close()
+	w, err := Read(ctx, c, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() {
+		acts, _ := c.Activities(ctx)
+		for _, e := range acts {
+			if strings.HasPrefix(e.Name, "ZZ-test") {
+				t.Logf("removing %q", e.Name)
+				_ = c.DeleteActivity(ctx, e.ID)
+			}
+		}
+	}()
+	// The device with the fewest commands, so its commands are cheap to
+	// read back.
+	dev := w.Config.Devices[0]
+	for _, d := range w.Config.Devices {
+		if len(d.Commands) < len(dev.Commands) {
+			dev = d
+		}
+	}
+	cmds := w.Commands([]string{dev.Name})
+
+	apply := func(w *Workspace, want, name string) *Workspace {
+		t.Helper()
+		p, err := w.Plan(ctx)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if len(p.Changes) != 1 || p.Changes[0].Title != want {
+			t.Fatalf("plan is not just %q:\n%+v", want, p.Changes)
+		}
+		start := time.Now()
+		if err := w.Apply(ctx, c, p.Writes, nil); err != nil {
+			t.Fatal(err)
+		}
+		t.Logf("%s: %d writes in %v", want, p.Writes, time.Since(start).Round(time.Second))
+		back, err := w.ReadBack(ctx, c, nil)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if name != "" {
+			a := back.Config.Activity(name)
+			if a == nil {
+				t.Fatalf("%s is not on the hub", name)
+			}
+			e, _ := back.EditActivity(name)
+			want, _ := w.EditActivity(name)
+			want.Original, e.Original = "", ""
+			if want.PowerOn == nil {
+				want.PowerOn, want.PowerOff = UsualSteps([]string{dev.Name}, true), UsualSteps([]string{dev.Name}, false)
+			}
+			if want.Icon == 0 {
+				e.Icon = 0
+			}
+			if want.Color == 0 {
+				e.Color = 0
+			}
+			if !sameYAML(&want, &e) {
+				x, _ := yaml.Marshal(&e)
+				y, _ := yaml.Marshal(&want)
+				t.Fatalf("%s on the hub:\n%s\nwant:\n%s", name, x, y)
+			}
+		}
+		if p, err := back.Plan(ctx); err != nil || len(p.Changes) != 0 {
+			t.Fatalf("after %q: %v %+v", want, err, p)
+		}
+		return back
+	}
+
+	n := w.NewActivity()
+	n.Name = "ZZ-test Activity"
+	n.Devices = []profile.Member{{Device: dev.Name}}
+	n.Keys["OK"] = profile.Key{Short: cmds[0]}
+	n.Favorites = []string{cmds[1]}
+	if err := w.SaveActivity(n); err != nil {
+		t.Fatal(err)
+	}
+	w = apply(w, "Add activity ZZ-test Activity", "ZZ-test Activity")
+
+	e, err := w.EditActivity("ZZ-test Activity")
+	if err != nil {
+		t.Fatal(err)
+	}
+	e.Name = "ZZ-test Renamed"
+	e.Keys["OK"] = profile.Key{Short: cmds[2], Long: cmds[0]}
+	e.Favorites = []string{cmds[1], cmds[2]}
+	e.PowerOn = []profile.Step{{Kind: profile.StepPowerOn, Device: dev.Name}, {Kind: profile.StepWait, Seconds: 2}}
+	e.Macros = []ActivityMacroEdit{{Name: "Twice", Steps: []profile.Step{
+		{Kind: profile.StepCommand, Device: dev.Name, Command: strings.TrimPrefix(cmds[0], dev.Name+": ")},
+		{Kind: profile.StepWait, Seconds: 1},
+		{Kind: profile.StepCommand, Device: dev.Name, Command: strings.TrimPrefix(cmds[0], dev.Name+": ")},
+	}}}
+	if err := w.SaveActivity(e); err != nil {
+		t.Fatal(err)
+	}
+	w = apply(w, "Change activity ZZ-test Renamed", "ZZ-test Renamed")
+
+	if err := w.RemoveActivity("ZZ-test Renamed"); err != nil {
+		t.Fatal(err)
+	}
+	apply(w, "Delete activity ZZ-test Renamed", "")
+}

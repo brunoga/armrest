@@ -274,9 +274,12 @@ drag-reorder lists.
       check reads every signal again; reading back after applying reads
       the written devices' signals again; Review waits for the check; if
       the hub changed under the user's edits, they choose.
-- [ ] Not possible yet: clearing a key of a device on the hub (the frame
-      that does it on an activity deletes a command on a device). Review
-      warns that the key stays. Needs a capture of what the app sends.
+- [ ] **To do (required): clearing a key of a device on the hub.** The
+      frame that does it on an activity deletes a command on a device, so
+      the library needs the app's own frame: capture the official app
+      clearing a device's key (sbx proxy), add it to the library
+      (sofabaton ROADMAP, Keys), then drop Review's warning that the key
+      stays.
 - [x] Phase 3d: device macros in the editor (steps that send a command
       or wait; renames carry to the activities' keys, removals take the
       keys that ran them). Keys can run macros too.

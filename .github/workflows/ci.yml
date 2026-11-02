@@ -83,7 +83,19 @@ jobs:
         run: sudo apt-get update && sudo apt-get install -y libgl1-mesa-dev xorg-dev libwayland-dev libxkbcommon-dev wayland-protocols
 
       - name: Build
-        run: go build -o armrest-bin ./cmd/armrest
+        shell: bash
+        # Windows links MinGW's runtime in statically, and gets no console
+        # window. Linux and macOS cannot be fully static: OpenGL comes from
+        # the system's driver, and macOS only links its libSystem
+        # dynamically.
+        run: |
+          flags="-s -w"
+          if [[ "$RUNNER_OS" == Windows ]]; then flags="$flags -H windowsgui -extldflags=-static"; fi
+          go build -ldflags "$flags" -o armrest-bin ./cmd/armrest
+
+      - name: Check it needs nothing the OS lacks
+        shell: bash
+        run: scripts/check-deps.sh armrest-bin
 
   android:
     name: Build (android)

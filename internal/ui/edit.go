@@ -160,11 +160,11 @@ func (a *App) showPlan(body *fyne.Container, status *widget.Label, p *workspace.
 	apply := widget.NewButtonWithIcon("Apply to the hub", theme.ConfirmIcon(), func() { a.applyPlan(p) })
 	apply.Importance = widget.HighImportance
 	discard := widget.NewButtonWithIcon("Discard changes", theme.DeleteIcon(), func() {
-		dialog.ShowConfirm("Discard changes?", "Your changes will be lost. The hub is not touched.", func(ok bool) {
+		dialog.ShowConfirm("Discard changes?", "The hub is not touched. Undo brings your changes back.", func(ok bool) {
 			if !ok {
 				return
 			}
-			if err := a.work.Discard(context.Background()); err != nil {
+			if err := a.work.Discard(); err != nil {
 				dialog.ShowError(err, a.win)
 				return
 			}

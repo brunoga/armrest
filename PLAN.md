@@ -292,6 +292,16 @@ drag-reorder lists.
       and device). Checked on the X2: a ZZ-test activity created (8
       writes, 2m05s), edited (7, 1m44s) and deleted (1m28s), each read
       back exactly as intended.
+- [x] Phase 5a: undo and redo of every edit (Undo and Redo on the
+      browse screen; Ctrl+Z, Ctrl+Shift+Z and Ctrl+Y on desktop), Discard
+      included. Edits not yet applied are kept with the cached hub, so
+      they outlive the app being closed (a phone does it on its own), and
+      are checked against the hub on the next visit like any edits.
+- [ ] Phase 5b: saving a workspace to a file and opening it without the
+      hub; applying it later to its hub.
+- [ ] Phase 5c: backup and restore: a file applied to a hub that changed
+      since, or to another hub, is a restore (matched by name), with the
+      plan first.
 - [ ] Later in the editors: the remote's drawing for keys (the list of
       keys is long on a phone). Edits
       change the workspace's config; Review applies it to a fresh

@@ -15,10 +15,12 @@ import (
 	"github.com/brunoga/sofabaton/dump"
 )
 
-// Entry is a hub's cached dump and when it was read.
+// Entry is a hub's cached dump, when it was read, and the user's edits
+// not yet applied to it (workspace.Edits), if any.
 type Entry struct {
 	Saved time.Time  `json:"saved"`
 	Dump  *dump.File `json:"dump"`
+	Edits []byte     `json:"edits,omitempty"`
 }
 
 // Cache stores entries in a directory (the app's storage), one file per
@@ -49,8 +51,9 @@ func (c Cache) Load(hubID string) *Entry {
 	return &e
 }
 
-// Save stores d as the hub's entry, read now.
-func (c Cache) Save(d *dump.File, now time.Time) error {
+// Save stores e as its hub's entry.
+func (c Cache) Save(e Entry) error {
+	d := e.Dump
 	if d == nil || !validID(d.Info.ID) {
 		return errors.New("cache: a dump without a hub id")
 	}
@@ -63,7 +66,7 @@ func (c Cache) Save(d *dump.File, now time.Time) error {
 		return fmt.Errorf("cache: %w", err)
 	}
 	defer func() { _ = os.Remove(tmp.Name()) }()
-	if err := json.NewEncoder(tmp).Encode(Entry{Saved: now, Dump: d}); err != nil {
+	if err := json.NewEncoder(tmp).Encode(e); err != nil {
 		_ = tmp.Close()
 		return fmt.Errorf("cache: %w", err)
 	}

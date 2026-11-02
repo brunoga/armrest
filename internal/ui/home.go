@@ -1,6 +1,7 @@
 package ui
 
 import (
+	"bytes"
 	"context"
 	"encoding/hex"
 	"errors"
@@ -29,7 +30,12 @@ func (a *App) showHome(h backend.Hub) {
 	if a.cache != nil && !h.Demo {
 		if e := a.cache.Load(hex.EncodeToString(info.ID[:])); e != nil {
 			if w, err := workspace.FromDump(context.Background(), e.Dump); err == nil {
-				a.work = w
+				if e.Edits != nil {
+					if err := w.LoadEdits(e.Edits); err != nil {
+						fyne.LogError("the cached edits", err)
+					}
+				}
+				a.work, a.readAt, a.saved = w, e.Saved, append([]byte{}, e.Edits...)
 				a.checkForChanges(h, a.showBrowse(h), e)
 				return
 			}
@@ -91,14 +97,32 @@ func (a *App) showHome(h backend.Hub) {
 	})
 }
 
-// remember caches w, the configuration of h just read.
+// remember caches w, the configuration of h just read, with its edits.
 func (a *App) remember(h backend.Hub, w *workspace.Workspace) {
-	if a.cache == nil || h.Demo {
+	a.readAt, a.saved = a.now(), nil
+	a.saveEdits(h, w)
+}
+
+// saveEdits caches w's edits with the hub read at readAt, if they changed
+// since last saved: the app can be closed at any time (a phone does it on
+// its own), and they are back the next time.
+func (a *App) saveEdits(h backend.Hub, w *workspace.Workspace) {
+	if a.cache == nil || h.Demo || w == nil || a.readAt.IsZero() {
 		return
 	}
-	if err := a.cache.Save(w.Dump, a.now()); err != nil {
-		fyne.LogError("caching the hub", err)
+	edits, err := w.Edits()
+	if err != nil {
+		fyne.LogError("keeping the edits", err)
+		return
 	}
+	if a.saved != nil && bytes.Equal(edits, a.saved) {
+		return
+	}
+	if err := a.cache.Save(cache.Entry{Saved: a.readAt, Dump: w.Dump, Edits: edits}); err != nil {
+		fyne.LogError("caching the hub", err)
+		return
+	}
+	a.saved = append([]byte{}, edits...)
 }
 
 // checkForChanges reads the hub again in the background, reusing what the
@@ -126,7 +150,7 @@ func (a *App) checkForChanges(h backend.Hub, s *browseScreen, e *cache.Entry) {
 			case a.work.Same(w) || (a.work.Changed() && a.work.SameBase(w)):
 				// Nothing changed on the hub: keep the edits, if any, on
 				// the fresh read.
-				w.Config = a.work.Config
+				w.KeepEdits(a.work)
 				a.work = w
 				a.remember(h, w)
 				s.setStatus(false, "Up to date.")
@@ -136,7 +160,8 @@ func (a *App) checkForChanges(h backend.Hub, s *browseScreen, e *cache.Entry) {
 				s.reload()
 				s.setStatus(false, "Updated with the hub's changes.")
 			default:
-				a.remember(h, w)
+				// Remembered once the user chose: the edits are cached
+				// until then.
 				a.hubChangedUnderEdits(w)
 			}
 			s.showChanges()
@@ -153,12 +178,14 @@ func (a *App) hubChangedUnderEdits(fresh *workspace.Workspace) {
 		func(startOver bool) {
 			if startOver {
 				a.work = fresh
+				a.remember(a.hub, fresh)
 				a.showBrowse(a.hub).setStatus(false, "Showing the hub as it is now.")
 				return
 			}
 			// The edits stay, now compared with the hub as it is.
-			fresh.Config = a.work.Config
+			fresh.KeepEdits(a.work)
 			a.work = fresh
+			a.remember(a.hub, fresh)
 			a.showBrowse(a.hub).setStatus(false, "Your changes are kept. Review them carefully before applying.")
 		}, a.win)
 	d.Show()
@@ -211,6 +238,11 @@ type browseScreen struct {
 	changes *fyne.Container
 	review  *widget.Button
 	pending *widget.Label
+	// undoBtn and redoBtn take back and make again the last edit.
+	undoBtn, redoBtn *widget.Button
+	// root is the screen's content.
+	root fyne.CanvasObject
+	hub  backend.Hub
 }
 
 // browseRow is a row of the list: a heading, an activity, a device, or
@@ -238,10 +270,48 @@ func (r browseRow) text() string {
 }
 
 func (a *App) showBrowse(h backend.Hub) *browseScreen {
-	s := &browseScreen{app: a}
+	a.saveEdits(h, a.work)
+	s := &browseScreen{app: a, hub: h}
 	a.browse = s
-	a.win.SetContent(s.content(h))
+	s.root = s.content(h)
+	a.win.SetContent(s.root)
 	return s
+}
+
+// undo takes back the last edit.
+func (s *browseScreen) undo() {
+	if what := s.app.work.Undo(); what != "" {
+		s.edited("Undone: " + what + ".")
+	}
+}
+
+// redo makes the last edit undone again.
+func (s *browseScreen) redo() {
+	if what := s.app.work.Redo(); what != "" {
+		s.edited("Redone: " + what + ".")
+	}
+}
+
+// edited shows the workspace after an edit made here, saying what it was.
+func (s *browseScreen) edited(status string) {
+	s.app.saveEdits(s.hub, s.app.work)
+	s.reload()
+	s.showChanges()
+	s.setStatus(false, status)
+}
+
+// showUndo enables Undo and Redo when they have something to do.
+func (s *browseScreen) showUndo() {
+	for _, b := range []struct {
+		btn *widget.Button
+		can bool
+	}{{s.undoBtn, s.app.work.CanUndo()}, {s.redoBtn, s.app.work.CanRedo()}} {
+		if b.can {
+			b.btn.Enable()
+		} else {
+			b.btn.Disable()
+		}
+	}
 }
 
 // setStatus shows text below the list, with an activity indicator while
@@ -340,6 +410,7 @@ func (s *browseScreen) selectDevice(name string) {
 
 // showChanges shows the pending-changes bar if the workspace has edits.
 func (s *browseScreen) showChanges() {
+	s.showUndo()
 	if !s.app.work.Changed() {
 		s.changes.Hide()
 		return
@@ -460,6 +531,8 @@ func (s *browseScreen) content(h backend.Hub) fyne.CanvasObject {
 	s.review.Importance = widget.HighImportance
 	s.pending = wrapped("")
 	s.changes = container.NewBorder(widget.NewSeparator(), nil, nil, container.NewCenter(s.review), s.pending)
+	s.undoBtn = widget.NewButtonWithIcon("", theme.ContentUndoIcon(), s.undo)
+	s.redoBtn = widget.NewButtonWithIcon("", theme.ContentRedoIcon(), s.redo)
 	s.showChanges()
 	return container.NewBorder(s.header(h), container.NewVBox(s.changes, s.footer), nil, nil, s.split)
 }
@@ -467,6 +540,7 @@ func (s *browseScreen) content(h backend.Hub) fyne.CanvasObject {
 func (s *browseScreen) header(h backend.Hub) fyne.CanvasObject {
 	info := s.app.client.Info()
 	name := widget.NewLabelWithStyle(info.Name, fyne.TextAlignLeading, fyne.TextStyle{Bold: true})
+	name.Truncation = fyne.TextTruncateEllipsis
 	detail := fmt.Sprintf("%v, firmware %d", info.Variant, info.Firmware)
 	if h.Demo {
 		detail = "Demo hub: a simulated " + detail
@@ -477,7 +551,8 @@ func (s *browseScreen) header(h backend.Hub) fyne.CanvasObject {
 	sub.Truncation = fyne.TextTruncateEllipsis
 	return container.NewVBox(
 		container.NewBorder(nil, nil, nil,
-			container.NewVBox(widget.NewButtonWithIcon("Disconnect", theme.LogoutIcon(), s.app.disconnect)),
+			container.NewVBox(container.NewHBox(s.undoBtn, s.redoBtn,
+				widget.NewButtonWithIcon("Disconnect", theme.LogoutIcon(), s.app.disconnect))),
 			container.NewVBox(name, sub)),
 		widget.NewSeparator())
 }

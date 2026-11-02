@@ -32,6 +32,90 @@ type Workspace struct {
 	Config *profile.Config
 	// base is the configuration as read.
 	base *profile.Config
+	// undo and redo are the configurations before the edits undone by
+	// Undo and after those Redo makes again, the latest last.
+	undo, redo []step
+}
+
+// step is a configuration in the edit history, and the edit that left it,
+// in words.
+type step struct {
+	cfg  *profile.Config
+	what string
+}
+
+// History is how many edits Undo can take back.
+const History = 100
+
+// commit makes cfg the configuration, after the edit what ("changes to
+// TV"), which Undo can take back. An edit that changes nothing is not
+// one.
+func (w *Workspace) commit(cfg *profile.Config, what string) {
+	if sameConfig(cfg, w.Config) {
+		return
+	}
+	w.undo = append(w.undo, step{w.Config, what})
+	if len(w.undo) > History {
+		w.undo = w.undo[1:]
+	}
+	w.redo = nil
+	w.Config = cfg
+}
+
+// CanUndo and CanRedo report whether Undo and Redo have an edit to take
+// back or make again.
+func (w *Workspace) CanUndo() bool { return len(w.undo) > 0 }
+func (w *Workspace) CanRedo() bool { return len(w.redo) > 0 }
+
+// Undo takes back the last edit, and says which it was.
+func (w *Workspace) Undo() string {
+	if len(w.undo) == 0 {
+		return ""
+	}
+	last := w.undo[len(w.undo)-1]
+	w.undo = w.undo[:len(w.undo)-1]
+	w.redo = append(w.redo, step{w.Config, last.what})
+	w.Config = last.cfg
+	return last.what
+}
+
+// Redo makes the last edit Undo took back again, and says which it was.
+func (w *Workspace) Redo() string {
+	if len(w.redo) == 0 {
+		return ""
+	}
+	next := w.redo[len(w.redo)-1]
+	w.redo = w.redo[:len(w.redo)-1]
+	w.undo = append(w.undo, step{w.Config, next.what})
+	w.Config = next.cfg
+	return next.what
+}
+
+// KeepEdits gives w the edits of old, a workspace of the hub read before,
+// with their history.
+func (w *Workspace) KeepEdits(old *Workspace) {
+	w.Config, w.undo, w.redo = old.Config, old.undo, old.redo
+}
+
+// Edits are the edits as bytes to keep, or nil if there are none.
+func (w *Workspace) Edits() ([]byte, error) {
+	if !w.Changed() {
+		return nil, nil
+	}
+	return yaml.Marshal(w.Config)
+}
+
+// LoadEdits makes edits, from Edits, the configuration.
+func (w *Workspace) LoadEdits(edits []byte) error {
+	var cfg profile.Config
+	if err := yaml.Unmarshal(edits, &cfg); err != nil {
+		return fmt.Errorf("workspace: the edits: %w", err)
+	}
+	if err := cfg.Validate(); err != nil {
+		return fmt.Errorf("workspace: the edits: %w", err)
+	}
+	w.Config, w.undo, w.redo = &cfg, nil, nil
+	return nil
 }
 
 // Attempts is how many times Read reads the hub: now and then the X2
@@ -139,13 +223,13 @@ func (w *Workspace) Changed() bool {
 	return !sameConfig(w.Config, w.base)
 }
 
-// Discard drops the edits.
-func (w *Workspace) Discard(ctx context.Context) error {
-	o, err := FromDump(ctx, w.Dump)
+// Discard drops the edits; Undo takes it back.
+func (w *Workspace) Discard() error {
+	cfg, err := cloneConfig(w.base)
 	if err != nil {
 		return err
 	}
-	w.Config = o.Config
+	w.commit(cfg, "discarding the changes")
 	return nil
 }
 
@@ -198,7 +282,12 @@ func (w *Workspace) AddDevice(d *profile.Device) error {
 	if o := w.Config.Device(d.Name); o != nil {
 		return fmt.Errorf("there is a device named %q already", o.Name)
 	}
+	cfg, err := cloneConfig(w.Config)
+	if err != nil {
+		return err
+	}
 	d.ID = 0
-	w.Config.Devices = append(w.Config.Devices, d)
+	cfg.Devices = append(cfg.Devices, d)
+	w.commit(cfg, "adding "+d.Name)
 	return nil
 }

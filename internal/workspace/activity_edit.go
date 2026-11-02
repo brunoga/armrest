@@ -215,8 +215,10 @@ func (w *Workspace) SaveActivity(e ActivityEdit) error {
 	if err != nil {
 		return err
 	}
+	what := "changes to " + name
 	if e.Original == "" {
 		cfg.Activities = append(cfg.Activities, a)
+		what = "adding " + name
 	} else {
 		old := cfg.Activity(e.Original)
 		if old == nil {
@@ -228,7 +230,7 @@ func (w *Workspace) SaveActivity(e ActivityEdit) error {
 	if err := cfg.Validate(); err != nil {
 		return err
 	}
-	w.Config = cfg
+	w.commit(cfg, what)
 	return nil
 }
 
@@ -287,5 +289,13 @@ func (w *Workspace) RemoveActivity(name string) error {
 	if w.Config.Activity(name) == nil {
 		return errors.New("no activity " + name)
 	}
-	return w.Config.RemoveActivity(name)
+	cfg, err := cloneConfig(w.Config)
+	if err != nil {
+		return err
+	}
+	if err := cfg.RemoveActivity(name); err != nil {
+		return err
+	}
+	w.commit(cfg, "deleting "+name)
+	return nil
 }

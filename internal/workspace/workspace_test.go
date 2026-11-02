@@ -81,3 +81,66 @@ func TestReadAgain(t *testing.T) {
 		t.Errorf("again %v, %d devices", again, len(w.Config.Devices))
 	}
 }
+
+// Edits are undone and redone in order; a new edit drops what was undone.
+func TestUndo(t *testing.T) {
+	w := demoWorkspace(t)
+	if w.CanUndo() || w.CanRedo() || w.Undo() != "" || w.Redo() != "" {
+		t.Fatal("history before any edit")
+	}
+	if err := w.RemoveActivity("Play PC"); err != nil {
+		t.Fatal(err)
+	}
+	e, _ := w.EditDevice("Receiver")
+	e.Brand = "Marantz"
+	if err := w.SaveDevice(e); err != nil {
+		t.Fatal(err)
+	}
+	// An edit that changes nothing is not one.
+	e, _ = w.EditDevice("Receiver")
+	if err := w.SaveDevice(e); err != nil {
+		t.Fatal(err)
+	}
+	if got := w.Undo(); got != "changes to Receiver" || w.Config.Device("Receiver").Brand != "Denon" || w.Config.Activity("Play PC") != nil {
+		t.Fatalf("undid %q", got)
+	}
+	if got := w.Undo(); got != "deleting Play PC" || w.Config.Activity("Play PC") == nil || w.Changed() || w.CanUndo() {
+		t.Fatalf("undid %q", got)
+	}
+	if got := w.Redo(); got != "deleting Play PC" || w.Config.Activity("Play PC") != nil || !w.CanRedo() {
+		t.Fatalf("redid %q", got)
+	}
+	if err := w.Discard(); err != nil || w.Changed() || w.CanRedo() {
+		t.Fatalf("discard: %v", err)
+	}
+	if got := w.Undo(); got != "discarding the changes" || w.Config.Activity("Play PC") != nil {
+		t.Fatalf("undid %q", got)
+	}
+}
+
+// Edits kept as bytes come back as they were.
+func TestEdits(t *testing.T) {
+	w := demoWorkspace(t)
+	if b, err := w.Edits(); b != nil || err != nil {
+		t.Fatalf("edits before any: %q %v", b, err)
+	}
+	e, _ := w.EditDevice("Receiver")
+	e.Name = "AVR"
+	if err := w.SaveDevice(e); err != nil {
+		t.Fatal(err)
+	}
+	b, err := w.Edits()
+	if err != nil {
+		t.Fatal(err)
+	}
+	o := demoWorkspace(t)
+	if err := o.LoadEdits(b); err != nil {
+		t.Fatal(err)
+	}
+	if !o.Same(w) || o.Config.Device("AVR") == nil || o.DeviceState(o.Config.Device("AVR")) != Edited || o.CanUndo() {
+		t.Fatal("the edits did not come back")
+	}
+	if err := o.LoadEdits([]byte("activities: [{name: X, devices: [Nothing]}]\n")); err == nil {
+		t.Error("edits that do not hold together loaded")
+	}
+}

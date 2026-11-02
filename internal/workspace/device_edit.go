@@ -305,13 +305,21 @@ func (w *Workspace) SaveDevice(e DeviceEdit) error {
 	if err := cfg.Validate(); err != nil {
 		return err
 	}
-	w.Config = cfg
+	w.commit(cfg, "changes to "+name)
 	return nil
 }
 
 // RemoveDevice removes a device, and from the activities that use it.
 func (w *Workspace) RemoveDevice(name string) error {
-	return w.Config.RemoveDevice(name)
+	cfg, err := cloneConfig(w.Config)
+	if err != nil {
+		return err
+	}
+	if err := cfg.RemoveDevice(name); err != nil {
+		return err
+	}
+	w.commit(cfg, "deleting "+name)
+	return nil
 }
 
 // cloneConfig is a deep copy of cfg, through YAML.

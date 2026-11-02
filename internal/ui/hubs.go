@@ -30,7 +30,7 @@ type hubsScreen struct {
 
 func (a *App) showHubs() {
 	s := &hubsScreen{app: a}
-	a.win.SetContent(s.content())
+	a.show(s.content(), nil)
 	s.discover()
 }
 

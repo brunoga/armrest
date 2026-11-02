@@ -64,8 +64,9 @@ func (a *App) showHome(h backend.Hub) {
 	retry.Importance = widget.HighImportance
 	retry.Hide()
 	intro := wrapped("This takes a few seconds for each device and activity. Keep the app open until it is done.")
-	a.win.SetContent(column(container.NewPadded(container.NewVBox(
-		title, intro, bar, alive, step, container.NewHBox(retry, cancelBtn)))))
+	a.show(column(container.NewPadded(container.NewVBox(
+		title, intro, bar, alive, step, container.NewHBox(retry, cancelBtn)))), backTo(cancelBtn.OnTapped))
+	a.awake(true)
 
 	c := a.client
 	a.async(func() {
@@ -83,6 +84,7 @@ func (a *App) showHome(h backend.Hub) {
 			})
 		})
 		fyne.Do(func() {
+			a.awake(false)
 			alive.Stop()
 			switch {
 			case errors.Is(err, context.Canceled):

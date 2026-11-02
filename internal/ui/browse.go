@@ -93,8 +93,25 @@ func (a *App) showBrowse(h backend.Hub) *browseScreen {
 	s := &browseScreen{app: a, hub: h}
 	a.browse = s
 	s.root = s.content(h)
-	a.win.SetContent(s.root)
+	a.show(s.root, s.back)
 	return s
+}
+
+// back leaves the device or activity shown, on phones, else goes to the
+// hub's tab; from there, nowhere.
+func (s *browseScreen) back() bool {
+	i := s.tabs.SelectedIndex()
+	for j, b := range []*browseList{s.devices, s.activities} {
+		if i == devicesTab+j && b.split.narrow && b.split.showing {
+			b.split.back()
+			return true
+		}
+	}
+	if i != hubTab {
+		s.tabs.SelectIndex(hubTab)
+		return true
+	}
+	return false
 }
 
 // undo takes back the last edit.

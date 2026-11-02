@@ -10,6 +10,7 @@ import (
 	"fyne.io/fyne/v2/container"
 	"fyne.io/fyne/v2/dialog"
 	"fyne.io/fyne/v2/driver/desktop"
+	"fyne.io/fyne/v2/driver/mobile"
 	"fyne.io/fyne/v2/widget"
 
 	"github.com/brunoga/armrest/internal/backend"
@@ -35,10 +36,14 @@ type App struct {
 	// readAt is when the workspace's hub was read, and saved the edits
 	// cached with it.
 	readAt time.Time
+	saved  []byte
 	// tab is the browse screen's tab shown last, shown again on coming
 	// back from an editor.
-	tab   int
-	saved []byte
+	tab int
+	// goBack is what Back (Escape on desktop) does on the screen shown.
+	// It reports false when there is nowhere to go back to: the app then
+	// leaves, as Android apps do.
+	goBack func() bool
 	// now is the time; tests fix it.
 	now func() time.Time
 
@@ -99,6 +104,48 @@ func (a *App) shortcuts() {
 	c.AddShortcut(&desktop.CustomShortcut{KeyName: fyne.KeyZ, Modifier: fyne.KeyModifierShortcutDefault}, undo)
 	c.AddShortcut(&desktop.CustomShortcut{KeyName: fyne.KeyZ, Modifier: fyne.KeyModifierShortcutDefault | fyne.KeyModifierShift}, redo)
 	c.AddShortcut(&desktop.CustomShortcut{KeyName: fyne.KeyY, Modifier: fyne.KeyModifierShortcutDefault}, redo)
+	c.SetOnTypedKey(func(e *fyne.KeyEvent) {
+		if e.Name == fyne.KeyEscape || e.Name == mobile.KeyBack {
+			a.pressBack()
+		}
+	})
+}
+
+// show shows content, where Back does back (nil: nowhere to go back to).
+func (a *App) show(content fyne.CanvasObject, back func() bool) {
+	a.goBack = back
+	a.win.SetContent(content)
+}
+
+// backTo is a Back that always goes to f.
+func backTo(f func()) func() bool {
+	return func() bool {
+		f()
+		return true
+	}
+}
+
+// stay is a Back that does nothing: while writing to the hub, say.
+func stay() bool { return true }
+
+// pressBack does what Back does on the screen shown. A dialog takes it
+// first: its own buttons close it.
+func (a *App) pressBack() {
+	if a.win.Canvas().Overlays().Top() != nil {
+		return
+	}
+	if a.goBack != nil && a.goBack() {
+		return
+	}
+	if d, ok := fyne.CurrentApp().Driver().(interface{ GoBack() }); ok {
+		d.GoBack()
+	}
+}
+
+// awake keeps the screen on while the app writes to or reads the hub: a
+// phone that sleeps drops the connection.
+func (a *App) awake(on bool) {
+	fyne.CurrentApp().Driver().SetDisableScreenBlanking(on)
 }
 
 // connect opens a client of h, with a progress dialog, and shows the home

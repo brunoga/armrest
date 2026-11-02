@@ -843,3 +843,32 @@ func list(t *testing.T, w fyne.Window) *widget.List {
 	}
 	return l
 }
+
+// Back (Escape on desktop) leaves an editor, then the device shown on a
+// phone, then goes to the hub's tab.
+func TestBack(t *testing.T) {
+	u, w := newApp(t, backend.Hub{Name: "Lounge", Model: "X2", Firmware: 9, Addr: lounge})
+	test.Tap(button(t, w, "Lounge (X2, 192.168.1.20)"))
+	w.Resize(sizes[0].size)
+	back := func() { w.Canvas().OnTypedKey()(&fyne.KeyEvent{Name: fyne.KeyEscape}) }
+
+	pickRow(t, u, "Receiver")
+	test.Tap(button(t, w, "Edit"))
+	back()
+	if w.Content() != u.browse.root {
+		t.Fatal("still in the editor")
+	}
+	pickRow(t, u, "Receiver")
+	back()
+	if u.browse.devices.split.showing || u.browse.tabs.SelectedIndex() != devicesTab {
+		t.Fatal("still showing the device")
+	}
+	back()
+	if u.browse.tabs.SelectedIndex() != hubTab {
+		t.Fatal("not on the hub's tab")
+	}
+	back() // nowhere to go: the app leaves, on phones
+	if w.Content() != u.browse.root {
+		t.Fatal("left the hub")
+	}
+}

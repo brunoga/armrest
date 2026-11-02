@@ -19,7 +19,28 @@ jobs:
       - uses: actions/setup-go@v7
         with:
           go-version-file: go.mod
-          cache: true
+          cache: false
+
+      # setup-go's cache is keyed on go.sum alone, which every library
+      # bump changes; this one falls back to the newest cache of the job,
+      # so a pull request rebuilds only what changed (Fyne's C code takes
+      # minutes from scratch).
+      - name: Locate Go's caches
+        id: go-cache
+        shell: bash
+        run: |
+          echo "build=$(go env GOCACHE)" >> "$GITHUB_OUTPUT"
+          echo "mod=$(go env GOMODCACHE)" >> "$GITHUB_OUTPUT"
+
+      - uses: actions/cache@v6
+        with:
+          path: |
+            ${{ steps.go-cache.outputs.build }}
+            ${{ steps.go-cache.outputs.mod }}
+          key: go-${{ runner.os }}-${{ github.job }}-${{ hashFiles('go.sum') }}-${{ github.sha }}
+          restore-keys: |
+            go-${{ runner.os }}-${{ github.job }}-${{ hashFiles('go.sum') }}-
+            go-${{ runner.os }}-${{ github.job }}-
 
       - name: Install Fyne's build dependencies
         run: sudo apt-get update && sudo apt-get install -y libgl1-mesa-dev xorg-dev libwayland-dev libxkbcommon-dev wayland-protocols
@@ -51,7 +72,28 @@ jobs:
       - uses: actions/setup-go@v7
         with:
           go-version-file: go.mod
-          cache: true
+          cache: false
+
+      # setup-go's cache is keyed on go.sum alone, which every library
+      # bump changes; this one falls back to the newest cache of the job,
+      # so a pull request rebuilds only what changed (Fyne's C code takes
+      # minutes from scratch).
+      - name: Locate Go's caches
+        id: go-cache
+        shell: bash
+        run: |
+          echo "build=$(go env GOCACHE)" >> "$GITHUB_OUTPUT"
+          echo "mod=$(go env GOMODCACHE)" >> "$GITHUB_OUTPUT"
+
+      - uses: actions/cache@v6
+        with:
+          path: |
+            ${{ steps.go-cache.outputs.build }}
+            ${{ steps.go-cache.outputs.mod }}
+          key: go-${{ runner.os }}-${{ github.job }}-${{ hashFiles('go.sum') }}-${{ github.sha }}
+          restore-keys: |
+            go-${{ runner.os }}-${{ github.job }}-${{ hashFiles('go.sum') }}-
+            go-${{ runner.os }}-${{ github.job }}-
 
       - name: Install Fyne's build dependencies
         run: sudo apt-get update && sudo apt-get install -y libgl1-mesa-dev xorg-dev libwayland-dev libxkbcommon-dev wayland-protocols
@@ -76,7 +118,28 @@ jobs:
       - uses: actions/setup-go@v7
         with:
           go-version-file: go.mod
-          cache: true
+          cache: false
+
+      # setup-go's cache is keyed on go.sum alone, which every library
+      # bump changes; this one falls back to the newest cache of the job,
+      # so a pull request rebuilds only what changed (Fyne's C code takes
+      # minutes from scratch).
+      - name: Locate Go's caches
+        id: go-cache
+        shell: bash
+        run: |
+          echo "build=$(go env GOCACHE)" >> "$GITHUB_OUTPUT"
+          echo "mod=$(go env GOMODCACHE)" >> "$GITHUB_OUTPUT"
+
+      - uses: actions/cache@v6
+        with:
+          path: |
+            ${{ steps.go-cache.outputs.build }}
+            ${{ steps.go-cache.outputs.mod }}
+          key: go-${{ runner.os }}-${{ github.job }}-${{ hashFiles('go.sum') }}-${{ github.sha }}
+          restore-keys: |
+            go-${{ runner.os }}-${{ github.job }}-${{ hashFiles('go.sum') }}-
+            go-${{ runner.os }}-${{ github.job }}-
 
       - name: Install Fyne's build dependencies
         if: runner.os == 'Linux'
@@ -106,7 +169,28 @@ jobs:
       - uses: actions/setup-go@v7
         with:
           go-version-file: go.mod
-          cache: true
+          cache: false
+
+      # setup-go's cache is keyed on go.sum alone, which every library
+      # bump changes; this one falls back to the newest cache of the job,
+      # so a pull request rebuilds only what changed (Fyne's C code takes
+      # minutes from scratch).
+      - name: Locate Go's caches
+        id: go-cache
+        shell: bash
+        run: |
+          echo "build=$(go env GOCACHE)" >> "$GITHUB_OUTPUT"
+          echo "mod=$(go env GOMODCACHE)" >> "$GITHUB_OUTPUT"
+
+      - uses: actions/cache@v6
+        with:
+          path: |
+            ${{ steps.go-cache.outputs.build }}
+            ${{ steps.go-cache.outputs.mod }}
+          key: go-${{ runner.os }}-${{ github.job }}-${{ hashFiles('go.sum') }}-${{ github.sha }}
+          restore-keys: |
+            go-${{ runner.os }}-${{ github.job }}-${{ hashFiles('go.sum') }}-
+            go-${{ runner.os }}-${{ github.job }}-
 
       - name: Install the fyne tool
         run: go install fyne.io/tools/cmd/fyne@latest

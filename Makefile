@@ -1,7 +1,7 @@
 PKG     := ./...
 APP     := ./cmd/armrest
 
-.PHONY: build run test check screens lint vet tidy android install-android ci clean
+.PHONY: build run test test-live check screens lint vet tidy android install-android ci clean
 
 build:
 	go build -o armrest $(APP)
@@ -11,6 +11,10 @@ run:
 
 test:
 	go test -race $(PKG)
+
+# Against the hubs on the network; only reads.
+test-live:
+	go test -tags live -count=1 -v -run Live $(PKG)
 
 # The quick pre-push check: tidy, vet, lint and the tests (screenshots
 # included).

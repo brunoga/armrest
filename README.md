@@ -18,7 +18,8 @@ go run github.com/brunoga/armrest/cmd/armrest@latest
 ```
 
 Fyne needs a C compiler and, on Linux, the OpenGL and X11 headers (on
-Debian and Ubuntu: `sudo apt install gcc libgl1-mesa-dev xorg-dev`). See
+Debian and Ubuntu: `sudo apt install gcc libgl1-mesa-dev xorg-dev libwayland-dev
+libxkbcommon-dev wayland-protocols`). See
 [Fyne's prerequisites](https://docs.fyne.io/started/).
 
 For Android, CI builds an APK on every change (the `armrest-android`

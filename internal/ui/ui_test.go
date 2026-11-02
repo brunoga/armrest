@@ -188,8 +188,12 @@ func TestBrowse(t *testing.T) {
 	assertScreens(t, w, "activity")
 
 	l.Select(7) // Projector/Google TV
-	if got := texts(w); !strings.Contains(got, "Commands (") || !strings.Contains(got, "Power") {
+	if got := texts(w); !strings.Contains(got, "Test sends a command from the hub") || !strings.Contains(got, "Power") {
 		t.Errorf("device:\n%s", got)
+	}
+	test.Tap(button(t, w, "Test"))
+	if got := texts(w); !strings.Contains(got, ". Did Projector/Google TV respond?") {
+		t.Errorf("send:\n%s", got)
 	}
 	assertScreens(t, w, "device")
 

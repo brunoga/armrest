@@ -12,6 +12,7 @@ import (
 
 	"github.com/brunoga/armrest/internal/backend"
 	"github.com/brunoga/armrest/internal/workspace"
+	"github.com/brunoga/sofabaton/hub"
 	"github.com/brunoga/sofabaton/profile"
 )
 
@@ -191,27 +192,52 @@ func (s *browseScreen) state(r browseRow) string {
 	return ""
 }
 
-// sender sends d's commands from the hub, or is nil while d is not on
-// the hub.
-func (s *browseScreen) sender(d *profile.Device) func(string) {
-	if s.app.work.DeviceState(d) == workspace.New || s.app.client == nil {
+// controls drive the device or activity named name on the hub, or are
+// nil while it is new (not on the hub yet) or there is no hub.
+func (s *browseScreen) controls(name string, isNew bool) *controls {
+	if isNew || s.app.client == nil {
 		return nil
 	}
-	return func(command string) {
+	// do does what doing says, saying done once done.
+	do := func(doing, failed, done string, f func(context.Context, *workspace.Workspace, *hub.Client) error) {
 		w, c := s.app.work, s.app.client
-		s.setStatus(true, fmt.Sprintf("Sending %s…", command))
+		s.setStatus(true, doing)
 		s.app.async(func() {
 			ctx, cancel := context.WithTimeout(context.Background(), ConnectTimeout)
 			defer cancel()
-			err := w.Send(ctx, c, d.Name, command)
+			err := f(ctx, w, c)
 			fyne.Do(func() {
 				if err != nil {
-					s.setStatus(false, fmt.Sprintf("Could not send %s: %v", command, err))
+					s.setStatus(false, fmt.Sprintf("%s: %v", failed, err))
 					return
 				}
-				s.setStatus(false, fmt.Sprintf("Sent %s. Did %s respond?", command, d.Name))
+				s.setStatus(false, done)
 			})
 		})
+	}
+	return &controls{
+		press: func(key string, hold bool) {
+			verb, past := "Pressing", "Pressed"
+			if hold {
+				verb, past = "Holding", "Held"
+			}
+			do(fmt.Sprintf("%s %s…", verb, key), fmt.Sprintf("Could not press %s", key), fmt.Sprintf("%s %s.", past, key),
+				func(ctx context.Context, w *workspace.Workspace, c *hub.Client) error {
+					return w.Press(ctx, c, name, key, hold)
+				})
+		},
+		run: func(macro string) {
+			do(fmt.Sprintf("Running %s…", macro), fmt.Sprintf("Could not run %s", macro), fmt.Sprintf("Ran %s.", macro),
+				func(ctx context.Context, w *workspace.Workspace, c *hub.Client) error {
+					return w.RunMacro(ctx, c, name, macro)
+				})
+		},
+		send: func(device, command string) {
+			do(fmt.Sprintf("Sending %s…", command), fmt.Sprintf("Could not send %s", command), fmt.Sprintf("Sent %s. Did %s respond?", command, device),
+				func(ctx context.Context, w *workspace.Workspace, c *hub.Client) error {
+					return w.Send(ctx, c, device, command)
+				})
+		},
 	}
 }
 
@@ -419,11 +445,11 @@ func (s *browseScreen) newList(hint string, build func() []browseRow) *browseLis
 		case r.activity != nil:
 			b.shown = &r
 			act := r.activity
-			b.split.show(act.Name, activityView(act, func() { s.app.showEditActivity(act.Name) }))
+			b.split.show(act.Name, activityView(act, s.app.work.Dump.Info.Model, s.controls(act.Name, s.app.work.ActivityState(act) == workspace.New), func() { s.app.showEditActivity(act.Name) }))
 		case r.device != nil:
 			b.shown = &r
 			d := r.device
-			b.split.show(d.Name, deviceView(d, s.sender(d), func() { s.app.showEditDevice(d.Name) }))
+			b.split.show(d.Name, deviceView(d, s.app.work.Dump.Info.Model, s.controls(d.Name, s.app.work.DeviceState(d) == workspace.New), func() { s.app.showEditDevice(d.Name) }))
 		}
 	}
 	// Inset from the window's edges, as the pages are.

@@ -348,6 +348,15 @@ drag-reorder lists.
       and its favorites. Move up and down stay in the rows' menus.
       Devices and activities themselves wait on the library (their
       order is not written yet).
+- [x] A device or activity opens on its remote: the X2's keys, those
+      it sets lit; a tap presses one on the hub, a long press (a right
+      click) holds it, as the hub has them (a key bound to one of the
+      activity's macros runs it). Beside the remote, its macros (each
+      with Run) and, for activities, favorites (each with Run), and its
+      details (commands with Test, keys, power, inputs, start and end
+      steps); Edit stays at hand. Starting an activity as the remote
+      does (the hub knowing it is on) waits on a capture of the app
+      doing it.
 - [ ] Later: the profile library server (section 10).
 
 ## 10. The profile library server (later; not built yet)

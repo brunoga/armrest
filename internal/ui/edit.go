@@ -38,11 +38,11 @@ func (a *App) showAddDevice() {
 			name.Truncation = fyne.TextTruncateEllipsis
 			sub := widget.NewLabel("")
 			sub.Truncation = fyne.TextTruncateEllipsis
-			return container.NewVBox(name, sub)
+			return listRow(container.NewVBox(name, sub))
 		},
 		func(i widget.ListItemID, o fyne.CanvasObject) {
 			t := shown[i]
-			box := o.(*fyne.Container)
+			box := o.(*fyne.Container).Objects[0].(*fyne.Container)
 			box.Objects[0].(*widget.Label).SetText(t.Model)
 			box.Objects[1].(*widget.Label).SetText(fmt.Sprintf("%s · %d commands", t.Brand, t.Commands))
 		})
@@ -120,7 +120,7 @@ func (a *App) showReview() {
 	alive := newPulse()
 	body := container.NewVBox(alive, status)
 	alive.Start()
-	a.screen("Review changes", a.backToBrowse, container.NewVScroll(column(container.NewPadded(body))))
+	a.screen("Review changes", a.backToBrowse, scrolled(body))
 	w := a.work
 	a.async(func() {
 		p, err := w.Plan(context.Background())

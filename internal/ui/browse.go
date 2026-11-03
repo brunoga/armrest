@@ -7,7 +7,6 @@ import (
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/canvas"
 	"fyne.io/fyne/v2/container"
-	"fyne.io/fyne/v2/layout"
 	"fyne.io/fyne/v2/theme"
 	"fyne.io/fyne/v2/widget"
 
@@ -341,10 +340,10 @@ func (s *browseScreen) hubContent(h backend.Hub) fyne.CanvasObject {
 		files.Add(container.NewHBox(restore))
 		leave = widget.NewButtonWithIcon("Close the file", theme.LogoutIcon(), s.app.closeFile)
 	}
-	return container.NewVScroll(column(container.NewPadded(container.NewVBox(
+	return scrolled(container.NewVBox(
 		card("The hub", s.hubInfo),
 		card("Files", files),
-		container.NewHBox(leave)))))
+		container.NewHBox(leave)))
 }
 
 // showHub says what the hub is, on its tab.
@@ -386,12 +385,12 @@ func (s *browseScreen) newList(hint string, build func() []browseRow) *browseLis
 			l.Truncation = fyne.TextTruncateEllipsis
 			state := widget.NewLabel("")
 			state.TextStyle.Italic = true
-			return container.NewBorder(nil, nil, container.New(layout.NewCustomPaddedLayout(0, 0, theme.Padding(), 0), icon), state, l)
+			return listRow(container.NewBorder(nil, nil, icon, state, l))
 		},
 		func(i widget.ListItemID, o fyne.CanvasObject) {
 			r := b.rows[i]
-			row := o.(*fyne.Container)
-			l, icon, state := row.Objects[0].(*widget.Label), row.Objects[1].(*fyne.Container).Objects[0].(*canvas.Image), row.Objects[2].(*widget.Label)
+			row := o.(*fyne.Container).Objects[0].(*fyne.Container)
+			l, icon, state := row.Objects[0].(*widget.Label), row.Objects[1].(*canvas.Image), row.Objects[2].(*widget.Label)
 			l.SetText(r.text())
 			state.SetText(s.state(r))
 			switch {
@@ -427,7 +426,8 @@ func (s *browseScreen) newList(hint string, build func() []browseRow) *browseLis
 			b.split.show(d.Name, deviceView(d, s.sender(d), func() { s.app.showEditDevice(d.Name) }))
 		}
 	}
-	b.split = newListDetail(b.list)
+	// Inset from the window's edges, as the pages are.
+	b.split = newListDetail(container.NewPadded(b.list))
 	b.split.onBack = func() {
 		b.shown = nil
 		b.list.UnselectAll()

@@ -83,7 +83,7 @@ func (a *App) showEditDevice(name string) {
 		return
 	}
 	ed := &deviceEditor{app: a, e: e}
-	a.screen("Edit "+e.Name, a.backToBrowse, container.NewVScroll(column(container.NewPadded(ed.content()))))
+	a.screen("Edit "+e.Name, a.backToBrowse, scrolled(ed.content()))
 }
 
 func (ed *deviceEditor) content() fyne.CanvasObject {

@@ -209,7 +209,7 @@ func TestBrowse(t *testing.T) {
 			test.Tap(b)
 		}
 	}
-	if !u.browse.devices.list.Visible() {
+	if !u.browse.devices.split.list.Visible() {
 		t.Error("the list is not back")
 	}
 

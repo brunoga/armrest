@@ -107,10 +107,13 @@ func newKeyPad(win fyne.Window, model string, keys profile.Buttons, picker func(
 	}
 	rows := grids(remoteRows)
 	if numbers := grids(numberRows); len(numbers.Objects) > 0 {
-		rows.Add(widget.NewLabelWithStyle("Number keys, on the remote's screen", fyne.TextAlignCenter, fyne.TextStyle{Italic: true}))
+		note := wrapped("Number keys, on the remote's screen")
+		note.Alignment, note.TextStyle.Italic = fyne.TextAlignCenter, true
+		rows.Add(note)
 		rows.Add(numbers)
 	}
-	p.box = container.New(&centerLayout{width: PadWidth * Scale()}, container.NewVBox(rows, p.list))
+	p.box = container.New(&centerLayout{width: PadWidth * Scale()},
+		container.NewVBox(container.NewThemeOverride(rows, tightKeys{}), p.list))
 	p.refresh()
 	return p
 }
@@ -268,3 +271,22 @@ func (k colorKey) Color(n fyne.ThemeColorName, v fyne.ThemeVariant) color.Color 
 func (k colorKey) Font(s fyne.TextStyle) fyne.Resource     { return k.current().Font(s) }
 func (k colorKey) Icon(n fyne.ThemeIconName) fyne.Resource { return k.current().Icon(n) }
 func (k colorKey) Size(n fyne.ThemeSizeName) float32       { return k.current().Size(n) }
+
+// tightKeys is the keys' look: less room around their names, so three
+// keys across fit a phone.
+type tightKeys struct{}
+
+func (tightKeys) current() fyne.Theme { return fyne.CurrentApp().Settings().Theme() }
+
+func (t tightKeys) Size(n fyne.ThemeSizeName) float32 {
+	if n == theme.SizeNameInnerPadding {
+		return t.current().Size(n) / 2
+	}
+	return t.current().Size(n)
+}
+
+func (t tightKeys) Color(n fyne.ThemeColorName, v fyne.ThemeVariant) color.Color {
+	return t.current().Color(n, v)
+}
+func (t tightKeys) Font(s fyne.TextStyle) fyne.Resource     { return t.current().Font(s) }
+func (t tightKeys) Icon(n fyne.ThemeIconName) fyne.Resource { return t.current().Icon(n) }

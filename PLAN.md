@@ -375,6 +375,10 @@ drag-reorder lists.
       a saved file, the demo hub and About are in the bar's menu. A key
       of the remote lights up in orange while held down. The icon's
       remote lies along the armrest (scripts/icon.py draws it).
+- [x] A key held down for half a second is held on the hub there and
+      then (Fyne only tells a long press once let go); letting go then
+      sends nothing more. Keys, macros and favorites that work say
+      nothing, as on the remote: only failures show at the bottom.
 - [ ] Later: the profile library server (section 10).
 
 ## 10. The profile library server (later; not built yet)

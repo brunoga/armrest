@@ -171,11 +171,19 @@ func remote(model string, keys profile.Buttons, ctl *controls) []fyne.CanvasObje
 }
 
 // remoteKey is a key of the remote drawn: tapped it presses the key on
-// the hub, tapped with the second button (a long press on phones) holds
-// it. Keys that do nothing are disabled.
+// the hub; held down for holdAfter it holds the key there and then, as
+// the remote does (a right click holds it too). Keys that do nothing are
+// disabled.
 type remoteKey struct {
 	widget.Button
 	hold func()
+
+	// pressed is set while a finger or mouse button holds the key down;
+	// timer holds the key once it has been down for holdAfter, and held
+	// is set once it did, so that letting go does not press it too.
+	pressed bool
+	timer   *time.Timer
+	held    bool
 
 	// lit is set while the key shows held down, since when, over its
 	// usual look.
@@ -184,12 +192,27 @@ type remoteKey struct {
 	usual widget.Importance
 }
 
+// afterFunc calls f after d, from its own goroutine; tests do without.
+var afterFunc = time.AfterFunc
+
+// holdAfter is how long a key is down before it is held, as long as a
+// phone's long press.
+const holdAfter = 500 * time.Millisecond
+
 // litFor is the least a key shows held down: a quick tap shows too.
 const litFor = 150 * time.Millisecond
 
-// down shows the key held down: in the app's orange.
+// down shows the key held down, in the app's orange, and starts timing
+// the hold.
 func (k *remoteKey) down() {
-	if k.Disabled() || k.lit {
+	if k.Disabled() || k.pressed {
+		return
+	}
+	k.pressed, k.held = true, false
+	if k.hold != nil {
+		k.timer = afterFunc(holdAfter, func() { fyne.Do(k.holding) })
+	}
+	if k.lit {
 		return
 	}
 	k.lit, k.since, k.usual = true, time.Now(), k.Importance
@@ -197,17 +220,30 @@ func (k *remoteKey) down() {
 	k.Refresh()
 }
 
+// holding holds the key, if it is still down.
+func (k *remoteKey) holding() {
+	if k.pressed && !k.held && k.hold != nil {
+		k.held = true
+		k.hold()
+	}
+}
+
 // up shows the key let go, once it has shown held down for litFor.
 func (k *remoteKey) up() {
-	if !k.lit {
+	if !k.pressed {
 		return
+	}
+	k.pressed = false
+	if k.timer != nil {
+		k.timer.Stop()
+		k.timer = nil
 	}
 	done := func() {
 		k.lit, k.Importance = false, k.usual
 		k.Refresh()
 	}
 	if wait := litFor - time.Since(k.since); wait > 0 {
-		time.AfterFunc(wait, func() { fyne.Do(done) })
+		afterFunc(wait, func() { fyne.Do(done) })
 		return
 	}
 	done()
@@ -245,9 +281,28 @@ func newRemoteKey(key, label string, set profile.Key, ctl *controls) *remoteKey 
 	return k
 }
 
-// TappedSecondary holds the key.
+// Tapped presses the key, unless it was held while down.
+func (k *remoteKey) Tapped(e *fyne.PointEvent) {
+	if k.held {
+		k.held = false
+		return
+	}
+	k.Button.Tapped(e)
+}
+
+// TappedSecondary is a right click, which holds the key; on phones, a
+// touch let go after Fyne's long press (shorter than holdAfter) but
+// before holdAfter, which presses it.
 func (k *remoteKey) TappedSecondary(*fyne.PointEvent) {
-	if k.hold != nil && !k.Disabled() {
+	switch {
+	case k.held:
+		k.held = false
+	case k.Disabled():
+	case fyne.CurrentDevice().IsMobile():
+		if k.OnTapped != nil {
+			k.OnTapped()
+		}
+	case k.hold != nil:
 		k.hold()
 	}
 }

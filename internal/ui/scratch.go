@@ -43,7 +43,7 @@ type commandRow struct {
 
 func (a *App) showScratch() {
 	s := &scratchScreen{app: a}
-	a.screen("New device", a.showAddDevice, container.NewVScroll(column(container.NewPadded(s.content()))))
+	a.screen("New device", a.showAddDevice, scrolled(s.content()))
 }
 
 func (s *scratchScreen) content() fyne.CanvasObject {

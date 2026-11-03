@@ -109,7 +109,7 @@ func (a *App) showEditActivity(name string) {
 		title = "Edit " + e.Name
 	}
 	ed := &activityEditor{app: a, e: e}
-	a.screen(title, a.backToBrowse, container.NewVScroll(column(container.NewPadded(ed.content()))))
+	a.screen(title, a.backToBrowse, scrolled(ed.content()))
 }
 
 func (ed *activityEditor) content() fyne.CanvasObject {

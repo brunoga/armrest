@@ -75,7 +75,7 @@ func (s *hubsScreen) content() fyne.CanvasObject {
 	cards.Add(byAddr)
 	cards.Add(files)
 	cards.Add(demo)
-	s.root = container.NewVScroll(column(container.NewPadded(cards)))
+	s.root = scrolled(cards)
 	about := widget.NewButtonWithIcon("", theme.InfoIcon(), s.app.showAbout)
 	return container.NewBorder(bar(nil, "Armrest", about), nil, nil, nil, s.root)
 }

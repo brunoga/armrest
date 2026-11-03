@@ -123,7 +123,7 @@ func keysSection(bs profile.Buttons) fyne.CanvasObject {
 
 // page is a detail's parts, scrolled, at a readable width.
 func page(parts []fyne.CanvasObject) fyne.CanvasObject {
-	return container.NewVScroll(column(container.NewPadded(container.NewVBox(parts...))))
+	return scrolled(container.NewVBox(parts...))
 }
 
 // withTile puts a device's or activity's tile left of its heading.

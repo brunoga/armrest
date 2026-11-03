@@ -72,13 +72,13 @@ func (a *App) aboutContent(resized func()) fyne.CanvasObject {
 		wrapped("The X2's icon drawings come from the home-assistant-sofabaton-x1s project, under the MIT license; the logos among them are their owners'."),
 		link("home-assistant-sofabaton-x1s", iconsPage))
 
-	return container.NewVScroll(column(container.NewPadded(container.NewVBox(
+	return scrolled(container.NewVBox(
 		top,
 		card("Text size", container.NewVBox(wrapped("How large the app's text is."), size)),
 		card("Author", made),
 		card("Built with", built),
 		card("License", wrapped("Armrest is free software, under the Apache License 2.0. It is not affiliated with or endorsed by Sofabaton.")),
-	))))
+	))
 }
 
 // showAbout shows the About page on its own, from the hubs screen.

@@ -37,7 +37,7 @@ func (a *App) showHome(h backend.Hub) {
 					}
 				}
 				a.work, a.readAt, a.saved = w, e.Saved, append([]byte{}, e.Edits...)
-				a.checkForChanges(h, a.showBrowse(h), e)
+				a.checkForChanges(h, a.showBrowse(h), e.Saved)
 				return
 			}
 		}
@@ -136,12 +136,12 @@ func (a *App) saveEdits(h backend.Hub, w *workspace.Workspace) {
 	a.saved = append([]byte{}, edits...)
 }
 
-// checkForChanges reads the hub again in the background, reusing what the
-// cached entry has, and updates s if the hub changed.
-func (a *App) checkForChanges(h backend.Hub, s *browseScreen, e *cache.Entry) {
+// checkForChanges reads the hub again in the background and updates s if
+// the hub changed since it was read, at since.
+func (a *App) checkForChanges(h backend.Hub, s *browseScreen, since time.Time) {
 	a.checking = true
 	s.showChanges()
-	s.setStatus(true, fmt.Sprintf("Showing the hub as it was %s. Checking for changes…", ago(e.Saved, a.now())))
+	s.setStatus(true, fmt.Sprintf("Showing the hub as it was %s. Checking for changes…", ago(since, a.now())))
 	c := a.client
 	a.async(func() {
 		// Every signal is read again: the hub keeps a command's record when
@@ -155,7 +155,7 @@ func (a *App) checkForChanges(h backend.Hub, s *browseScreen, e *cache.Entry) {
 			s := a.browse
 			switch {
 			case err != nil:
-				s.setStatus(false, fmt.Sprintf("Showing the hub as it was %s: checking it for changes failed. %s", ago(e.Saved, a.now()), readFailure(err)))
+				s.setStatus(false, fmt.Sprintf("Showing the hub as it was %s: checking it for changes failed. %s", ago(since, a.now()), readFailure(err)))
 				s.showChanges()
 				return
 			case a.work.Same(w) || (a.work.Changed() && a.work.SameBase(w)):

@@ -37,6 +37,8 @@ type browseScreen struct {
 
 	status *widget.Label
 	busy   *pulse
+	// retry holds Reconnect, which connects again to a dropped hub.
+	retry  *fyne.Container
 	footer *fyne.Container
 	// changes offers to review the edits, when there are any.
 	changes *fyne.Container
@@ -156,12 +158,19 @@ func (s *browseScreen) showUndo() {
 // setStatus shows text at the bottom, with the pulse over it while busy.
 func (s *browseScreen) setStatus(busy bool, text string) {
 	s.status.SetText(text)
+	s.retry.Hide()
 	if busy {
 		s.busy.Start()
 	} else {
 		s.busy.Stop()
 	}
 	s.footer.Show()
+	s.relayout()
+}
+
+// offerReconnect shows Reconnect beside the status.
+func (s *browseScreen) offerReconnect() {
+	s.retry.Show()
 	s.relayout()
 }
 
@@ -201,6 +210,13 @@ func (s *browseScreen) controls(name string, isNew bool) *controls {
 	// do does what doing says, saying done once done.
 	do := func(doing, failed, done string, f func(context.Context, *workspace.Workspace, *hub.Client) error) {
 		w, c := s.app.work, s.app.client
+		if c == nil {
+			s.setStatus(false, "Not connected to the hub: reconnect first.")
+			if !s.app.reconnecting {
+				s.offerReconnect()
+			}
+			return
+		}
 		s.setStatus(true, doing)
 		s.app.async(func() {
 			ctx, cancel := context.WithTimeout(context.Background(), ConnectTimeout)
@@ -302,7 +318,12 @@ func (s *browseScreen) content(h backend.Hub) fyne.CanvasObject {
 	s.status.TextStyle.Italic = true
 	s.busy = newPulse()
 	s.busy.Hide()
-	s.footer = container.NewBorder(container.NewVBox(widget.NewSeparator(), s.busy), nil, nil, nil, s.status)
+	s.retry = container.NewCenter(widget.NewButtonWithIcon("Reconnect", theme.ViewRefreshIcon(), func() {
+		s.retry.Hide()
+		s.app.reconnect()
+	}))
+	s.retry.Hide()
+	s.footer = container.NewBorder(container.NewVBox(widget.NewSeparator(), s.busy), nil, nil, s.retry, s.status)
 	s.footer.Hide()
 	s.review = widget.NewButtonWithIcon("Review changes", theme.DocumentIcon(), s.app.showReview)
 	s.review.Importance = widget.HighImportance

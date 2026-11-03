@@ -362,6 +362,14 @@ drag-reorder lists.
       feedback (View.performHapticFeedback, through JNI: no permission,
       and the phone's touch feedback setting decides). Fyne has no sound
       or vibration of its own; desktops give none.
+- [x] A dropped connection is made again: a phone that sleeps or leaves
+      the app drops the hub's (its network is suspended; staying
+      connected would take an Android foreground service). The app
+      watches the connection, checks it on coming back, and connects
+      again in the foreground (a few tries: the hub may not have seen
+      the old one go), then checks the hub for changes, keeping the
+      edits. Reconnect is offered if it fails; reading and writing keep
+      their own Try again.
 - [ ] Later: the profile library server (section 10).
 
 ## 10. The profile library server (later; not built yet)

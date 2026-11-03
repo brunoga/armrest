@@ -46,6 +46,7 @@ func newApp(t *testing.T, hubs ...backend.Hub) (*App, fyne.Window) {
 		},
 	}
 	u := New(w, back)
+	u.watch, u.retryWait = func(*hub.Client) {}, 0 // the tests drop connections
 	u.async = func(f func()) { f() }
 	t.Cleanup(u.Close)
 	u.Start()
@@ -261,6 +262,7 @@ func TestReadFailure(t *testing.T) {
 		},
 	}
 	u := New(w, back)
+	u.watch, u.retryWait = func(*hub.Client) {}, 0 // the tests drop connections
 	u.async = func(f func()) { f() }
 	t.Cleanup(u.Close)
 	u.Start()
@@ -329,6 +331,7 @@ func cachedApp(t *testing.T) (u *App, w fyne.Window, run func(), step func(), re
 		},
 	}
 	u = New(w, back)
+	u.watch, u.retryWait = func(*hub.Client) {}, 0 // the tests drop connections
 	var queue []func()
 	u.async = func(f func()) { queue = append(queue, f) }
 	step = func() {
@@ -1069,5 +1072,70 @@ func TestRemote(t *testing.T) {
 	}
 	if !strings.Contains(texts(w), "No favorites.") {
 		t.Error("no favorites pane")
+	}
+}
+
+// A dropped connection is made again, keeping the edits; in the
+// background, once the app is back; Reconnect is offered when it fails.
+func TestReconnect(t *testing.T) {
+	u, w := newApp(t, backend.Hub{Name: "Lounge", Model: "X2", Firmware: 9, Addr: lounge})
+	test.Tap(button(t, w, "Lounge (X2, 192.168.1.20)"))
+	e, err := u.work.EditActivity("Play PC")
+	if err != nil {
+		t.Fatal(err)
+	}
+	e.Name = "Play the PC"
+	if err := u.work.SaveActivity(e); err != nil {
+		t.Fatal(err)
+	}
+	status := func() string { return u.browse.status.Text }
+
+	old := u.client
+	_ = old.Close()
+	u.dropped(old)
+	if u.client == nil || u.client == old {
+		t.Fatal("not connected again")
+	}
+	if status() != "Up to date." || u.work.Config.Activity("Play the PC") == nil {
+		t.Errorf("after reconnecting: %q, edits kept: %v", status(), u.work.Config.Activity("Play the PC") != nil)
+	}
+
+	// Away, it waits for the app to be back.
+	u.background = true
+	old = u.client
+	_ = old.Close()
+	u.dropped(old)
+	if u.client != nil {
+		t.Fatal("connected again in the background")
+	}
+	u.background = false
+	u.resume()
+	if u.client == nil {
+		t.Fatal("not connected again once back")
+	}
+
+	// Back with a connection that died unseen: it is checked, and made
+	// again.
+	old = u.client
+	_ = old.Session().Close()
+	u.resume()
+	if u.client == nil || u.client == old {
+		t.Fatal("a dead connection was not made again on coming back")
+	}
+
+	// The hub does not answer: Reconnect is offered, and works once it
+	// does.
+	dial := u.back.Dial
+	u.back.Dial = func(context.Context, netip.Addr) (*hub.Client, error) { return nil, transport.ErrRefused }
+	old = u.client
+	_ = old.Close()
+	u.dropped(old)
+	if u.client != nil || !strings.HasPrefix(status(), "Could not reconnect to Lounge") || !u.browse.retry.Visible() {
+		t.Fatalf("after failing: %q, Reconnect shown: %v", status(), u.browse.retry.Visible())
+	}
+	u.back.Dial = dial
+	test.Tap(u.browse.retry.Objects[0].(*widget.Button))
+	if u.client == nil || status() != "Up to date." {
+		t.Errorf("after Reconnect: %q", status())
 	}
 }

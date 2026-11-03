@@ -77,7 +77,10 @@ func newKeyPad(win fyne.Window, model string, keys profile.Buttons, picker func(
 		}
 	}
 	drawing := drawRemote(model, func(k string) bool { return p.row(k) != nil }, func(k, label string) fyne.CanvasObject {
-		p.buttons[k] = widget.NewButton(label, func() { p.open(k) })
+		p.buttons[k] = widget.NewButton(label, func() {
+			tapFeedback()
+			p.open(k)
+		})
 		return p.buttons[k]
 	})
 	p.box = container.New(&centerLayout{width: PadWidth * Scale()}, container.NewVBox(drawing, p.list))

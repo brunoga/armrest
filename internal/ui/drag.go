@@ -31,6 +31,8 @@ type dragHandle struct {
 
 	// offset is how far the row is from its place in box.
 	offset float32
+	// dragging is set from the drag's start to its end.
+	dragging bool
 }
 
 func newDragHandle(box *fyne.Container, swap func(i, j int), moved func()) *dragHandle {
@@ -58,6 +60,10 @@ func (h *dragHandle) index() int {
 // Dragged moves the row with the pointer, past the rows whose middle it
 // passes.
 func (h *dragHandle) Dragged(e *fyne.DragEvent) {
+	if !h.dragging {
+		h.dragging = true
+		tapFeedback() // picked up
+	}
 	h.offset += e.Dragged.DY
 	i := h.index()
 	if i < 0 {
@@ -91,7 +97,7 @@ func (h *dragHandle) exchange(i, j int) {
 
 // DragEnd drops the row in its place.
 func (h *dragHandle) DragEnd() {
-	h.offset = 0
+	h.offset, h.dragging = 0, false
 	h.box.Refresh()
 	if h.moved != nil {
 		h.moved()

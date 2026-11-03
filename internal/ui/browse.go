@@ -21,6 +21,7 @@ const (
 	hubTab = iota
 	devicesTab
 	activitiesTab
+	aboutTab
 )
 
 // browseScreen shows the hub in tabs: the hub itself (what it is, saving
@@ -35,7 +36,7 @@ type browseScreen struct {
 	devices, activities *browseList
 
 	status *widget.Label
-	busy   *widget.Activity
+	busy   *pulse
 	footer *fyne.Container
 	// changes offers to review the edits, when there are any.
 	changes *fyne.Container
@@ -152,16 +153,13 @@ func (s *browseScreen) showUndo() {
 	}
 }
 
-// setStatus shows text at the bottom, with an activity indicator while
-// busy.
+// setStatus shows text at the bottom, with the pulse over it while busy.
 func (s *browseScreen) setStatus(busy bool, text string) {
 	s.status.SetText(text)
 	if busy {
-		s.busy.Show()
 		s.busy.Start()
 	} else {
 		s.busy.Stop()
-		s.busy.Hide()
 	}
 	s.footer.Show()
 	s.relayout()
@@ -277,8 +275,9 @@ func (s *browseScreen) content(h backend.Hub) fyne.CanvasObject {
 
 	s.status = wrapped("")
 	s.status.TextStyle.Italic = true
-	s.busy = widget.NewActivity()
-	s.footer = container.NewBorder(widget.NewSeparator(), nil, s.busy, nil, s.status)
+	s.busy = newPulse()
+	s.busy.Hide()
+	s.footer = container.NewBorder(container.NewVBox(widget.NewSeparator(), s.busy), nil, nil, nil, s.status)
 	s.footer.Hide()
 	s.review = widget.NewButtonWithIcon("Review changes", theme.DocumentIcon(), s.app.showReview)
 	s.review.Importance = widget.HighImportance
@@ -299,7 +298,8 @@ func (s *browseScreen) content(h backend.Hub) fyne.CanvasObject {
 	hub := container.NewTabItemWithIcon("Hub", theme.HomeIcon(), slot(s.hubContent(h)))
 	s.devices.tab = container.NewTabItemWithIcon("Devices", theme.ComputerIcon(), slot(s.devices.split))
 	s.activities.tab = container.NewTabItemWithIcon("Activities", theme.MediaPlayIcon(), slot(s.activities.split))
-	s.tabs = container.NewAppTabs(hub, s.devices.tab, s.activities.tab)
+	about := container.NewTabItemWithIcon("About", theme.InfoIcon(), slot(s.app.aboutContent(s.app.backToBrowse)))
+	s.tabs = container.NewAppTabs(hub, s.devices.tab, s.activities.tab, about)
 	if fyne.CurrentDevice().IsMobile() {
 		s.tabs.SetTabLocation(container.TabLocationBottom)
 	}
@@ -318,7 +318,7 @@ func (s *browseScreen) content(h backend.Hub) fyne.CanvasObject {
 	s.tabs.SelectIndex(s.app.tab)
 	s.tabs.OnSelected(nil)
 	s.showChanges()
-	return container.NewBorder(s.header(), nil, nil, nil, s.tabs)
+	return container.NewBorder(s.header(), nil, nil, nil, newFitTabs(s.tabs))
 }
 
 func (s *browseScreen) header() fyne.CanvasObject {

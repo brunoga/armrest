@@ -90,6 +90,9 @@ func newKeyPad(win fyne.Window, model string, keys profile.Buttons, picker func(
 				}
 				p.buttons[k] = widget.NewButton(k, func() { p.open(k) })
 				if c, ok := keyColors[k]; ok {
+					// Their color names them, as on the remote: four
+					// names across do not fit a phone.
+					p.buttons[k].SetText("")
 					grid.Add(container.NewThemeOverride(p.buttons[k], colorKey{c}))
 				} else {
 					grid.Add(p.buttons[k])

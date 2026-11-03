@@ -4,6 +4,8 @@ import (
 	"context"
 	"image/color"
 	"net/netip"
+	"os"
+	"runtime/debug"
 	"strings"
 	"testing"
 	"time"
@@ -30,7 +32,7 @@ var lounge = netip.MustParseAddr("192.168.1.20")
 // network of one hub, the demo's configuration at lounge.
 func newApp(t *testing.T, hubs ...backend.Hub) (*App, fyne.Window) {
 	t.Helper()
-	test.NewTempApp(t)
+	themedApp(t)
 	w := test.NewWindow(nil)
 	t.Cleanup(w.Close)
 	w.Resize(fyne.NewSize(720, 640))
@@ -235,7 +237,7 @@ func pickRow(t *testing.T, u *App, text string) {
 // A hub that stops answering while it is read (the phone slept, say) is
 // explained, and Try again reads it again.
 func TestReadFailure(t *testing.T) {
-	test.NewTempApp(t)
+	themedApp(t)
 	w := test.NewWindow(nil)
 	t.Cleanup(w.Close)
 	w.Resize(fyne.NewSize(720, 640))
@@ -305,7 +307,7 @@ func TestReading(t *testing.T) {
 // run. The hub's first activity is renamed when *renamed is set.
 func cachedApp(t *testing.T) (u *App, w fyne.Window, run func(), step func(), renamed *bool, now *time.Time) {
 	t.Helper()
-	test.NewTempApp(t)
+	themedApp(t)
 	w = test.NewWindow(nil)
 	t.Cleanup(w.Close)
 	w.Resize(fyne.NewSize(720, 640))
@@ -872,4 +874,89 @@ func TestBack(t *testing.T) {
 	if u.shown != u.browse.root {
 		t.Fatal("left the hub")
 	}
+}
+
+func TestAbout(t *testing.T) {
+	buildInfo = func() (*debug.BuildInfo, bool) {
+		return &debug.BuildInfo{
+			Settings: []debug.BuildSetting{{Key: "vcs.revision", Value: "0123456789abcdef"}},
+			Deps: []*debug.Module{
+				{Path: library, Version: "v0.1.1-0.20261102235402-222d9b8f6d5b"},
+				{Path: "fyne.io/fyne/v2", Version: "v2.8.2"},
+			},
+		}, true
+	}
+	t.Cleanup(func() { buildInfo = debug.ReadBuildInfo })
+	u, w := newApp(t)
+	icon, err := os.ReadFile("../../cmd/armrest/Icon.png")
+	if err != nil {
+		t.Fatal(err)
+	}
+	appIcon = func() fyne.Resource { return fyne.NewStaticResource("Icon.png", icon) }
+	t.Cleanup(func() { appIcon = func() fyne.Resource { return fyne.CurrentApp().Icon() } })
+	var info *widget.Button
+	walk(w, func(o fyne.CanvasObject) {
+		if b, ok := o.(*widget.Button); ok && b.Icon == theme.InfoIcon() {
+			info = b
+		}
+	})
+	if info == nil {
+		t.Fatal("no About button")
+	}
+	test.Tap(info)
+	got := texts(w)
+	for _, want := range []string{"Built from the source, at 0123456", "Bruno Albuquerque", "The Sofabaton library at 222d9b8 (github.com/brunoga/sofabaton), and Fyne v2.8.2."} {
+		if !strings.Contains(got, want) {
+			t.Errorf("missing %q in:\n%s", want, got)
+		}
+	}
+	assertScreens(t, w, "about")
+
+	var size *widget.Select
+	walk(w, func(o fyne.CanvasObject) {
+		if s, ok := o.(*widget.Select); ok {
+			size = s
+		}
+	})
+	normal := Scale()
+	size.SetSelected("Larger")
+	if Scale() <= normal || textSize() != 2 {
+		t.Errorf("text size %d, scale %v after Larger, from %v", textSize(), Scale(), normal)
+	}
+	if !strings.Contains(texts(w), "Bruno Albuquerque") {
+		t.Error("left the About page")
+	}
+	u.pressBack()
+	if !strings.Contains(texts(w), "[Open the demo hub]") {
+		t.Error("Back did not go to the hubs")
+	}
+}
+
+func TestAboutTab(t *testing.T) {
+	u, w := newApp(t, backend.Hub{Name: "Lounge", Model: "X2", Firmware: 9, Addr: lounge})
+	test.Tap(button(t, w, "Lounge (X2, 192.168.1.20)"))
+	u.browse.tabs.SelectIndex(aboutTab)
+	if !strings.Contains(texts(w), "Bruno Albuquerque") {
+		t.Error("no About tab")
+	}
+	// The tabs' names show where they fit, else only their icons.
+	for _, sz := range sizes {
+		w.Resize(sz.size)
+		named := u.browse.tabs.Items[aboutTab].Text == "About"
+		if want := sz.name == "wide"; named != want {
+			t.Errorf("at %s size, tabs named: %v", sz.name, named)
+		}
+	}
+	u.pressBack()
+	if u.browse.tabs.SelectedIndex() != hubTab {
+		t.Error("Back did not go to the hub's tab")
+	}
+}
+
+// themedApp is a test app in the app's theme: screens are built in it, as
+// in the app.
+func themedApp(t *testing.T) {
+	t.Helper()
+	test.NewTempApp(t)
+	fyne.CurrentApp().Settings().SetTheme(Theme())
 }

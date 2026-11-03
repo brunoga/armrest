@@ -10,8 +10,9 @@ import (
 	"fyne.io/fyne/v2/widget"
 )
 
-// pulse is a thin line sweeping across, over and over: it shows a long
-// step is alive while a progress bar stands still.
+// pulse is a thin line sweeping across, over and over: the app's one sign
+// that it is working. Under a progress bar it shows a long step is alive
+// while the bar stands still; alone it shows work of unknown length.
 type pulse struct {
 	widget.BaseWidget
 	line *canvas.Rectangle
@@ -29,8 +30,11 @@ func newPulse() *pulse {
 	return p
 }
 
-// Start starts the sweep.
-func (p *pulse) Start() { p.anim.Start() }
+// Start shows the line and starts the sweep.
+func (p *pulse) Start() {
+	p.Show()
+	p.anim.Start()
+}
 
 // Stop stops it and hides the line.
 func (p *pulse) Stop() {

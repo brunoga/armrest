@@ -117,12 +117,15 @@ func (a *App) backToBrowse() {
 // showReview works out and shows what applying the edits writes.
 func (a *App) showReview() {
 	status := wrapped("Working out the changes…")
-	body := container.NewVBox(status)
+	alive := newPulse()
+	body := container.NewVBox(alive, status)
+	alive.Start()
 	a.screen("Review changes", a.backToBrowse, container.NewVScroll(column(container.NewPadded(body))))
 	w := a.work
 	a.async(func() {
 		p, err := w.Plan(context.Background())
 		fyne.Do(func() {
+			alive.Stop()
 			if a.work != w {
 				return
 			}
@@ -185,12 +188,14 @@ func (a *App) applyPlan(p *workspace.Plan) {
 	title := widget.NewLabelWithStyle("Writing to "+a.client.Info().Name, fyne.TextAlignLeading, fyne.TextStyle{Bold: true})
 	title.SizeName = theme.SizeNameHeadingText
 	bar := widget.NewProgressBar()
+	alive := newPulse()
 	step := wrapped("Starting…")
 	note := wrapped("Keep the app open until it is done. Adding or deleting a device takes the hub a minute or two.")
 	ctx, cancel := context.WithCancel(context.Background())
 	stop := widget.NewButtonWithIcon("Stop", theme.MediaStopIcon(), cancel)
-	a.show(column(container.NewPadded(container.NewVBox(title, note, bar, step, container.NewHBox(stop)))), stay)
+	a.show(column(container.NewPadded(container.NewVBox(title, note, bar, alive, step, container.NewHBox(stop)))), stay)
 	a.awake(true)
+	alive.Start()
 
 	c, w, h := a.client, a.work, a.hub
 	a.async(func() {
@@ -219,17 +224,19 @@ func (a *App) applyPlan(p *workspace.Plan) {
 				title.SetText("Written")
 				step.SetText("Reading the hub back…")
 			}
-			a.readBack(h, w, err)
+			a.readBack(h, w, err, alive.Stop)
 		})
 	})
 }
 
-// readBack reads the hub after writing, and shows it.
-func (a *App) readBack(h backend.Hub, old *workspace.Workspace, writeErr error) {
+// readBack reads the hub after writing, and shows it; done is called
+// once read.
+func (a *App) readBack(h backend.Hub, old *workspace.Workspace, writeErr error, done func()) {
 	c := a.client
 	a.async(func() {
 		w, err := old.ReadBack(context.Background(), c, nil)
 		fyne.Do(func() {
+			done()
 			a.awake(false)
 			if a.client != c {
 				return

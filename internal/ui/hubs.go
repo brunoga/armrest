@@ -22,7 +22,7 @@ type hubsScreen struct {
 	found  *fyne.Container
 	status *widget.Label
 	search *widget.Button
-	busy   *widget.ProgressBarInfinite
+	busy   *pulse
 	addr   *widget.Entry
 	// root is laid out again when the found hubs change.
 	root *container.Scroll
@@ -39,7 +39,7 @@ func (s *hubsScreen) content() fyne.CanvasObject {
 
 	s.found = container.NewVBox()
 	s.status = wrapped("")
-	s.busy = widget.NewProgressBarInfinite()
+	s.busy = newPulse()
 	s.busy.Hide()
 	s.search = widget.NewButtonWithIcon("Search again", theme.SearchIcon(), s.discover)
 	network := widget.NewCard("Hubs on your network", "",
@@ -76,13 +76,13 @@ func (s *hubsScreen) content() fyne.CanvasObject {
 	cards.Add(files)
 	cards.Add(demo)
 	s.root = container.NewVScroll(column(container.NewPadded(cards)))
-	return container.NewBorder(bar(nil, "Armrest", nil), nil, nil, nil, s.root)
+	about := widget.NewButtonWithIcon("", theme.InfoIcon(), s.app.showAbout)
+	return container.NewBorder(bar(nil, "Armrest", about), nil, nil, nil, s.root)
 }
 
 // discover lists the hubs that answer.
 func (s *hubsScreen) discover() {
 	s.search.Disable()
-	s.busy.Show()
 	s.busy.Start()
 	s.status.SetText("Searching…")
 	s.found.RemoveAll()
@@ -95,7 +95,6 @@ func (s *hubsScreen) discover() {
 
 func (s *hubsScreen) show(hubs []backend.Hub, err error) {
 	s.busy.Stop()
-	s.busy.Hide()
 	s.search.Enable()
 	for _, h := range hubs {
 		b := widget.NewButtonWithIcon(h.String(), theme.MediaPlayIcon(), func() { s.app.connect(h) })

@@ -334,6 +334,14 @@ drag-reorder lists.
       (the drawings from the library, sofabaton #58); the color keys
       are in their colors. Next, with the user's images: the hubs
       screen, a font of the app's own.
+- [x] Polish: one sign of work everywhere, a thin line sweeping
+      across (under the progress bar while reading or writing, alone
+      while connecting, searching, checking or sending). An About tab
+      (and page, from the hubs screen): the icon, version, author,
+      links, what the app is built with, the license, and a text size
+      (Smaller to Largest; normal is about 18 on desktop, 17 on
+      phones). The tabs show only their icons where their names do not
+      fit; the color keys show only their colors.
 - [ ] Later: the profile library server (section 10).
 
 ## 10. The profile library server (later; not built yet)

@@ -155,16 +155,17 @@ func (a *App) awake(on bool) {
 // connect opens a client of h, with a progress dialog, and shows the home
 // screen.
 func (a *App) connect(h backend.Hub) {
-	bar := widget.NewProgressBarInfinite()
+	alive := newPulse()
 	wait := dialog.NewCustomWithoutButtons("Connecting to "+h.Name,
-		container.NewVBox(widget.NewLabel("The hub connects back to this device."), bar), a.win)
+		container.NewVBox(widget.NewLabel("The hub connects back to this device."), alive), a.win)
 	wait.Show()
+	alive.Start()
 	a.async(func() {
 		ctx, cancel := context.WithTimeout(context.Background(), ConnectTimeout)
 		defer cancel()
 		c, err := a.back.Connect(ctx, h)
 		fyne.Do(func() {
-			bar.Stop()
+			alive.Stop()
 			wait.Hide()
 			if err != nil {
 				dialog.ShowError(err, a.win)

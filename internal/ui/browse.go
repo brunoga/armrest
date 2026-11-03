@@ -217,11 +217,11 @@ func (s *browseScreen) controls(name string, isNew bool) *controls {
 	}
 	return &controls{
 		press: func(key string, hold bool) {
-			verb, past := "Pressing", "Pressed"
+			verb, doing, done := "press", "Pressing", "Pressed"
 			if hold {
-				verb, past = "Holding", "Held"
+				verb, doing, done = "hold", "Holding", "Held"
 			}
-			do(fmt.Sprintf("%s %s…", verb, key), fmt.Sprintf("Could not press %s", key), fmt.Sprintf("%s %s.", past, key),
+			do(fmt.Sprintf("%s %s…", doing, key), fmt.Sprintf("Could not %s %s", verb, key), fmt.Sprintf("%s %s.", done, key),
 				func(ctx context.Context, w *workspace.Workspace, c *hub.Client) error {
 					return w.Press(ctx, c, name, key, hold)
 				})

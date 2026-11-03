@@ -1054,7 +1054,10 @@ func TestRemote(t *testing.T) {
 	if status() != "Pressed Mute." {
 		t.Errorf("after Mute: %q", status())
 	}
-	key("Mute").TappedSecondary(nil) // nothing held
+	key("Mute").TappedSecondary(nil) // nothing held: it says so
+	if status() != "Could not hold Mute: it does nothing on the hub" {
+		t.Errorf("after holding Mute: %q", status())
+	}
 	if !key("A").Disabled() {
 		t.Error("A does nothing, yet is enabled")
 	}

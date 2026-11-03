@@ -4,6 +4,7 @@ package ui
 
 import (
 	"context"
+	"fmt"
 	"time"
 
 	"fyne.io/fyne/v2"
@@ -62,13 +63,28 @@ type App struct {
 	file *openedFile
 	// pickers pick files to open and save.
 	pickers pickers
+
+	// watch calls dropped once c's connection ends; tests do without.
+	watch func(c *hub.Client)
+	// background is set while the app is not in the foreground: a phone
+	// suspends its network then, and the hub's connection drops.
+	background bool
+	// working is set while the hub is read or written: those screens
+	// handle a dropped connection themselves.
+	working bool
+	// reconnecting is set while connecting again to a dropped hub.
+	reconnecting bool
+	// retryWait is the wait between attempts to connect again.
+	retryWait time.Duration
 }
 
 // New returns the app for win.
 func New(win fyne.Window, back backend.Backend) *App {
 	// The screens pad themselves: the page's color reaches the edges.
 	win.SetPadded(false)
-	return &App{win: win, back: back, async: func(f func()) { go f() }, now: time.Now, pickers: systemPickers}
+	a := &App{win: win, back: back, async: func(f func()) { go f() }, now: time.Now, pickers: systemPickers, retryWait: 3 * time.Second}
+	a.watch = a.watchConnection
+	return a
 }
 
 // UseCache keeps each hub's configuration in c, to show the hub at once
@@ -78,6 +94,12 @@ func (a *App) UseCache(c *cache.Cache) { a.cache = c }
 // Start shows the first screen and looks for hubs.
 func (a *App) Start() {
 	a.shortcuts()
+	lc := fyne.CurrentApp().Lifecycle()
+	lc.SetOnExitedForeground(func() { a.background = true })
+	lc.SetOnEnteredForeground(func() {
+		a.background = false
+		a.resume()
+	})
 	a.showHubs()
 }
 
@@ -149,6 +171,7 @@ func (a *App) pressBack() {
 // awake keeps the screen on while the app writes to or reads the hub: a
 // phone that sleeps drops the connection.
 func (a *App) awake(on bool) {
+	a.working = on
 	fyne.CurrentApp().Driver().SetDisableScreenBlanking(on)
 }
 
@@ -173,6 +196,7 @@ func (a *App) connect(h backend.Hub) {
 			}
 			a.Close()
 			a.client, a.hub = c, h
+			a.watch(c)
 			a.showHome(h)
 		})
 	})
@@ -183,3 +207,98 @@ func (a *App) disconnect() {
 	a.Close()
 	a.showHubs()
 }
+
+// watchConnection calls dropped once c's connection ends.
+func (a *App) watchConnection(c *hub.Client) {
+	done := c.Session().Done()
+	go func() {
+		<-done
+		fyne.Do(func() { a.dropped(c) })
+	}()
+}
+
+// dropped connects again to the hub whose connection, c's, ended: a phone
+// that sleeps drops it. The hub as read and its edits stay meanwhile.
+func (a *App) dropped(c *hub.Client) {
+	if a.client != c || a.working {
+		// Closed, or reading or writing, which say so with Try again.
+		return
+	}
+	_ = c.Close()
+	a.client = nil
+	a.reconnect()
+}
+
+// resume connects again to a hub dropped while the app was away. A
+// connection that seems alive is checked first: one dead while the phone
+// slept is not seen as dead until used.
+func (a *App) resume() {
+	if a.work == nil || a.file != nil || a.working {
+		return
+	}
+	c := a.client
+	if c == nil {
+		a.reconnect()
+		return
+	}
+	a.async(func() {
+		ctx, cancel := context.WithTimeout(context.Background(), probeTimeout)
+		defer cancel()
+		if _, err := c.Devices(ctx); err != nil {
+			fyne.Do(func() { a.dropped(c) })
+		}
+	})
+}
+
+// probeTimeout bounds the check of a connection on coming back: a hub
+// answers in well under a second.
+const probeTimeout = 5 * time.Second
+
+// reconnect connects again to the hub shown, a few times if need be (the
+// hub may take a while to see the old connection gone), and checks it
+// for changes made meanwhile. In the background it waits for the app to
+// come back.
+func (a *App) reconnect() {
+	if a.background || a.reconnecting || a.browse == nil {
+		return
+	}
+	h, s := a.hub, a.browse
+	a.reconnecting = true
+	s.setStatus(true, fmt.Sprintf("The connection to %s dropped. Reconnecting…", h.Name))
+	a.async(func() {
+		var c *hub.Client
+		var err error
+		for try := 0; try < reconnectTries; try++ {
+			if try > 0 {
+				time.Sleep(a.retryWait)
+			}
+			ctx, cancel := context.WithTimeout(context.Background(), ConnectTimeout)
+			c, err = a.back.Connect(ctx, h)
+			cancel()
+			if err == nil {
+				break
+			}
+		}
+		fyne.Do(func() {
+			a.reconnecting = false
+			if a.work == nil || a.client != nil || a.hub != h {
+				// Left meanwhile, or connected again some other way.
+				if c != nil {
+					_ = c.Close()
+				}
+				return
+			}
+			if err != nil {
+				a.browse.setStatus(false, fmt.Sprintf("Could not reconnect to %s: %v", h.Name, err))
+				a.browse.offerReconnect()
+				return
+			}
+			a.client = c
+			a.watch(c)
+			a.checkForChanges(h, a.browse, a.readAt)
+		})
+	})
+}
+
+// reconnectTries is how many times reconnect tries.
+const reconnectTries = 4

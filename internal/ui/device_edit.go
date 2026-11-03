@@ -124,7 +124,7 @@ func (ed *deviceEditor) content() fyne.CanvasObject {
 		addNote = container.NewVBox(n, container.NewHBox(add))
 	}
 	commands := widget.NewCard("Commands", "", container.NewVBox(
-		wrapped("In the order the remote lists them. Renaming a command renames it in the activities too."),
+		wrapped("In the order the remote lists them. "+dragHint+" Renaming a command renames it in the activities too."),
 		ed.cmdList, addNote))
 
 	ed.pad = newKeyPad(ed.app.win, ed.app.work.Dump.Info.Model, e.Keys, ed.keyPicker, ed.refreshPickers)
@@ -242,9 +242,11 @@ func (ed *deviceEditor) addCmd(c workspace.CommandEdit) {
 			fyne.NewMenuItem("Delete", func() { ed.removeCmd(r) }))
 		widget.ShowPopUpMenuAtRelativePosition(menu, ed.app.win.Canvas(), fyne.NewPos(0, more.Size().Height), more)
 	}
-	r.box = container.NewBorder(nil, nil, nil,
+	grip := newDragHandle(ed.cmdList, func(i, j int) { ed.cmds[i], ed.cmds[j] = ed.cmds[j], ed.cmds[i] }, nil)
+	r.box = container.NewBorder(nil, nil, grip,
 		container.NewHBox(container.New(layout.NewGridWrapLayout(fyne.NewSize(CodeWidth*Scale(), r.code.MinSize().Height)), r.code), more),
 		r.name)
+	grip.row = r.box
 	ed.cmds = append(ed.cmds, r)
 	ed.cmdList.Add(r.box)
 }

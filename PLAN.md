@@ -342,6 +342,12 @@ drag-reorder lists.
       (Smaller to Largest; normal is about 18 on desktop, 17 on
       phones). The tabs show only their icons where their names do not
       fit; the color keys show only their colors.
+- [x] Drag to reorder, with a mouse or a finger, by a handle of dots
+      on each row: a device's commands (in its editor and a new
+      device's), an activity's start and end steps, its macros' steps
+      and its favorites. Move up and down stay in the rows' menus.
+      Devices and activities themselves wait on the library (their
+      order is not written yet).
 - [ ] Later: the profile library server (section 10).
 
 ## 10. The profile library server (later; not built yet)

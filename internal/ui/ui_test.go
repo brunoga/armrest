@@ -960,3 +960,57 @@ func themedApp(t *testing.T) {
 	test.NewTempApp(t)
 	fyne.CurrentApp().Settings().SetTheme(Theme())
 }
+
+// Commands and favorites move by dragging their rows' handles.
+func TestDragToReorder(t *testing.T) {
+	u, w := newApp(t, backend.Hub{Name: "Lounge", Model: "X2", Firmware: 9, Addr: lounge})
+	test.Tap(button(t, w, "Lounge (X2, 192.168.1.20)"))
+	grips := func() []*dragHandle {
+		var out []*dragHandle
+		walk(w, func(o fyne.CanvasObject) {
+			if h, ok := o.(*dragHandle); ok {
+				out = append(out, h)
+			}
+		})
+		return out
+	}
+	// drag drags h's row down past n rows, or up for a negative n.
+	drag := func(h *dragHandle, n int) {
+		step := h.row.Size().Height + theme.Padding()
+		h.Dragged(&fyne.DragEvent{Dragged: fyne.Delta{DY: float32(n) * step}})
+		h.DragEnd()
+	}
+
+	pickRow(t, u, "Receiver")
+	test.Tap(button(t, w, "Edit"))
+	before := u.work.Config.Device("Receiver").Commands
+	first, second, third := before[0].Name, before[1].Name, before[2].Name
+	drag(grips()[0], 2)
+	test.Tap(button(t, w, "Save"))
+	after := u.work.Config.Device("Receiver").Commands
+	if got := []string{after[0].Name, after[1].Name, after[2].Name}; got[0] != second || got[1] != third || got[2] != first {
+		t.Errorf("after dragging %s down two: %v", first, got)
+	}
+
+	pickRow(t, u, "Watch Google TV")
+	test.Tap(button(t, w, "Edit"))
+	test.Tap(button(t, w, "Add a favorite"))
+	test.Tap(button(t, w, "Add a favorite"))
+	var pickers []*widget.Select
+	walk(w, func(o fyne.CanvasObject) {
+		if s, ok := o.(*widget.Select); ok {
+			pickers = append(pickers, s)
+		}
+	})
+	// The favorites are the editor's last rows.
+	a, b := pickers[len(pickers)-2], pickers[len(pickers)-1]
+	a.SetSelected(a.Options[1])
+	b.SetSelected(a.Options[2])
+	all := grips()
+	drag(all[len(all)-1], -1)
+	test.Tap(button(t, w, "Save"))
+	got := u.work.Config.Activity("Watch Google TV").Favorites
+	if len(got) != 2 || got[0] != a.Options[2] || got[1] != a.Options[1] {
+		t.Errorf("after dragging the last favorite up one: %v, from %v", got, a.Options[1:3])
+	}
+}

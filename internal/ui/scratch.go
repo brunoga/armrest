@@ -14,8 +14,9 @@ import (
 	"github.com/brunoga/armrest/internal/workspace"
 )
 
-// CodeWidth is the width of a command's code entry.
-const CodeWidth = 96
+// CodeWidth is the width of a command's code entry: codes are a few
+// digits ("learned" for those of learned commands).
+const CodeWidth = 76
 
 // scratchScreen makes a device from its IR codes.
 type scratchScreen struct {
@@ -77,7 +78,7 @@ func (s *scratchScreen) content() fyne.CanvasObject {
 	add := widget.NewButtonWithIcon("Add a command", theme.ContentAddIcon(), func() { s.addRow("", "") })
 	s.addRow("", "")
 	commands := widget.NewCard("Commands", "", container.NewVBox(
-		wrapped("A name and a code for each. Commands named like a key of the remote (OK, Up, Volume Up…) are put on that key."),
+		wrapped("A name and a code for each. Commands named like a key of the remote (OK, Up, Volume Up…) are put on that key. "+dragHint),
 		s.list, container.NewHBox(add)))
 
 	s.powerOn = widget.NewSelect(nil, nil)
@@ -133,9 +134,11 @@ func (s *scratchScreen) addRow(name, code string) {
 	r.code.SetPlaceHolder("Code")
 	r.code.SetText(code)
 	remove := widget.NewButtonWithIcon("", theme.DeleteIcon(), func() { s.removeRow(r) })
-	r.box = container.NewBorder(nil, nil, nil,
+	grip := newDragHandle(s.list, func(i, j int) { s.rows[i], s.rows[j] = s.rows[j], s.rows[i] }, s.refreshPower)
+	r.box = container.NewBorder(nil, nil, grip,
 		container.NewHBox(container.New(layout.NewGridWrapLayout(fyne.NewSize(CodeWidth*Scale(), r.code.MinSize().Height)), r.code), remove),
 		r.name)
+	grip.row = r.box
 	s.rows = append(s.rows, r)
 	s.list.Add(r.box)
 }

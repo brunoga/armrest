@@ -4,7 +4,7 @@ go 1.27.3
 
 require (
 	fyne.io/fyne/v2 v2.8.2
-	github.com/brunoga/sofabaton v0.1.1-0.20261102171217-87c5fa3b584c
+	github.com/brunoga/sofabaton v0.1.1-0.20261102235402-222d9b8f6d5b
 	go.yaml.in/yaml/v3 v3.0.5
 )
 

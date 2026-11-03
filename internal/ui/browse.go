@@ -5,7 +5,9 @@ import (
 	"fmt"
 
 	"fyne.io/fyne/v2"
+	"fyne.io/fyne/v2/canvas"
 	"fyne.io/fyne/v2/container"
+	"fyne.io/fyne/v2/layout"
 	"fyne.io/fyne/v2/theme"
 	"fyne.io/fyne/v2/widget"
 
@@ -254,16 +256,7 @@ func (s *browseScreen) showChanges() {
 func (s *browseScreen) reload() {
 	s.devices.reload()
 	s.activities.reload()
-	s.titles()
 	s.showHub()
-}
-
-// titles names the tabs, with how many devices and activities there are.
-func (s *browseScreen) titles() {
-	cfg := s.app.work.Config
-	s.devices.tab.Text = fmt.Sprintf("Devices (%d)", len(cfg.Devices))
-	s.activities.tab.Text = fmt.Sprintf("Activities (%d)", len(cfg.Activities))
-	s.tabs.Refresh()
 }
 
 func (s *browseScreen) content(h backend.Hub) fyne.CanvasObject {
@@ -304,8 +297,8 @@ func (s *browseScreen) content(h backend.Hub) fyne.CanvasObject {
 	}
 	// In the tabs' order: slots are found by the tab's index.
 	hub := container.NewTabItemWithIcon("Hub", theme.HomeIcon(), slot(s.hubContent(h)))
-	s.devices.tab = container.NewTabItemWithIcon("", theme.ComputerIcon(), slot(s.devices.split))
-	s.activities.tab = container.NewTabItemWithIcon("", theme.MediaPlayIcon(), slot(s.activities.split))
+	s.devices.tab = container.NewTabItemWithIcon("Devices", theme.ComputerIcon(), slot(s.devices.split))
+	s.activities.tab = container.NewTabItemWithIcon("Activities", theme.MediaPlayIcon(), slot(s.activities.split))
 	s.tabs = container.NewAppTabs(hub, s.devices.tab, s.activities.tab)
 	if fyne.CurrentDevice().IsMobile() {
 		s.tabs.SetTabLocation(container.TabLocationBottom)
@@ -322,7 +315,6 @@ func (s *browseScreen) content(h backend.Hub) fyne.CanvasObject {
 			c.Refresh()
 		}
 	}
-	s.titles()
 	s.tabs.SelectIndex(s.app.tab)
 	s.tabs.OnSelected(nil)
 	s.showChanges()
@@ -330,11 +322,7 @@ func (s *browseScreen) content(h backend.Hub) fyne.CanvasObject {
 }
 
 func (s *browseScreen) header() fyne.CanvasObject {
-	name := widget.NewLabelWithStyle(s.app.work.Dump.Info.Name, fyne.TextAlignLeading, fyne.TextStyle{Bold: true})
-	name.Truncation = fyne.TextTruncateEllipsis
-	return container.NewVBox(
-		container.NewBorder(nil, nil, nil, container.NewHBox(s.undoBtn, s.redoBtn), name),
-		widget.NewSeparator())
+	return bar(nil, s.app.work.Dump.Info.Name, container.NewHBox(s.undoBtn, s.redoBtn))
 }
 
 // hubContent is the hub's tab: what it is, saving it to a file (and,
@@ -391,27 +379,30 @@ func (s *browseScreen) newList(hint string, build func() []browseRow) *browseLis
 	b.list = widget.NewList(
 		func() int { return len(b.rows) },
 		func() fyne.CanvasObject {
-			icon := widget.NewIcon(theme.MediaPlayIcon())
+			icon := canvas.NewImageFromResource(theme.ContentAddIcon())
+			icon.FillMode = canvas.ImageFillContain
+			icon.SetMinSize(fyne.NewSquareSize(rowTile * Scale()))
 			l := widget.NewLabel("")
 			l.Truncation = fyne.TextTruncateEllipsis
 			state := widget.NewLabel("")
 			state.TextStyle.Italic = true
-			return container.NewBorder(nil, nil, icon, state, l)
+			return container.NewBorder(nil, nil, container.New(layout.NewCustomPaddedLayout(0, 0, theme.Padding(), 0), icon), state, l)
 		},
 		func(i widget.ListItemID, o fyne.CanvasObject) {
 			r := b.rows[i]
 			row := o.(*fyne.Container)
-			l, icon, state := row.Objects[0].(*widget.Label), row.Objects[1].(*widget.Icon), row.Objects[2].(*widget.Label)
+			l, icon, state := row.Objects[0].(*widget.Label), row.Objects[1].(*fyne.Container).Objects[0].(*canvas.Image), row.Objects[2].(*widget.Label)
 			l.SetText(r.text())
 			state.SetText(s.state(r))
 			switch {
 			case r.activity != nil:
-				icon.SetResource(theme.MediaPlayIcon())
+				icon.Resource = tile(r.activity.Icon, activityIcon, r.activity.Color)
 			case r.device != nil:
-				icon.SetResource(theme.ComputerIcon())
+				icon.Resource = tile(r.device.Icon, deviceIcon, r.device.Color)
 			default:
-				icon.SetResource(theme.ContentAddIcon())
+				icon.Resource = theme.NewPrimaryThemedResource(theme.ContentAddIcon())
 			}
+			icon.Refresh()
 		})
 	b.list.OnSelected = func(i widget.ListItemID) {
 		r := b.rows[i]

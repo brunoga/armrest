@@ -35,8 +35,6 @@ func (a *App) showHubs() {
 }
 
 func (s *hubsScreen) content() fyne.CanvasObject {
-	title := widget.NewLabelWithStyle("Armrest", fyne.TextAlignLeading, fyne.TextStyle{Bold: true})
-	title.SizeName = theme.SizeNameHeadingText
 	sub := wrapped("Set up Sofabaton X1, X1S and X2 hubs, without the cloud.")
 
 	s.found = container.NewVBox()
@@ -61,10 +59,10 @@ func (s *hubsScreen) content() fyne.CanvasObject {
 			func() { s.app.connect(backend.DemoHub) }))))
 
 	files := widget.NewCard("Saved files", "", container.NewVBox(
-		wrapped("Save a hub to a file from its ⋮ menu: as a backup, or with changes to apply later. Open the file here to look at it and change it without the hub, then apply or restore it. Hub dumps made with sbx open too."),
+		wrapped("Save a hub to a file from its Hub tab: as a backup, or with changes to apply later. Open the file here to look at it and change it without the hub, then apply or restore it. Hub dumps made with sbx open too."),
 		container.NewHBox(widget.NewButtonWithIcon("Open a file…", theme.FolderOpenIcon(), s.app.openFile))))
 
-	cards := container.NewVBox(title, sub)
+	cards := container.NewVBox(sub)
 	if f := s.app.file; f != nil {
 		// Applying a file: its hub is to be picked.
 		back := widget.NewButtonWithIcon("Back to the file", theme.NavigateBackIcon(), s.app.showFile)
@@ -78,7 +76,7 @@ func (s *hubsScreen) content() fyne.CanvasObject {
 	cards.Add(files)
 	cards.Add(demo)
 	s.root = container.NewVScroll(column(container.NewPadded(cards)))
-	return s.root
+	return container.NewBorder(bar(nil, "Armrest", nil), nil, nil, nil, s.root)
 }
 
 // discover lists the hubs that answer.

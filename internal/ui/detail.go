@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	"fyne.io/fyne/v2"
+	"fyne.io/fyne/v2/canvas"
 	"fyne.io/fyne/v2/container"
 	"fyne.io/fyne/v2/layout"
 	"fyne.io/fyne/v2/theme"
@@ -15,7 +16,7 @@ import (
 // activityView shows an activity: its devices, keys, power steps, macros
 // and favorites. With edit, an Edit button calls it.
 func activityView(a *profile.Activity, edit func()) fyne.CanvasObject {
-	parts := []fyne.CanvasObject{withEdit(heading(a.Name, describeLook(a.Icon, a.Color)), edit)}
+	parts := []fyne.CanvasObject{withEdit(withTile(tile(a.Icon, activityIcon, a.Color), heading(a.Name, describeLook(a.Icon, a.Color))), edit)}
 
 	var devs []string
 	for _, m := range a.Devices {
@@ -59,7 +60,7 @@ func deviceView(d *profile.Device, send func(command string), edit func()) fyne.
 		}
 		sub += look
 	}
-	parts := []fyne.CanvasObject{withEdit(heading(d.Name, sub), edit)}
+	parts := []fyne.CanvasObject{withEdit(withTile(tile(d.Icon, deviceIcon, d.Color), heading(d.Name, sub)), edit)}
 
 	var cmds []fyne.CanvasObject
 	for _, c := range d.Commands {
@@ -123,6 +124,14 @@ func keysSection(bs profile.Buttons) fyne.CanvasObject {
 // page is a detail's parts, scrolled, at a readable width.
 func page(parts []fyne.CanvasObject) fyne.CanvasObject {
 	return container.NewVScroll(column(container.NewPadded(container.NewVBox(parts...))))
+}
+
+// withTile puts a device's or activity's tile left of its heading.
+func withTile(t fyne.Resource, heading fyne.CanvasObject) fyne.CanvasObject {
+	img := canvas.NewImageFromResource(t)
+	img.FillMode = canvas.ImageFillContain
+	img.SetMinSize(fyne.NewSquareSize(headingTile * Scale()))
+	return container.NewBorder(nil, nil, container.NewCenter(img), nil, heading)
 }
 
 func heading(title, sub string) fyne.CanvasObject {

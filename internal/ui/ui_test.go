@@ -74,6 +74,7 @@ func assertScreens(t *testing.T, w fyne.Window, name string) {
 	defer w.Resize(w.Canvas().Size())
 	for _, sz := range sizes {
 		w.Resize(sz.size)
+		fyne.CurrentApp().Settings().SetTheme(Theme())
 		if min := w.Content().MinSize(); min.Width > sz.size.Width {
 			t.Errorf("%s at %s size: needs %v wide, more than the %v there is", name, sz.name, min.Width, sz.size.Width)
 		}
@@ -81,7 +82,7 @@ func assertScreens(t *testing.T, w fyne.Window, name string) {
 			name string
 			v    fyne.ThemeVariant
 		}{{"light", theme.VariantLight}, {"dark", theme.VariantDark}} {
-			fyne.CurrentApp().Settings().SetTheme(variant{theme.DefaultTheme(), v.v})
+			fyne.CurrentApp().Settings().SetTheme(variant{Theme(), v.v})
 			test.AssertRendersToImage(t, name+"-"+sz.name+"-"+v.name+".png", w.Canvas())
 		}
 	}
@@ -173,7 +174,7 @@ func TestBrowse(t *testing.T) {
 	if !listed(u, "Watch Google TV") || !listed(u, "Receiver") {
 		t.Error("not listed")
 	}
-	for _, want := range []string{"X2 HUB", "X2, firmware 9, at 192.168.1.20", "Activities (4)", "Devices (3)", "Pick a device to see"} {
+	for _, want := range []string{"X2 HUB", "X2, firmware 9, at 192.168.1.20", "3 devices and 4 activities", "Pick a device to see"} {
 		if !strings.Contains(got, want) {
 			t.Errorf("missing %q in:\n%s", want, got)
 		}
@@ -268,7 +269,7 @@ func TestReadFailure(t *testing.T) {
 	}
 	assertScreens(t, w, "read-failure")
 	test.Tap(button(t, w, "Try again"))
-	if got := texts(w); !strings.Contains(got, "Activities (4)") {
+	if got := texts(w); !strings.Contains(got, "3 devices and 4 activities") {
 		t.Errorf("not read again:\n%s", got)
 	}
 }
@@ -576,7 +577,7 @@ func TestDemoHub(t *testing.T) {
 
 func TestConnectByAddress(t *testing.T) {
 	for _, tc := range []struct{ addr, want string }{
-		{"192.168.1.20", "Activities (4)"},
+		{"192.168.1.20", "3 devices and 4 activities"},
 		{"192.168.1.99", "is busy with another app"},
 		{"lounge", `"lounge" is not an IPv4 address`},
 	} {
@@ -855,7 +856,7 @@ func TestBack(t *testing.T) {
 	pickRow(t, u, "Receiver")
 	test.Tap(button(t, w, "Edit"))
 	back()
-	if w.Content() != u.browse.root {
+	if u.shown != u.browse.root {
 		t.Fatal("still in the editor")
 	}
 	pickRow(t, u, "Receiver")
@@ -868,7 +869,7 @@ func TestBack(t *testing.T) {
 		t.Fatal("not on the hub's tab")
 	}
 	back() // nowhere to go: the app leaves, on phones
-	if w.Content() != u.browse.root {
+	if u.shown != u.browse.root {
 		t.Fatal("left the hub")
 	}
 }

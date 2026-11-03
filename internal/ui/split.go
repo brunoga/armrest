@@ -108,11 +108,12 @@ func (r *listDetailRenderer) Layout(size fyne.Size) {
 	s.detail.Show()
 	s.rule.Show()
 	pad := theme.Padding()
-	s.list.Resize(fyne.NewSize(ListWidth, size.Height))
+	lw := ListWidth * Scale()
+	s.list.Resize(fyne.NewSize(lw, size.Height))
 	s.list.Move(fyne.NewPos(0, 0))
 	s.rule.Resize(fyne.NewSize(1, size.Height))
-	s.rule.Move(fyne.NewPos(ListWidth+pad, 0))
-	x := ListWidth + 2*pad + 1
+	s.rule.Move(fyne.NewPos(lw+pad, 0))
+	x := lw + 2*pad + 1
 	s.detail.Resize(fyne.NewSize(size.Width-x, size.Height))
 	s.detail.Move(fyne.NewPos(x, 0))
 }

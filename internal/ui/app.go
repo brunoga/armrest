@@ -44,6 +44,8 @@ type App struct {
 	// It reports false when there is nowhere to go back to: the app then
 	// leaves, as Android apps do.
 	goBack func() bool
+	// shown is the screen shown.
+	shown fyne.CanvasObject
 	// now is the time; tests fix it.
 	now func() time.Time
 
@@ -64,6 +66,8 @@ type App struct {
 
 // New returns the app for win.
 func New(win fyne.Window, back backend.Backend) *App {
+	// The screens pad themselves: the page's color reaches the edges.
+	win.SetPadded(false)
 	return &App{win: win, back: back, async: func(f func()) { go f() }, now: time.Now, pickers: systemPickers}
 }
 
@@ -95,7 +99,7 @@ func (a *App) shortcuts() {
 	c := a.win.Canvas()
 	on := func(f func(*browseScreen)) func(fyne.Shortcut) {
 		return func(fyne.Shortcut) {
-			if s := a.browse; s != nil && a.work != nil && a.win.Content() == s.root {
+			if s := a.browse; s != nil && a.work != nil && a.shown == s.root {
 				f(s)
 			}
 		}
@@ -113,8 +117,8 @@ func (a *App) shortcuts() {
 
 // show shows content, where Back does back (nil: nowhere to go back to).
 func (a *App) show(content fyne.CanvasObject, back func() bool) {
-	a.goBack = back
-	a.win.SetContent(content)
+	a.goBack, a.shown = back, content
+	a.win.SetContent(container.NewStack(newFill(colorPage), content))
 }
 
 // backTo is a Back that always goes to f.

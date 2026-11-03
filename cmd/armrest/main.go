@@ -18,6 +18,7 @@ var icon []byte
 func main() {
 	a := app.NewWithID("io.github.brunoga.armrest")
 	a.SetIcon(fyne.NewStaticResource("Icon.png", icon))
+	a.Settings().SetTheme(ui.Theme())
 	w := a.NewWindow("Armrest")
 	w.Resize(fyne.NewSize(720, 640))
 	u := ui.New(w, backend.Network())

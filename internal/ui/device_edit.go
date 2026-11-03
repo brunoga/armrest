@@ -243,7 +243,7 @@ func (ed *deviceEditor) addCmd(c workspace.CommandEdit) {
 		widget.ShowPopUpMenuAtRelativePosition(menu, ed.app.win.Canvas(), fyne.NewPos(0, more.Size().Height), more)
 	}
 	r.box = container.NewBorder(nil, nil, nil,
-		container.NewHBox(container.New(layout.NewGridWrapLayout(fyne.NewSize(CodeWidth, r.code.MinSize().Height)), r.code), more),
+		container.NewHBox(container.New(layout.NewGridWrapLayout(fyne.NewSize(CodeWidth*Scale(), r.code.MinSize().Height)), r.code), more),
 		r.name)
 	ed.cmds = append(ed.cmds, r)
 	ed.cmdList.Add(r.box)

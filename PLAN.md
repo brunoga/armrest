@@ -326,6 +326,14 @@ drag-reorder lists.
       to the hub's tab, and only then out of the app; it does nothing
       while writing. The screen stays on while reading or writing the
       hub.
+- [x] Phase 8 (first pass): the app's own theme, from its icon's teal,
+      cream and orange, light and dark: a teal app bar on every screen,
+      cream pages behind white cards, rounder corners, and everything a
+      size larger (text of about 16, 17 on phones). Devices and
+      activities show the X2's icon in their color, as the remote does
+      (the drawings from the library, sofabaton #58); the color keys
+      are in their colors. Next, with the user's images: the hubs
+      screen, a font of the app's own.
 - [ ] Later: the profile library server (section 10).
 
 ## 10. The profile library server (later; not built yet)

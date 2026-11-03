@@ -18,11 +18,8 @@ import (
 
 // screen is a full-window page with a title, Back, and content.
 func (a *App) screen(title string, back func(), content fyne.CanvasObject) {
-	t := widget.NewLabelWithStyle(title, fyne.TextAlignLeading, fyne.TextStyle{Bold: true})
-	t.Truncation = fyne.TextTruncateEllipsis
-	bar := container.NewBorder(nil, widget.NewSeparator(),
-		widget.NewButtonWithIcon("Back", theme.NavigateBackIcon(), back), nil, t)
-	a.show(container.NewBorder(bar, nil, nil, nil, content), backTo(back))
+	top := bar(widget.NewButtonWithIcon("Back", theme.NavigateBackIcon(), back), title, nil)
+	a.show(container.NewBorder(top, nil, nil, nil, content), backTo(back))
 	// Wrapped text learns its height from its width: lay out again now
 	// that the widths are known.
 	content.Refresh()

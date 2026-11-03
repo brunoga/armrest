@@ -134,7 +134,7 @@ func (s *scratchScreen) addRow(name, code string) {
 	r.code.SetText(code)
 	remove := widget.NewButtonWithIcon("", theme.DeleteIcon(), func() { s.removeRow(r) })
 	r.box = container.NewBorder(nil, nil, nil,
-		container.NewHBox(container.New(layout.NewGridWrapLayout(fyne.NewSize(CodeWidth, r.code.MinSize().Height)), r.code), remove),
+		container.NewHBox(container.New(layout.NewGridWrapLayout(fyne.NewSize(CodeWidth*Scale(), r.code.MinSize().Height)), r.code), remove),
 		r.name)
 	s.rows = append(s.rows, r)
 	s.list.Add(r.box)

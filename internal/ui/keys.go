@@ -2,6 +2,7 @@ package ui
 
 import (
 	"fmt"
+	"image/color"
 	"strings"
 
 	"fyne.io/fyne/v2"
@@ -88,7 +89,11 @@ func newKeyPad(win fyne.Window, model string, keys profile.Buttons, picker func(
 					continue
 				}
 				p.buttons[k] = widget.NewButton(k, func() { p.open(k) })
-				grid.Add(p.buttons[k])
+				if c, ok := keyColors[k]; ok {
+					grid.Add(container.NewThemeOverride(p.buttons[k], colorKey{c}))
+				} else {
+					grid.Add(p.buttons[k])
+				}
 				shown = true
 			}
 			if shown {
@@ -102,7 +107,7 @@ func newKeyPad(win fyne.Window, model string, keys profile.Buttons, picker func(
 		rows.Add(widget.NewLabelWithStyle("Number keys, on the remote's screen", fyne.TextAlignCenter, fyne.TextStyle{Italic: true}))
 		rows.Add(numbers)
 	}
-	p.box = container.New(&centerLayout{width: PadWidth}, container.NewVBox(rows, p.list))
+	p.box = container.New(&centerLayout{width: PadWidth * Scale()}, container.NewVBox(rows, p.list))
 	p.refresh()
 	return p
 }
@@ -144,7 +149,7 @@ func (p *keyPad) open(key string) {
 		p.refresh()
 		p.changed()
 	})
-	d.Resize(fyne.NewSize(min(PadWidth, p.win.Canvas().Size().Width), d.MinSize().Height))
+	d.Resize(fyne.NewSize(min(PadWidth*Scale(), p.win.Canvas().Size().Width), d.MinSize().Height))
 	d.Show()
 }
 
@@ -228,3 +233,35 @@ func (l *centerLayout) MinSize(objs []fyne.CanvasObject) fyne.Size {
 	}
 	return s
 }
+
+// keyColors are the color keys' colors.
+var keyColors = map[string]color.NRGBA{
+	"Red":    {0xE0, 0x4B, 0x4B, 0xFF},
+	"Green":  {0x3F, 0xA8, 0x5F, 0xFF},
+	"Yellow": {0xE8, 0xB9, 0x2E, 0xFF},
+	"Blue":   {0x3B, 0x7D, 0xD8, 0xFF},
+}
+
+// colorKey is a color key's look: tinted with its color, filled with it
+// once set.
+type colorKey struct{ c color.NRGBA }
+
+func (k colorKey) current() fyne.Theme { return fyne.CurrentApp().Settings().Theme() }
+
+func (k colorKey) Color(n fyne.ThemeColorName, v fyne.ThemeVariant) color.Color {
+	switch n {
+	case theme.ColorNameButton:
+		c := k.c
+		c.A = 0x40
+		return c
+	case theme.ColorNamePrimary:
+		return k.c
+	case theme.ColorNameForegroundOnPrimary:
+		return color.White
+	}
+	return k.current().Color(n, v)
+}
+
+func (k colorKey) Font(s fyne.TextStyle) fyne.Resource     { return k.current().Font(s) }
+func (k colorKey) Icon(n fyne.ThemeIconName) fyne.Resource { return k.current().Icon(n) }
+func (k colorKey) Size(n fyne.ThemeSizeName) float32       { return k.current().Size(n) }

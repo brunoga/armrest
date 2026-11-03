@@ -3,10 +3,13 @@ package ui
 import (
 	"fmt"
 	"strings"
+	"time"
 
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/canvas"
 	"fyne.io/fyne/v2/container"
+	"fyne.io/fyne/v2/driver/desktop"
+	"fyne.io/fyne/v2/driver/mobile"
 	"fyne.io/fyne/v2/layout"
 	"fyne.io/fyne/v2/theme"
 	"fyne.io/fyne/v2/widget"
@@ -173,7 +176,49 @@ func remote(model string, keys profile.Buttons, ctl *controls) []fyne.CanvasObje
 type remoteKey struct {
 	widget.Button
 	hold func()
+
+	// lit is set while the key shows held down, since when, over its
+	// usual look.
+	lit   bool
+	since time.Time
+	usual widget.Importance
 }
+
+// litFor is the least a key shows held down: a quick tap shows too.
+const litFor = 150 * time.Millisecond
+
+// down shows the key held down: in the app's orange.
+func (k *remoteKey) down() {
+	if k.Disabled() || k.lit {
+		return
+	}
+	k.lit, k.since, k.usual = true, time.Now(), k.Importance
+	k.Importance = widget.WarningImportance
+	k.Refresh()
+}
+
+// up shows the key let go, once it has shown held down for litFor.
+func (k *remoteKey) up() {
+	if !k.lit {
+		return
+	}
+	done := func() {
+		k.lit, k.Importance = false, k.usual
+		k.Refresh()
+	}
+	if wait := litFor - time.Since(k.since); wait > 0 {
+		time.AfterFunc(wait, func() { fyne.Do(done) })
+		return
+	}
+	done()
+}
+
+// The key is held down by a finger, or a mouse button.
+func (k *remoteKey) TouchDown(*mobile.TouchEvent)   { k.down() }
+func (k *remoteKey) TouchUp(*mobile.TouchEvent)     { k.up() }
+func (k *remoteKey) TouchCancel(*mobile.TouchEvent) { k.up() }
+func (k *remoteKey) MouseDown(*desktop.MouseEvent)  { k.down() }
+func (k *remoteKey) MouseUp(*desktop.MouseEvent)    { k.up() }
 
 func newRemoteKey(key, label string, set profile.Key, ctl *controls) *remoteKey {
 	k := &remoteKey{}

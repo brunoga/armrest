@@ -370,6 +370,11 @@ drag-reorder lists.
       the old one go), then checks the hub for changes, keeping the
       edits. Reconnect is offered if it fails; reading and writing keep
       their own Try again.
+- [x] The first screen is the app (icon, name, version) and the hubs
+      found, to connect to; "Hub not listed?" connects by address. Opening
+      a saved file, the demo hub and About are in the bar's menu. A key
+      of the remote lights up in orange while held down. The icon's
+      remote lies along the armrest (scripts/icon.py draws it).
 - [ ] Later: the profile library server (section 10).
 
 ## 10. The profile library server (later; not built yet)

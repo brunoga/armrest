@@ -26,7 +26,7 @@ func (*memFile) Close() error { return nil }
 // filePickers make u save to and open f, recording the name offered.
 func filePickers(u *App, f *memFile, offered *string) {
 	u.pickers = pickers{
-		open: func(_ fyne.Window, done func(io.ReadCloser, string, error)) {
+		open: func(_ fyne.Window, _ []string, done func(io.ReadCloser, string, error)) {
 			done(io.NopCloser(bytes.NewReader(f.Bytes())), *offered, nil)
 		},
 		save: func(_ fyne.Window, name string, done func(io.WriteCloser, error)) {
@@ -191,5 +191,53 @@ func TestBackup(t *testing.T) {
 	test.Tap(button(t, w, "Apply to the hub"))
 	if got := texts(w); !strings.Contains(got, "Your changes are on the hub.") || !listed(u, "Play PC") || u.work.Changed() {
 		t.Fatalf("after restoring:\n%s", got)
+	}
+}
+
+// A device is added from a Flipper file of its codes: its keys set, what
+// the hub cannot send left out, and said.
+func TestImportIRFile(t *testing.T) {
+	u, w := newApp(t, backend.Hub{Name: "Lounge", Model: "X2", Firmware: 9, Addr: lounge})
+	var f memFile
+	name := "Living_Room_TV.ir"
+	filePickers(u, &f, &name)
+	f.WriteString(`Filetype: IR signals file
+Version: 1
+#
+name: Power
+type: parsed
+protocol: NEC
+address: 04 00 00 00
+command: 08 00 00 00
+#
+name: Vol_up
+type: parsed
+protocol: NEC
+address: 04 00 00 00
+command: 02 00 00 00
+#
+name: Netflix
+type: raw
+frequency: 38000
+duty_cycle: 0.330000
+data: 9000 4500
+`)
+	test.Tap(button(t, w, "Lounge (X2, 192.168.1.20)"))
+	pickRow(t, u, "Add a device…")
+	test.Tap(button(t, w, "From a file…"))
+	got := texts(w)
+	for _, want := range []string{"2 commands, 2 of them on the remote's keys. Power: Power.", "Netflix: raw timings"} {
+		if !strings.Contains(got, want) {
+			t.Errorf("missing %q in:\n%s", want, got)
+		}
+	}
+	assertScreens(t, w, "import-ir")
+	test.Tap(button(t, w, "Add"))
+	d := u.work.Config.Device("Living Room TV")
+	if d == nil || d.Buttons["Vol+"].Short != "Volume Up" {
+		t.Fatalf("added %+v", d)
+	}
+	if !strings.Contains(texts(w), "Added Living Room TV.") {
+		t.Errorf("after adding:\n%s", texts(w))
 	}
 }

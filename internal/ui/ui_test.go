@@ -533,7 +533,7 @@ func TestScratchDevice(t *testing.T) {
 	u, w := newApp(t, backend.Hub{Name: "Lounge", Model: "X2", Firmware: 9, Addr: lounge})
 	test.Tap(button(t, w, "Lounge (X2, 192.168.1.20)"))
 	pickRow(t, u, "Add a device…")
-	test.Tap(button(t, w, "Start from scratch"))
+	test.Tap(button(t, w, "From scratch"))
 	if got := texts(w); !strings.Contains(got, "How does the device's remote send its codes?") {
 		t.Fatalf("not the scratch screen:\n%s", got)
 	}

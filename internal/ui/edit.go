@@ -76,22 +76,58 @@ func (a *App) showAddDevice() {
 			alive.Stop()
 		}
 	}
+	// Narrowing by type and maker: the online sources' types, and their
+	// makers of the type picked (all the makers would be too many to
+	// pick from).
+	kind := widget.NewSelect(append([]string{anyType}, irsource.Types...), nil)
+	kind.SetSelected(anyType)
+	maker := widget.NewSelect([]string{anyMaker}, nil)
+	maker.SetSelected(anyMaker)
+	maker.PlaceHolder = "Maker"
+	maker.Disable()
+	more := wrapped("")
+	more.TextStyle.Italic = true
+	more.Hide()
 	update := func() {
-		q := search.Text
+		q, typ, mk := search.Text, pick(kind), pick(maker)
+		if typ == anyType {
+			typ = ""
+		}
+		if mk == anyMaker {
+			mk = ""
+		}
 		shown = nil
 		for _, t := range all {
-			if t.Matches(q) {
+			// Templates have no type: a type narrows them only to its
+			// maker.
+			if t.Matches(q) && (typ == "" && mk == "" || mk != "" && strings.EqualFold(t.Brand, mk)) {
 				shown = append(shown, t)
 			}
 		}
 		found = nil
-		if len(strings.TrimSpace(q)) >= 2 && a.online.loaded {
-			found = irsource.Search(a.online.entries, q, onlineMax)
+		n := 0
+		if (len(strings.TrimSpace(q)) >= 2 || typ != "" || mk != "") && a.online.loaded {
+			found, n = irsource.Browse(a.online.entries, typ, mk, q, onlineMax)
 		}
+		more.SetText(fmt.Sprintf("The first %d of %d: pick a maker, or search, to narrow them.", len(found), n))
+		more.Hidden = n <= len(found)
+		more.Refresh()
 		none.Hidden = len(shown)+len(found) > 0
 		none.Refresh()
 		list.Refresh()
 	}
+	kind.OnChanged = func(t string) {
+		if t == anyType {
+			maker.Options = []string{anyMaker}
+			maker.Disable()
+		} else {
+			maker.Options = append([]string{anyMaker}, irsource.Makers(a.online.entries, t)...)
+			maker.Enable()
+		}
+		maker.SetSelected(anyMaker) // updates
+		update()
+	}
+	maker.OnChanged = func(string) { update() }
 	search.OnChanged = func(string) { update() }
 	list.OnSelected = func(i widget.ListItemID) {
 		list.UnselectAll()
@@ -116,6 +152,9 @@ func (a *App) showAddDevice() {
 		default:
 			say(false, "")
 		}
+		if t := pick(kind); t != anyType {
+			maker.Options = append([]string{anyMaker}, irsource.Makers(a.online.entries, t)...)
+		}
 		update()
 	})
 
@@ -127,12 +166,19 @@ func (a *App) showAddDevice() {
 		container.NewThemeOverride(container.NewGridWithColumns(2, scratch, fromFile), tightKeys{}))
 	credit := wrapped("Online results come from Flipper-IRDB and irdb: untested, and the About page says whose they are.")
 	credit.TextStyle.Italic = true
-	top := container.NewVBox(intro, notListed, search, alive, status, none)
+	narrow := container.NewGridWithColumns(2, kind, maker)
+	top := container.NewVBox(intro, notListed, search, narrow, alive, status, more, none)
 	a.screen("Add a device", a.backToBrowse, column(container.NewPadded(container.NewBorder(top, credit, nil, nil, list))))
 }
 
 // onlineMax is the most online results shown.
-const onlineMax = 50
+const onlineMax = 100
+
+// The type and maker pickers' choice of any.
+const (
+	anyType  = "Any type"
+	anyMaker = "Any maker"
+)
 
 // confirmTemplate asks for the new device's name, then adds it.
 func (a *App) confirmTemplate(t workspace.Template) {

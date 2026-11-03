@@ -267,6 +267,34 @@ func TestOnlineSearch(t *testing.T) {
 			search = e
 		}
 	})
+	// Browsing: a type, then a maker, with no words.
+	var kind, maker *widget.Select
+	walk(w, func(o fyne.CanvasObject) {
+		if s, ok := o.(*widget.Select); ok {
+			if kind == nil {
+				kind = s
+			} else {
+				maker = s
+			}
+		}
+	})
+	if !maker.Disabled() {
+		t.Error("maker enabled before a type is picked")
+	}
+	kind.SetSelected("TV")
+	if maker.Disabled() || len(maker.Options) != 2 || maker.Options[1] != "Acme" {
+		t.Fatalf("TV's makers %v", maker.Options)
+	}
+	maker.SetSelected("Acme")
+	if l := list(t, w); l.Length() != 1 {
+		t.Fatalf("Acme TVs: %d", l.Length())
+	}
+	kind.SetSelected("Projector")
+	if l := list(t, w); l.Length() != 0 {
+		t.Fatalf("Acme projectors: %d", l.Length())
+	}
+	kind.SetSelected("Any type")
+
 	test.Type(search, "acme")
 	got := texts(w)
 	if !strings.Contains(got, "TVs · Flipper-IRDB") {

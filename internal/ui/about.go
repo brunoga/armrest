@@ -33,18 +33,7 @@ const iconSize = 96
 // reach them, what it is built on, and the text size. resized shows the
 // page again once the text size changed.
 func (a *App) aboutContent(resized func()) fyne.CanvasObject {
-	icon := canvas.NewImageFromResource(appIcon())
-	if appIcon() == nil {
-		icon.Hide()
-	}
-	icon.FillMode = canvas.ImageFillContain
-	icon.SetMinSize(fyne.NewSquareSize(iconSize * Scale()))
-	name := widget.NewLabelWithStyle("Armrest", fyne.TextAlignCenter, fyne.TextStyle{Bold: true})
-	name.SizeName = theme.SizeNameHeadingText
-	ver := widget.NewLabelWithStyle(version(), fyne.TextAlignCenter, fyne.TextStyle{})
-	what := wrapped("Set up Sofabaton X1, X1S and X2 hubs on your own network, without the cloud.")
-	what.Alignment = fyne.TextAlignCenter
-	top := container.NewVBox(container.NewCenter(icon), name, ver, what)
+	top := brand()
 
 	made := container.NewVBox(
 		wrapped(author),
@@ -79,6 +68,22 @@ func (a *App) aboutContent(resized func()) fyne.CanvasObject {
 		card("Built with", built),
 		card("License", wrapped("Armrest is free software, under the Apache License 2.0. It is not affiliated with or endorsed by Sofabaton.")),
 	))
+}
+
+// brand is the app's icon, name, version and what it does.
+func brand() fyne.CanvasObject {
+	icon := canvas.NewImageFromResource(appIcon())
+	if appIcon() == nil {
+		icon.Hide()
+	}
+	icon.FillMode = canvas.ImageFillContain
+	icon.SetMinSize(fyne.NewSquareSize(iconSize * Scale()))
+	name := widget.NewLabelWithStyle("Armrest", fyne.TextAlignCenter, fyne.TextStyle{Bold: true})
+	name.SizeName = theme.SizeNameHeadingText
+	ver := widget.NewLabelWithStyle(version(), fyne.TextAlignCenter, fyne.TextStyle{})
+	what := wrapped("Set up Sofabaton X1, X1S and X2 hubs on your own network, without the cloud.")
+	what.Alignment = fyne.TextAlignCenter
+	return container.NewVBox(container.NewCenter(icon), name, ver, what)
 }
 
 // showAbout shows the About page on its own, from the hubs screen.

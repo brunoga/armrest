@@ -63,6 +63,8 @@ type App struct {
 	file *openedFile
 	// pickers pick files to open and save.
 	pickers pickers
+	// hubsMenu is the hubs screen's menu.
+	hubsMenu *fyne.Menu
 
 	// watch calls dropped once c's connection ends; tests do without.
 	watch func(c *hub.Client)

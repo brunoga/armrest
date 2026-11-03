@@ -155,7 +155,7 @@ func button(t *testing.T, w fyne.Window, text string) *widget.Button {
 func TestHubsScreen(t *testing.T) {
 	_, w := newApp(t, backend.Hub{Name: "Lounge", Model: "X2", Firmware: 9, Addr: lounge})
 	got := texts(w)
-	for _, want := range []string{"[Lounge (X2, 192.168.1.20)]", "1 found.", "[Open the demo hub]"} {
+	for _, want := range []string{"[Lounge (X2, 192.168.1.20)]", "1 found.", "[Hub not listed?]"} {
 		if !strings.Contains(got, want) {
 			t.Errorf("missing %q in:\n%s", want, got)
 		}
@@ -573,8 +573,8 @@ func TestScratchDevice(t *testing.T) {
 }
 
 func TestDemoHub(t *testing.T) {
-	_, w := newApp(t)
-	test.Tap(button(t, w, "Open the demo hub"))
+	u, w := newApp(t)
+	menuItem(t, u, "Try the demo hub")
 	if got := texts(w); !strings.Contains(got, "demo hub: a simulated X2, firmware 9") {
 		t.Errorf("not the demo hub:\n%s", got)
 	}
@@ -588,6 +588,7 @@ func TestConnectByAddress(t *testing.T) {
 	} {
 		t.Run(tc.addr, func(t *testing.T) {
 			_, w := newApp(t)
+			test.Tap(button(t, w, "Hub not listed?"))
 			var entry *widget.Entry
 			walk(w, func(o fyne.CanvasObject) {
 				if e, ok := o.(*widget.Entry); ok && entry == nil {
@@ -891,22 +892,7 @@ func TestAbout(t *testing.T) {
 	}
 	t.Cleanup(func() { buildInfo = debug.ReadBuildInfo })
 	u, w := newApp(t)
-	icon, err := os.ReadFile("../../cmd/armrest/Icon.png")
-	if err != nil {
-		t.Fatal(err)
-	}
-	appIcon = func() fyne.Resource { return fyne.NewStaticResource("Icon.png", icon) }
-	t.Cleanup(func() { appIcon = func() fyne.Resource { return fyne.CurrentApp().Icon() } })
-	var info *widget.Button
-	walk(w, func(o fyne.CanvasObject) {
-		if b, ok := o.(*widget.Button); ok && b.Icon == theme.InfoIcon() {
-			info = b
-		}
-	})
-	if info == nil {
-		t.Fatal("no About button")
-	}
-	test.Tap(info)
+	menuItem(t, u, "About Armrest")
 	got := texts(w)
 	for _, want := range []string{"Built from the source, at 0123456", "Bruno Albuquerque", "The Sofabaton library at 222d9b8 (github.com/brunoga/sofabaton), and Fyne v2.8.2."} {
 		if !strings.Contains(got, want) {
@@ -930,7 +916,7 @@ func TestAbout(t *testing.T) {
 		t.Error("left the About page")
 	}
 	u.pressBack()
-	if !strings.Contains(texts(w), "[Open the demo hub]") {
+	if !strings.Contains(texts(w), "[Hub not listed?]") {
 		t.Error("Back did not go to the hubs")
 	}
 }
@@ -962,6 +948,13 @@ func themedApp(t *testing.T) {
 	t.Helper()
 	test.NewTempApp(t)
 	fyne.CurrentApp().Settings().SetTheme(Theme())
+	// The test app has no icon: the app's.
+	icon, err := os.ReadFile("../../cmd/armrest/Icon.png")
+	if err != nil {
+		t.Fatal(err)
+	}
+	appIcon = func() fyne.Resource { return fyne.NewStaticResource("Icon.png", icon) }
+	t.Cleanup(func() { appIcon = func() fyne.Resource { return fyne.CurrentApp().Icon() } })
 }
 
 // Commands and favorites move by dragging their rows' handles.
@@ -1053,6 +1046,17 @@ func TestRemote(t *testing.T) {
 	status := func() string { return u.browse.status.Text }
 
 	pickRow(t, u, "Receiver")
+	// Held down, a key is lit; let go, it is as it was.
+	k := key("Mute")
+	k.MouseDown(nil)
+	if k.Importance != widget.WarningImportance {
+		t.Error("Mute held down is not lit")
+	}
+	k.since = k.since.Add(-time.Second) // lit long enough
+	k.MouseUp(nil)
+	if k.Importance != widget.HighImportance {
+		t.Errorf("Mute let go: importance %v", k.Importance)
+	}
 	test.Tap(key("Mute"))
 	if status() != "Pressed Mute." {
 		t.Errorf("after Mute: %q", status())
@@ -1138,4 +1142,16 @@ func TestReconnect(t *testing.T) {
 	if u.client == nil || status() != "Up to date." {
 		t.Errorf("after Reconnect: %q", status())
 	}
+}
+
+// menuItem picks the item labelled label of the hubs screen's menu.
+func menuItem(t *testing.T, u *App, label string) {
+	t.Helper()
+	for _, it := range u.hubsMenu.Items {
+		if it.Label == label {
+			it.Action()
+			return
+		}
+	}
+	t.Fatalf("no %q in the menu", label)
 }

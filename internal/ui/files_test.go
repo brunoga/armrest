@@ -57,7 +57,7 @@ func TestFiles(t *testing.T) {
 	}
 	hubAction(t, u, "Disconnect")
 
-	test.Tap(button(t, w, "Open a file…"))
+	menuItem(t, u, "Open a saved file…")
 	got := texts(w)
 	if !strings.Contains(got, "From the file X2 HUB 2026-11-02.armrest, saved just now") || listed(u, "Play PC") || !u.browse.changes.Visible() || u.client != nil {
 		t.Fatalf("opened:\n%s", got)
@@ -117,7 +117,7 @@ func TestFileOtherHub(t *testing.T) {
 		t.Fatal(err)
 	}
 	hubAction(t, u, "Disconnect")
-	test.Tap(button(t, w, "Open a file…"))
+	menuItem(t, u, "Open a saved file…")
 	hubAction(t, u, "Restore to a hub…")
 	test.Tap(button(t, w, "Lounge (X2, 192.168.1.20)"))
 	if got := texts(w); !strings.Contains(got, "Restore onto another hub") || !strings.Contains(got, "saved from another hub, Bedroom") {
@@ -167,7 +167,7 @@ func TestBackup(t *testing.T) {
 	}
 	hubAction(t, u, "Disconnect")
 
-	test.Tap(button(t, w, "Open a file…"))
+	menuItem(t, u, "Open a saved file…")
 	if !listed(u, "Play PC") || u.browse.changes.Visible() {
 		t.Fatal("the backup")
 	}

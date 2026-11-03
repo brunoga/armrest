@@ -11,6 +11,8 @@ import (
 	"fyne.io/fyne/v2/container"
 	"fyne.io/fyne/v2/theme"
 	"fyne.io/fyne/v2/widget"
+
+	"github.com/brunoga/sofabaton/irsource"
 )
 
 // The app's author and its pages.
@@ -59,7 +61,9 @@ func (a *App) aboutContent(resized func()) fyne.CanvasObject {
 	built := container.NewVBox(
 		wrapped(fmt.Sprintf("The Sofabaton library %s (%s), and Fyne %s.", depVersion(library), library, depVersion("fyne.io/fyne/v2"))),
 		wrapped("The X2's icon drawings come from the home-assistant-sofabaton-x1s project, under the MIT license; the logos among them are their owners'."),
-		link("home-assistant-sofabaton-x1s", iconsPage))
+		link("home-assistant-sofabaton-x1s", iconsPage),
+		wrapped(irsource.Credit(irsource.Flipper)),
+		wrapped(irsource.Credit(irsource.IRDB)))
 
 	return scrolled(container.NewVBox(
 		top,

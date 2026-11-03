@@ -3,6 +3,7 @@ package ui
 import (
 	"bytes"
 	"context"
+	"errors"
 	"io"
 	"net/netip"
 	"strings"
@@ -11,11 +12,13 @@ import (
 
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/test"
+	"fyne.io/fyne/v2/widget"
 
 	"github.com/brunoga/armrest/internal/backend"
 	"github.com/brunoga/armrest/internal/demo"
 	"github.com/brunoga/sofabaton/hub"
 	"github.com/brunoga/sofabaton/hubsim"
+	"github.com/brunoga/sofabaton/irsource"
 )
 
 // memFile is a file the test pickers save to and open.
@@ -239,5 +242,41 @@ data: 9000 4500
 	}
 	if !strings.Contains(texts(w), "Added Living Room TV.") {
 		t.Errorf("after adding:\n%s", texts(w))
+	}
+}
+
+// Searching adds online results after the templates; picking one gets
+// its file and adds the device once confirmed.
+func TestOnlineSearch(t *testing.T) {
+	u, w := newApp(t, backend.Hub{Name: "Lounge", Model: "X2", Firmware: 9, Addr: lounge})
+	entry := irsource.Entry{Source: irsource.Flipper, Kind: "TVs", Brand: "Acme", Model: "Acme 55X1", Path: "TVs/Acme/Acme_55X1.ir"}
+	u.irIndex = func(_ context.Context, s irsource.Source) ([]irsource.Entry, error) {
+		if s == irsource.Flipper {
+			return []irsource.Entry{entry}, nil
+		}
+		return nil, errors.New("offline")
+	}
+	u.irFetch = func(_ context.Context, e irsource.Entry) ([]byte, error) {
+		return []byte("Filetype: IR signals file\nVersion: 1\nname: Power\ntype: parsed\nprotocol: NEC\naddress: 04 00 00 00\ncommand: 08 00 00 00\n"), nil
+	}
+	test.Tap(button(t, w, "Lounge (X2, 192.168.1.20)"))
+	pickRow(t, u, "Add a device…")
+	var search *widget.Entry
+	walk(w, func(o fyne.CanvasObject) {
+		if e, ok := o.(*widget.Entry); ok && search == nil {
+			search = e
+		}
+	})
+	test.Type(search, "acme")
+	got := texts(w)
+	if !strings.Contains(got, "TVs · Flipper-IRDB") {
+		t.Fatalf("no online result in:\n%s", got)
+	}
+	assertScreens(t, w, "online-search")
+	l := list(t, w)
+	l.Select(0)
+	test.Tap(button(t, w, "Add"))
+	if d := u.work.Config.Device("Acme 55X1"); d == nil || d.Buttons["Power"].Short != "Power" {
+		t.Fatalf("added %+v", d)
 	}
 }

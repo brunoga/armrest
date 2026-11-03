@@ -16,6 +16,7 @@ import (
 
 	"github.com/brunoga/armrest/internal/backend"
 	"github.com/brunoga/armrest/internal/workspace"
+	"github.com/brunoga/sofabaton/irsource"
 )
 
 // screen is a full-window page with a title, Back, and content.
@@ -27,14 +28,16 @@ func (a *App) screen(title string, back func(), content fyne.CanvasObject) {
 	content.Refresh()
 }
 
-// showAddDevice lets the user pick a template for a new device.
+// showAddDevice lets the user pick a template for a new device, or a
+// device of the online sources of IR codes.
 func (a *App) showAddDevice() {
 	all := workspace.Templates()
 	shown := all
+	var found []irsource.Entry // online, after the templates
 	search := widget.NewEntry()
 	search.SetPlaceHolder("Search by brand or model")
 	list := widget.NewList(
-		func() int { return len(shown) },
+		func() int { return len(shown) + len(found) },
 		func() fyne.CanvasObject {
 			name := widget.NewLabelWithStyle("", fyne.TextAlignLeading, fyne.TextStyle{Bold: true})
 			name.Truncation = fyne.TextTruncateEllipsis
@@ -43,29 +46,78 @@ func (a *App) showAddDevice() {
 			return listRow(container.NewVBox(name, sub))
 		},
 		func(i widget.ListItemID, o fyne.CanvasObject) {
-			t := shown[i]
 			box := o.(*fyne.Container).Objects[0].(*fyne.Container)
-			box.Objects[0].(*widget.Label).SetText(t.Model)
-			box.Objects[1].(*widget.Label).SetText(fmt.Sprintf("%s · %d commands", t.Brand, t.Commands))
+			name, sub := box.Objects[0].(*widget.Label), box.Objects[1].(*widget.Label)
+			if i < len(shown) {
+				t := shown[i]
+				name.SetText(t.Model)
+				sub.SetText(fmt.Sprintf("%s · %d commands", t.Brand, t.Commands))
+				return
+			}
+			e := found[i-len(shown)]
+			name.SetText(e.Name())
+			sub.SetText(onlineAbout(e))
 		})
 	none := wrapped("No device matches. Try fewer words, or start from scratch.")
 	none.TextStyle.Italic = true
 	none.Hide()
-	search.OnChanged = func(s string) {
+	status := wrapped("")
+	status.TextStyle.Italic = true
+	status.Hide()
+	alive := newPulse()
+	alive.Hide()
+	say := func(busy bool, text string) {
+		status.SetText(text)
+		status.Hidden = text == ""
+		status.Refresh()
+		if busy {
+			alive.Start()
+		} else {
+			alive.Stop()
+		}
+	}
+	update := func() {
+		q := search.Text
 		shown = nil
 		for _, t := range all {
-			if t.Matches(s) {
+			if t.Matches(q) {
 				shown = append(shown, t)
 			}
 		}
-		none.Hidden = len(shown) > 0
+		found = nil
+		if len(strings.TrimSpace(q)) >= 2 && a.online.loaded {
+			found = irsource.Search(a.online.entries, q, onlineMax)
+		}
+		none.Hidden = len(shown)+len(found) > 0
 		none.Refresh()
 		list.Refresh()
 	}
+	search.OnChanged = func(string) { update() }
 	list.OnSelected = func(i widget.ListItemID) {
 		list.UnselectAll()
-		a.confirmTemplate(shown[i])
+		if i < len(shown) {
+			a.confirmTemplate(shown[i])
+			return
+		}
+		e := found[i-len(shown)]
+		a.importOnline(e, func(busy bool) {
+			if busy {
+				say(true, "Getting "+e.Name()+" from "+string(e.Source)+"…")
+			} else {
+				say(false, "")
+			}
+		})
 	}
+	say(true, "Getting the lists of irdb and Flipper-IRDB…")
+	a.loadOnline(func() {
+		switch {
+		case len(a.online.entries) == 0 && a.online.err != nil:
+			say(false, "Searching online failed: "+a.online.err.Error())
+		default:
+			say(false, "")
+		}
+		update()
+	})
 
 	intro := wrapped("Pick your device's model. Its commands, keys and power settings come with it, and you can change them before anything is written to the hub.")
 	scratch := widget.NewButtonWithIcon("From scratch", theme.DocumentCreateIcon(), a.showScratch)
@@ -73,9 +125,14 @@ func (a *App) showAddDevice() {
 	notListed := container.NewVBox(
 		wrapped("Not listed? Make it from its IR codes, or from a file of them (Flipper Zero's .ir, irdb's .csv)."),
 		container.NewThemeOverride(container.NewGridWithColumns(2, scratch, fromFile), tightKeys{}))
-	top := container.NewVBox(intro, notListed, search, none)
-	a.screen("Add a device", a.backToBrowse, column(container.NewPadded(container.NewBorder(top, nil, nil, nil, list))))
+	credit := wrapped("Online results come from Flipper-IRDB and irdb: untested, and the About page says whose they are.")
+	credit.TextStyle.Italic = true
+	top := container.NewVBox(intro, notListed, search, alive, status, none)
+	a.screen("Add a device", a.backToBrowse, column(container.NewPadded(container.NewBorder(top, credit, nil, nil, list))))
 }
+
+// onlineMax is the most online results shown.
+const onlineMax = 50
 
 // confirmTemplate asks for the new device's name, then adds it.
 func (a *App) confirmTemplate(t workspace.Template) {
@@ -128,13 +185,14 @@ func (a *App) importIRFile() {
 			dialog.ShowError(err, a.win)
 			return
 		}
-		a.confirmImport(file, im)
+		a.confirmImport("Add from "+filepath.Base(file), im)
 	})
 }
 
 // confirmImport asks for the name of a device made of a file of IR
-// codes, saying what it has and what was left out, and adds it.
-func (a *App) confirmImport(file string, im *workspace.Imported) {
+// codes, titled title, saying what it has and what was left out, and
+// adds it.
+func (a *App) confirmImport(title string, im *workspace.Imported) {
 	d := im.Device
 	name := widget.NewEntry()
 	name.SetText(d.Name)
@@ -171,7 +229,7 @@ func (a *App) confirmImport(file string, im *workspace.Imported) {
 		items = append(items, widget.NewFormItem("", left))
 	}
 	items = append(items, widget.NewFormItem("", wrapped("Untested codes: check each one with Test once the device is on the hub.")))
-	form := dialog.NewForm("Add from "+filepath.Base(file), "Add", "Cancel", items, func(ok bool) {
+	form := dialog.NewForm(title, "Add", "Cancel", items, func(ok bool) {
 		if !ok {
 			return
 		}

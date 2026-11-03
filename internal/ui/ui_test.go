@@ -606,7 +606,7 @@ func TestEditDevice(t *testing.T) {
 	u, w := newApp(t, backend.Hub{Name: "Lounge", Model: "X2", Firmware: 9, Addr: lounge})
 	test.Tap(button(t, w, "Lounge (X2, 192.168.1.20)"))
 	pickRow(t, u, "Receiver")
-	test.Tap(button(t, w, "Edit"))
+	test.Tap(editButton(t, w))
 	if got := texts(w); !strings.Contains(got, "Edit Receiver") || !strings.Contains(got, "What the remote's keys do") {
 		t.Fatalf("not the editor:\n%s", got)
 	}
@@ -668,7 +668,7 @@ func TestEditActivity(t *testing.T) {
 	// Saving what the editor shows, untouched, changes nothing.
 	for _, n := range []string{"Watch Google TV", "Play Switch 2", "Watch 3D Movies", "Play PC"} {
 		pickRow(t, u, n)
-		test.Tap(button(t, w, "Edit"))
+		test.Tap(editButton(t, w))
 		test.Tap(button(t, w, "Save"))
 		if u.work.Changed() {
 			t.Fatalf("saving %s untouched changed it", n)
@@ -676,7 +676,7 @@ func TestEditActivity(t *testing.T) {
 	}
 	for _, n := range []string{"Receiver", "Projector/Google TV", "3D Player"} {
 		pickRow(t, u, n)
-		test.Tap(button(t, w, "Edit"))
+		test.Tap(editButton(t, w))
 		test.Tap(button(t, w, "Save"))
 		if u.work.Changed() {
 			t.Fatalf("saving %s untouched changed it", n)
@@ -684,7 +684,7 @@ func TestEditActivity(t *testing.T) {
 	}
 
 	pickRow(t, u, "Play PC")
-	test.Tap(button(t, w, "Edit"))
+	test.Tap(editButton(t, w))
 	got := texts(w)
 	for _, want := range []string{"Edit Play PC", "When it starts", "Favorites", "Add a device"} {
 		if !strings.Contains(got, want) {
@@ -763,7 +763,7 @@ func TestKeyPad(t *testing.T) {
 	u, w := newApp(t, backend.Hub{Name: "Lounge", Model: "X2", Firmware: 9, Addr: lounge})
 	test.Tap(button(t, w, "Lounge (X2, 192.168.1.20)"))
 	pickRow(t, u, "Receiver")
-	test.Tap(button(t, w, "Edit"))
+	test.Tap(editButton(t, w))
 	d := u.work.Config.Device("Receiver")
 	var free, set string
 	for _, row := range remoteRows {
@@ -856,7 +856,7 @@ func TestBack(t *testing.T) {
 	back := func() { w.Canvas().OnTypedKey()(&fyne.KeyEvent{Name: fyne.KeyEscape}) }
 
 	pickRow(t, u, "Receiver")
-	test.Tap(button(t, w, "Edit"))
+	test.Tap(editButton(t, w))
 	back()
 	if u.shown != u.browse.root {
 		t.Fatal("still in the editor")
@@ -982,7 +982,7 @@ func TestDragToReorder(t *testing.T) {
 	}
 
 	pickRow(t, u, "Receiver")
-	test.Tap(button(t, w, "Edit"))
+	test.Tap(editButton(t, w))
 	before := u.work.Config.Device("Receiver").Commands
 	first, second, third := before[0].Name, before[1].Name, before[2].Name
 	drag(grips()[0], 2)
@@ -993,7 +993,7 @@ func TestDragToReorder(t *testing.T) {
 	}
 
 	pickRow(t, u, "Watch Google TV")
-	test.Tap(button(t, w, "Edit"))
+	test.Tap(editButton(t, w))
 	test.Tap(button(t, w, "Add a favorite"))
 	test.Tap(button(t, w, "Add a favorite"))
 	var pickers []*widget.Select
@@ -1012,5 +1012,59 @@ func TestDragToReorder(t *testing.T) {
 	got := u.work.Config.Activity("Watch Google TV").Favorites
 	if len(got) != 2 || got[0] != a.Options[2] || got[1] != a.Options[1] {
 		t.Errorf("after dragging the last favorite up one: %v, from %v", got, a.Options[1:3])
+	}
+}
+
+// editButton is the Edit button of the device or activity shown.
+func editButton(t *testing.T, w fyne.Window) *widget.Button {
+	t.Helper()
+	var found *widget.Button
+	walk(w, func(o fyne.CanvasObject) {
+		if b, ok := o.(*widget.Button); ok && b.Visible() && b.Icon == theme.DocumentCreateIcon() && b.Text == "" && b.Importance == widget.HighImportance {
+			found = b
+		}
+	})
+	if found == nil {
+		t.Fatalf("no Edit button in:\n%s", texts(w))
+	}
+	return found
+}
+
+// A device's and an activity's remote press their keys on the hub.
+func TestRemote(t *testing.T) {
+	u, w := newApp(t, backend.Hub{Name: "Lounge", Model: "X2", Firmware: 9, Addr: lounge})
+	test.Tap(button(t, w, "Lounge (X2, 192.168.1.20)"))
+	key := func(k string) *remoteKey {
+		t.Helper()
+		var found *remoteKey
+		walk(w, func(o fyne.CanvasObject) {
+			if r, ok := o.(*remoteKey); ok && r.Text == k {
+				found = r
+			}
+		})
+		if found == nil {
+			t.Fatalf("no key %s", k)
+		}
+		return found
+	}
+	status := func() string { return u.browse.status.Text }
+
+	pickRow(t, u, "Receiver")
+	test.Tap(key("Mute"))
+	if status() != "Pressed Mute." {
+		t.Errorf("after Mute: %q", status())
+	}
+	key("Mute").TappedSecondary(nil) // nothing held
+	if !key("A").Disabled() {
+		t.Error("A does nothing, yet is enabled")
+	}
+
+	pickRow(t, u, "Watch Google TV")
+	test.Tap(key("Vol+"))
+	if status() != "Pressed Vol+." {
+		t.Errorf("after Vol+: %q", status())
+	}
+	if !strings.Contains(texts(w), "No favorites.") {
+		t.Error("no favorites pane")
 	}
 }

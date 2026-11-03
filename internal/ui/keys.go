@@ -76,6 +76,18 @@ func newKeyPad(win fyne.Window, model string, keys profile.Buttons, picker func(
 			p.keys = append(p.keys, &keyRow{key: k, short: picker(keys[k].Short), long: picker(keys[k].Long)})
 		}
 	}
+	drawing := drawRemote(model, func(k string) bool { return p.row(k) != nil }, func(k, label string) fyne.CanvasObject {
+		p.buttons[k] = widget.NewButton(label, func() { p.open(k) })
+		return p.buttons[k]
+	})
+	p.box = container.New(&centerLayout{width: PadWidth * Scale()}, container.NewVBox(drawing, p.list))
+	p.refresh()
+	return p
+}
+
+// drawRemote draws the remote of the hub model with the keys key makes,
+// labelled label (the X1 remotes lack some keys, drawn only when set).
+func drawRemote(model string, set func(string) bool, key func(k, label string) fyne.CanvasObject) fyne.CanvasObject {
 	x1 := strings.HasPrefix(strings.ToUpper(model), "X1")
 	grids := func(rows [][]string) *fyne.Container {
 		out := container.NewVBox()
@@ -84,18 +96,16 @@ func newKeyPad(win fyne.Window, model string, keys profile.Buttons, picker func(
 			shown := false
 			for _, k := range row {
 				b, _ := record.ParseButton(k)
-				if k == "" || x1 && b.X2Only() && p.row(k) == nil {
+				if k == "" || x1 && b.X2Only() && !set(k) {
 					grid.Add(layout.NewSpacer())
 					continue
 				}
-				p.buttons[k] = widget.NewButton(k, func() { p.open(k) })
 				if c, ok := keyColors[k]; ok {
 					// Their color names them, as on the remote: four
 					// names across do not fit a phone.
-					p.buttons[k].SetText("")
-					grid.Add(container.NewThemeOverride(p.buttons[k], colorKey{c}))
+					grid.Add(container.NewThemeOverride(key(k, ""), colorKey{c}))
 				} else {
-					grid.Add(p.buttons[k])
+					grid.Add(key(k, k))
 				}
 				shown = true
 			}
@@ -112,10 +122,7 @@ func newKeyPad(win fyne.Window, model string, keys profile.Buttons, picker func(
 		rows.Add(note)
 		rows.Add(numbers)
 	}
-	p.box = container.New(&centerLayout{width: PadWidth * Scale()},
-		container.NewVBox(container.NewThemeOverride(rows, tightKeys{}), p.list))
-	p.refresh()
-	return p
+	return container.NewThemeOverride(rows, tightKeys{})
 }
 
 // row is the key's row, or nil when it is not set.

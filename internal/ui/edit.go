@@ -4,6 +4,8 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
+	"path/filepath"
 	"strings"
 
 	"fyne.io/fyne/v2"
@@ -66,8 +68,11 @@ func (a *App) showAddDevice() {
 	}
 
 	intro := wrapped("Pick your device's model. Its commands, keys and power settings come with it, and you can change them before anything is written to the hub.")
-	scratch := widget.NewButtonWithIcon("Start from scratch", theme.DocumentCreateIcon(), a.showScratch)
-	notListed := container.NewBorder(nil, nil, nil, container.NewCenter(scratch), wrapped("Not listed? Make it from its IR codes."))
+	scratch := widget.NewButtonWithIcon("From scratch", theme.DocumentCreateIcon(), a.showScratch)
+	fromFile := widget.NewButtonWithIcon("From a file…", theme.FolderOpenIcon(), a.importIRFile)
+	notListed := container.NewVBox(
+		wrapped("Not listed? Make it from its IR codes, or from a file of them (Flipper Zero's .ir, irdb's .csv)."),
+		container.NewThemeOverride(container.NewGridWithColumns(2, scratch, fromFile), tightKeys{}))
 	top := container.NewVBox(intro, notListed, search, none)
 	a.screen("Add a device", a.backToBrowse, column(container.NewPadded(container.NewBorder(top, nil, nil, nil, list))))
 }
@@ -104,6 +109,80 @@ func (a *App) confirmTemplate(t workspace.Template) {
 		s := a.showBrowse(a.hub)
 		s.selectDevice(d.Name)
 		s.setStatus(false, fmt.Sprintf("Added %s. Review your changes to write them to the hub.", d.Name))
+	}, a.win)
+	form.Resize(fyne.NewSize(min(a.win.Canvas().Size().Width-32, 480), 0))
+	form.Show()
+}
+
+// importIRFile adds a device made of a file of IR codes the user picks,
+// once they confirm its name, seeing what it has and what was left out.
+func (a *App) importIRFile() {
+	a.pickers.open(a.win, workspace.IRFileExts, func(r io.ReadCloser, file string, err error) {
+		if err != nil {
+			dialog.ShowError(fmt.Errorf("opening failed: %w", err), a.win)
+			return
+		}
+		im, err := workspace.FromIRFile(file, r)
+		_ = r.Close()
+		if err != nil {
+			dialog.ShowError(err, a.win)
+			return
+		}
+		a.confirmImport(file, im)
+	})
+}
+
+// confirmImport asks for the name of a device made of a file of IR
+// codes, saying what it has and what was left out, and adds it.
+func (a *App) confirmImport(file string, im *workspace.Imported) {
+	d := im.Device
+	name := widget.NewEntry()
+	name.SetText(d.Name)
+	name.Validator = func(s string) error {
+		if strings.TrimSpace(s) == "" {
+			return errors.New("the device needs a name")
+		}
+		if o := a.work.Config.Device(s); o != nil {
+			return fmt.Errorf("there is a device named %q already", o.Name)
+		}
+		return nil
+	}
+	about := fmt.Sprintf("%d commands, %d of them on the remote's keys.", len(d.Commands), len(d.Buttons))
+	if d.Power != nil {
+		about += " Power: " + d.Power.On
+		if d.Power.Off != d.Power.On {
+			about += " and " + d.Power.Off
+		}
+		about += "."
+	}
+	items := []*widget.FormItem{widget.NewFormItem("Name", name), widget.NewFormItem("", wrapped(about))}
+	if n := len(im.Skipped); n > 0 {
+		const shown = 5
+		var lines []string
+		for i, s := range im.Skipped {
+			if i == shown {
+				lines = append(lines, fmt.Sprintf("and %d more.", n-shown))
+				break
+			}
+			lines = append(lines, s.Name+": "+s.Why)
+		}
+		left := wrapped(fmt.Sprintf("Left out, as the hub cannot send them yet:\n%s", strings.Join(lines, "\n")))
+		left.TextStyle.Italic = true
+		items = append(items, widget.NewFormItem("", left))
+	}
+	items = append(items, widget.NewFormItem("", wrapped("Untested codes: check each one with Test once the device is on the hub.")))
+	form := dialog.NewForm("Add from "+filepath.Base(file), "Add", "Cancel", items, func(ok bool) {
+		if !ok {
+			return
+		}
+		d.Name = strings.TrimSpace(name.Text)
+		if err := a.work.AddDevice(d); err != nil {
+			dialog.ShowError(err, a.win)
+			return
+		}
+		s := a.showBrowse(a.hub)
+		s.selectDevice(d.Name)
+		s.setStatus(false, fmt.Sprintf("Added %s. Review your changes to write them to the hub, then test its commands.", d.Name))
 	}, a.win)
 	form.Resize(fyne.NewSize(min(a.win.Canvas().Size().Width-32, 480), 0))
 	form.Show()

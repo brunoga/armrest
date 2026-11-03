@@ -25,14 +25,15 @@ type openedFile struct {
 }
 
 // pickers are the system's file pickers; tests replace them. Each calls
-// back on the UI thread, or not at all when the user cancels.
+// back on the UI thread, or not at all when the user cancels. open shows
+// files of the extensions given (all of them on phones).
 type pickers struct {
-	open func(win fyne.Window, done func(r io.ReadCloser, name string, err error))
+	open func(win fyne.Window, exts []string, done func(r io.ReadCloser, name string, err error))
 	save func(win fyne.Window, name string, done func(w io.WriteCloser, err error))
 }
 
 var systemPickers = pickers{
-	open: func(win fyne.Window, done func(io.ReadCloser, string, error)) {
+	open: func(win fyne.Window, exts []string, done func(io.ReadCloser, string, error)) {
 		d := dialog.NewFileOpen(func(r fyne.URIReadCloser, err error) {
 			switch {
 			case err != nil:
@@ -44,7 +45,7 @@ var systemPickers = pickers{
 		// Phones' pickers know files by type, and have no type for
 		// these: they show every file there.
 		if !fyne.CurrentDevice().IsMobile() {
-			d.SetFilter(storage.NewExtensionFileFilter([]string{workspace.Ext, ".json"}))
+			d.SetFilter(storage.NewExtensionFileFilter(exts))
 		}
 		d.Show()
 	},
@@ -104,7 +105,7 @@ func (a *App) saveToFile() {
 // openFile opens a workspace file, or a hub's dump, the user picks, and
 // shows it without a hub.
 func (a *App) openFile() {
-	a.pickers.open(a.win, func(r io.ReadCloser, name string, err error) {
+	a.pickers.open(a.win, []string{workspace.Ext, ".json"}, func(r io.ReadCloser, name string, err error) {
 		if err != nil {
 			dialog.ShowError(fmt.Errorf("opening failed: %w", err), a.win)
 			return

@@ -379,6 +379,12 @@ drag-reorder lists.
       then (Fyne only tells a long press once let go); letting go then
       sends nothing more. Keys, macros and favorites that work say
       nothing, as on the remote: only failures show at the bottom.
+- [x] A device from a file of its IR codes: "Add a device" opens
+      Flipper Zero's .ir or irdb's .csv (the library's irfile). Its
+      commands named like the remote's keys go on them, its power
+      commands make its power; codes the X2 cannot send yet (raw
+      timings, RC5, Kaseikyo…) are left out and listed. Next: searching
+      irdb and Flipper-IRDB from the app, once their maintainers agree.
 - [ ] Later: the profile library server (section 10).
 
 ## 10. The profile library server (later; not built yet)

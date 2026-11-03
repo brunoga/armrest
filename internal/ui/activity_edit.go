@@ -159,7 +159,7 @@ func (ed *activityEditor) content() fyne.CanvasObject {
 		ed.refresh()
 	})
 	macros := widget.NewCard("Macros", "", container.NewVBox(
-		wrapped("Sequences of the devices' commands, run from a key or the remote's list."),
+		wrapped("Sequences of the devices' commands, run from a key or the remote's list. "+dragHint),
 		ed.macroList, container.NewHBox(addMacro)))
 
 	ed.favoriteList = container.NewVBox()
@@ -171,7 +171,7 @@ func (ed *activityEditor) content() fyne.CanvasObject {
 		ed.refresh()
 	})
 	favorites := widget.NewCard("Favorites", "", container.NewVBox(
-		wrapped("Commands on the remote's list for the activity, after its macros."),
+		wrapped("Commands on the remote's list for the activity, after its macros. "+dragHint),
 		ed.favoriteList, container.NewHBox(addFav)))
 
 	ed.problem = wrapped("")
@@ -297,6 +297,9 @@ func (ed *activityEditor) newSteps(steps []profile.Step, power, on bool) *stepsE
 		s.box = custom
 		return s
 	}
+	// The macros' card says how steps move; the power steps have a card
+	// each.
+	custom.Objects = append([]fyne.CanvasObject{wrapped(dragHint)}, custom.Objects...)
 	about := wrapped(usualOff)
 	if on {
 		about.SetText(usualOn)
@@ -370,8 +373,10 @@ func (s *stepsEditor) add(st profile.Step) {
 			fyne.NewMenuItem("Delete", func() { s.move(r, 0) }))
 		widget.ShowPopUpMenuAtRelativePosition(menu, ed.app.win.Canvas(), fyne.NewPos(0, more.Size().Height), more)
 	}
-	r.box = container.NewVBox(container.NewBorder(nil, nil, nil, more, r.kind),
-		container.NewStack(r.cmd, r.device, r.wait))
+	grip := newDragHandle(s.list, func(i, j int) { s.rows[i], s.rows[j] = s.rows[j], s.rows[i] }, ed.refresh)
+	r.box = container.NewBorder(nil, nil, grip, nil, container.NewVBox(container.NewBorder(nil, nil, nil, more, r.kind),
+		container.NewStack(r.cmd, r.device, r.wait)))
+	grip.row = r.box
 	s.rows = append(s.rows, r)
 	s.list.Add(r.box)
 }
@@ -478,7 +483,9 @@ func (ed *activityEditor) addMacro(m workspace.ActivityMacroEdit) {
 func (ed *activityEditor) addFavorite(cmd string) {
 	r := &favRow{cmd: ed.picker(&ed.cmdPickers, cmd)}
 	more := widget.NewButtonWithIcon("", theme.MoreVerticalIcon(), nil)
-	r.box = container.NewBorder(nil, nil, nil, more, r.cmd)
+	grip := newDragHandle(ed.favoriteList, func(i, j int) { ed.favorites[i], ed.favorites[j] = ed.favorites[j], ed.favorites[i] }, ed.refresh)
+	r.box = container.NewBorder(nil, nil, grip, more, r.cmd)
+	grip.row = r.box
 	move := func(by int) {
 		for i, o := range ed.favorites {
 			if o != r {

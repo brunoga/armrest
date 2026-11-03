@@ -60,6 +60,7 @@ var palettes = map[fyne.ThemeVariant]map[fyne.ThemeColorName]color.Color{
 		theme.ColorNameShadow:              color.NRGBA{0x1E, 0x2A, 0x2E, 0x22},
 		theme.ColorNameHeaderBackground:    color.NRGBA{0xEC, 0xE7, 0xDF, 0xFF},
 		theme.ColorNameWarning:             orange,
+		theme.ColorNameHyperlink:           teal,
 	},
 	theme.VariantDark: {
 		colorPage:                          color.NRGBA{0x10, 0x17, 0x19, 0xFF},
@@ -82,6 +83,7 @@ var palettes = map[fyne.ThemeVariant]map[fyne.ThemeColorName]color.Color{
 		theme.ColorNameShadow:              color.NRGBA{0, 0, 0, 0x66},
 		theme.ColorNameHeaderBackground:    color.NRGBA{0x22, 0x2D, 0x30, 0xFF},
 		theme.ColorNameWarning:             orange,
+		theme.ColorNameHyperlink:           tealLight,
 	},
 }
 
@@ -99,13 +101,34 @@ func (look) Font(s fyne.TextStyle) fyne.Resource { return theme.DefaultTheme().F
 
 func (look) Icon(n fyne.ThemeIconName) fyne.Resource { return theme.DefaultTheme().Icon(n) }
 
-// Scale is how much larger than Fyne's the app is: text of 14 becomes
-// about 16, and on phones, whose text is read at arm's length, 17.
-func Scale() float32 {
-	if fyne.CurrentDevice().IsMobile() {
-		return 1.2
+// textSizes are the sizes the About tab sets text to, by how much larger
+// than normal they are.
+var textSizes = []struct {
+	name   string
+	factor float32
+}{{"Smaller", 0.85}, {"Normal", 1}, {"Larger", 1.15}, {"Largest", 1.3}}
+
+// textSizePref is the preference holding the index of the text size.
+const textSizePref = "textSize"
+
+// textSize is the index in textSizes of the size set.
+func textSize() int {
+	i := fyne.CurrentApp().Preferences().IntWithFallback(textSizePref, 1)
+	if i < 0 || i >= len(textSizes) {
+		return 1
 	}
-	return 1.15
+	return i
+}
+
+// Scale is how much larger than Fyne's the app is: text of 14 becomes
+// about 18, and on phones, whose screens are near, 17; times the text
+// size set.
+func Scale() float32 {
+	base := float32(1.3)
+	if fyne.CurrentDevice().IsMobile() {
+		base = 1.2
+	}
+	return base * textSizes[textSize()].factor
 }
 
 func (look) Size(n fyne.ThemeSizeName) float32 {
@@ -116,9 +139,9 @@ func (look) Size(n fyne.ThemeSizeName) float32 {
 		return 14
 	case theme.SizeNameHeadingText:
 		// Text grows, headings less: cards' titles were loud.
-		return 21 * Scale() / 1.15
+		return 18 * Scale()
 	case theme.SizeNameSubHeadingText:
-		return 17 * Scale() / 1.15
+		return 15 * Scale()
 	case theme.SizeNameSeparatorThickness, theme.SizeNameInputBorder:
 		return theme.DefaultTheme().Size(n)
 	}
@@ -240,3 +263,64 @@ const (
 	rowTile     = 32
 	headingTile = 52
 )
+
+// fitTabs lays tabs out across the width, showing only the tabs' icons
+// when their names do not fit: Fyne puts the tabs that do not fit in a
+// menu instead.
+type fitTabs struct {
+	tabs  *container.AppTabs
+	names []string
+	short bool
+}
+
+func newFitTabs(tabs *container.AppTabs) *fyne.Container {
+	f := &fitTabs{tabs: tabs}
+	for _, it := range tabs.Items {
+		f.names = append(f.names, it.Text)
+	}
+	return container.New(f, tabs)
+}
+
+// needs is how wide the tabs are with their names, as Fyne lays them out:
+// in cells of the widest on phones, else side by side.
+func (f *fitTabs) needs() float32 {
+	th := fyne.CurrentApp().Settings().Theme()
+	text, icon := th.Size(theme.SizeNameText), th.Size(theme.SizeNameInlineIcon)
+	pad, inner := th.Size(theme.SizeNamePadding), th.Size(theme.SizeNameInnerPadding)
+	var sum, widest float32
+	for _, n := range f.names {
+		w := fyne.MeasureText(n, text, fyne.TextStyle{Bold: true}).Width
+		widest = max(widest, w, 1.5*icon)
+		sum += icon + pad + w + 4*inner + pad
+	}
+	if fyne.CurrentDevice().IsMobile() {
+		return float32(len(f.names)) * (widest + 2*inner + pad)
+	}
+	return sum
+}
+
+func (f *fitTabs) Layout(objs []fyne.CanvasObject, size fyne.Size) {
+	if short := f.needs() > size.Width; short != f.short {
+		f.short = short
+		for i, it := range f.tabs.Items {
+			if short {
+				it.Text = ""
+			} else {
+				it.Text = f.names[i]
+			}
+		}
+		f.tabs.Refresh()
+	}
+	for _, o := range objs {
+		o.Resize(size)
+		o.Move(fyne.Position{})
+	}
+}
+
+func (f *fitTabs) MinSize(objs []fyne.CanvasObject) fyne.Size {
+	var s fyne.Size
+	for _, o := range objs {
+		s = s.Max(o.MinSize())
+	}
+	return s
+}

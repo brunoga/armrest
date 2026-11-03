@@ -182,9 +182,15 @@ func newRemoteKey(key, label string, set profile.Key, ctl *controls) *remoteKey 
 		k.Importance = widget.HighImportance
 	}
 	if ctl != nil {
-		k.OnTapped = func() { ctl.press(key, false) }
+		k.OnTapped = func() {
+			tapFeedback()
+			ctl.press(key, false)
+		}
 		if set.Long != "" {
-			k.hold = func() { ctl.press(key, true) }
+			k.hold = func() {
+				tapFeedback()
+				ctl.press(key, true)
+			}
 		}
 	}
 	k.ExtendBaseWidget(k)

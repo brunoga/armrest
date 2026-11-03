@@ -357,6 +357,11 @@ drag-reorder lists.
       steps); Edit stays at hand. Starting an activity as the remote
       does (the hub knowing it is on) waits on a capture of the app
       doing it.
+- [x] Tap feedback on Android: the remote's keys (pressed and held), the
+      key pad's, and a row picked up to drag give the phone's own tap
+      feedback (View.performHapticFeedback, through JNI: no permission,
+      and the phone's touch feedback setting decides). Fyne has no sound
+      or vibration of its own; desktops give none.
 - [ ] Later: the profile library server (section 10).
 
 ## 10. The profile library server (later; not built yet)

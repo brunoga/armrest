@@ -34,7 +34,7 @@ func (w *Workspace) Send(ctx context.Context, c *hub.Client, device, command str
 }
 
 // ErrNoKey reports a key that does nothing on the hub, pressed or held.
-var ErrNoKey = errors.New("on the hub, this key does nothing")
+var ErrNoKey = errors.New("it does nothing on the hub")
 
 // entity is the hub's id of the device or activity named name, and
 // whether it is an activity.

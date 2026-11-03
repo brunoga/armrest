@@ -186,11 +186,11 @@ func newRemoteKey(key, label string, set profile.Key, ctl *controls) *remoteKey 
 			tapFeedback()
 			ctl.press(key, false)
 		}
-		if set.Long != "" {
-			k.hold = func() {
-				tapFeedback()
-				ctl.press(key, true)
-			}
+		// Held, every key answers, if only to say holding it does
+		// nothing.
+		k.hold = func() {
+			tapFeedback()
+			ctl.press(key, true)
 		}
 	}
 	k.ExtendBaseWidget(k)

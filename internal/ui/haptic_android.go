@@ -29,8 +29,9 @@ static void tap(uintptr_t envp, uintptr_t ctx) {
 		jclass vcls = (*env)->GetObjectClass(env, view);
 		jmethodID perform = (*env)->GetMethodID(env, vcls, "performHapticFeedback", "(I)Z");
 		if (perform != NULL) {
-			// HapticFeedbackConstants.VIRTUAL_KEY
-			(*env)->CallBooleanMethod(env, view, perform, 1);
+			// HapticFeedbackConstants.LONG_PRESS: the firm click
+			// (VIRTUAL_KEY's is faint).
+			(*env)->CallBooleanMethod(env, view, perform, 0);
 		}
 	}
 	(*env)->ExceptionClear(env);

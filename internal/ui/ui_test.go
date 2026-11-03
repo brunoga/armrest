@@ -948,6 +948,10 @@ func themedApp(t *testing.T) {
 	t.Helper()
 	test.NewTempApp(t)
 	fyne.CurrentApp().Settings().SetTheme(Theme())
+	// Timers do not fire on their own: they would touch the screens from
+	// their goroutines. Tests call what they would.
+	afterFunc = func(time.Duration, func()) *time.Timer { return time.NewTimer(time.Hour) }
+	t.Cleanup(func() { afterFunc = time.AfterFunc })
 	// The test app has no icon: the app's.
 	icon, err := os.ReadFile("../../cmd/armrest/Icon.png")
 	if err != nil {
@@ -1057,9 +1061,24 @@ func TestRemote(t *testing.T) {
 	if k.Importance != widget.HighImportance {
 		t.Errorf("Mute let go: importance %v", k.Importance)
 	}
+	// A key that works says nothing, as on the remote.
+	before := status()
 	test.Tap(key("Mute"))
-	if status() != "Pressed Mute." {
+	if status() != before {
 		t.Errorf("after Mute: %q", status())
+	}
+	// Held down long enough, a key is held there and then; letting go
+	// does not press it too.
+	k = key("Mute")
+	k.MouseDown(nil)
+	k.holding() // as the timer does
+	if status() != "Could not hold Mute: it does nothing on the hub" {
+		t.Errorf("Mute held down: %q", status())
+	}
+	k.MouseUp(nil)
+	test.Tap(k)
+	if status() != "Could not hold Mute: it does nothing on the hub" {
+		t.Errorf("letting go of Mute held: %q", status())
 	}
 	key("Mute").TappedSecondary(nil) // nothing held: it says so
 	if status() != "Could not hold Mute: it does nothing on the hub" {
@@ -1070,8 +1089,9 @@ func TestRemote(t *testing.T) {
 	}
 
 	pickRow(t, u, "Watch Google TV")
+	// After a failure, a key that works clears it.
 	test.Tap(key("Vol+"))
-	if status() != "Pressed Vol+." {
+	if status() != "" || u.browse.footer.Visible() {
 		t.Errorf("after Vol+: %q", status())
 	}
 	if !strings.Contains(texts(w), "No favorites.") {

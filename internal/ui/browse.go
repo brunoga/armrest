@@ -37,6 +37,9 @@ type browseScreen struct {
 
 	status *widget.Label
 	busy   *pulse
+	// failed is set while the status says a key, macro or favorite
+	// failed.
+	failed bool
 	// retry holds Reconnect, which connects again to a dropped hub.
 	retry  *fyne.Container
 	footer *fyne.Container
@@ -157,6 +160,7 @@ func (s *browseScreen) showUndo() {
 
 // setStatus shows text at the bottom, with the pulse over it while busy.
 func (s *browseScreen) setStatus(busy bool, text string) {
+	s.failed = false
 	s.status.SetText(text)
 	s.retry.Hide()
 	if busy {
@@ -165,6 +169,13 @@ func (s *browseScreen) setStatus(busy bool, text string) {
 		s.busy.Stop()
 	}
 	s.footer.Show()
+	s.relayout()
+}
+
+// clearStatus hides the status.
+func (s *browseScreen) clearStatus() {
+	s.setStatus(false, "")
+	s.footer.Hide()
 	s.relayout()
 }
 
@@ -207,7 +218,9 @@ func (s *browseScreen) controls(name string, isNew bool) *controls {
 	if isNew || s.app.client == nil {
 		return nil
 	}
-	// do does what doing says, saying done once done.
+	// do does f, saying doing meanwhile and done once done, or, quietly
+	// (doing and done empty), only if it failed: as a remote, which
+	// says nothing when a key works.
 	do := func(doing, failed, done string, f func(context.Context, *workspace.Workspace, *hub.Client) error) {
 		w, c := s.app.work, s.app.client
 		if c == nil {
@@ -217,33 +230,40 @@ func (s *browseScreen) controls(name string, isNew bool) *controls {
 			}
 			return
 		}
-		s.setStatus(true, doing)
+		if doing != "" {
+			s.setStatus(true, doing)
+		}
 		s.app.async(func() {
 			ctx, cancel := context.WithTimeout(context.Background(), ConnectTimeout)
 			defer cancel()
 			err := f(ctx, w, c)
 			fyne.Do(func() {
-				if err != nil {
+				switch {
+				case err != nil:
 					s.setStatus(false, fmt.Sprintf("%s: %v", failed, err))
-					return
+					s.failed = true
+				case done != "":
+					s.setStatus(false, done)
+				case s.failed:
+					// What failed before works now.
+					s.clearStatus()
 				}
-				s.setStatus(false, done)
 			})
 		})
 	}
 	return &controls{
 		press: func(key string, hold bool) {
-			verb, doing, done := "press", "Pressing", "Pressed"
+			verb := "press"
 			if hold {
-				verb, doing, done = "hold", "Holding", "Held"
+				verb = "hold"
 			}
-			do(fmt.Sprintf("%s %s…", doing, key), fmt.Sprintf("Could not %s %s", verb, key), fmt.Sprintf("%s %s.", done, key),
+			do("", fmt.Sprintf("Could not %s %s", verb, key), "",
 				func(ctx context.Context, w *workspace.Workspace, c *hub.Client) error {
 					return w.Press(ctx, c, name, key, hold)
 				})
 		},
 		run: func(macro string) {
-			do(fmt.Sprintf("Running %s…", macro), fmt.Sprintf("Could not run %s", macro), fmt.Sprintf("Ran %s.", macro),
+			do("", fmt.Sprintf("Could not run %s", macro), "",
 				func(ctx context.Context, w *workspace.Workspace, c *hub.Client) error {
 					return w.RunMacro(ctx, c, name, macro)
 				})

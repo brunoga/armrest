@@ -6,12 +6,13 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/brunoga/armrest/internal/i18n"
 	"github.com/brunoga/sofabaton/hub"
 	"github.com/brunoga/sofabaton/record"
 )
 
 // ErrNotOnHub reports a command to send that the hub does not have yet.
-var ErrNotOnHub = errors.New("this is not on the hub yet: review and apply your changes first, then test it")
+var ErrNotOnHub error = textError(i18n.Mark("this is not on the hub yet: review and apply your changes first, then test it"))
 
 // Send makes the hub send a device's command now, to test it. The device
 // and command must be on the hub: Send sends what the hub has, which is
@@ -23,7 +24,7 @@ func (w *Workspace) Send(ctx context.Context, c *hub.Client, device, command str
 	}
 	cmds, err := c.Commands(ctx, d.ID)
 	if err != nil {
-		return fmt.Errorf("reading %s's commands: %w", d.Name, err)
+		return fmt.Errorf("%s: %w", i18n.T("reading %s's commands", d.Name), err)
 	}
 	for _, cmd := range cmds {
 		if strings.EqualFold(cmd.Label, command) {
@@ -34,7 +35,12 @@ func (w *Workspace) Send(ctx context.Context, c *hub.Client, device, command str
 }
 
 // ErrNoKey reports a key that does nothing on the hub, pressed or held.
-var ErrNoKey = errors.New("it does nothing on the hub")
+var ErrNoKey error = textError(i18n.Mark("it does nothing on the hub"))
+
+// textError is an error whose text is shown in the user's language.
+type textError string
+
+func (e textError) Error() string { return i18n.T(string(e)) }
 
 // entity is the hub's id of the device or activity named name, and
 // whether it is an activity.
@@ -64,7 +70,7 @@ func (w *Workspace) Press(ctx context.Context, c *hub.Client, entity, key string
 	}
 	keys, err := c.Keymap(ctx, id)
 	if err != nil {
-		return fmt.Errorf("reading %s's keys: %w", entity, err)
+		return fmt.Errorf("%s: %w", i18n.T("reading %s's keys", entity), err)
 	}
 	for _, k := range keys {
 		if k.Button != button {
@@ -114,7 +120,7 @@ func (w *Workspace) RunMacro(ctx context.Context, c *hub.Client, entity, name st
 func (w *Workspace) runMacro(ctx context.Context, c *hub.Client, entity byte, the func(*record.Macro) bool) error {
 	ms, err := c.Macros(ctx, entity)
 	if err != nil {
-		return fmt.Errorf("reading macros: %w", err)
+		return fmt.Errorf("%s: %w", i18n.T("reading macros"), err)
 	}
 	for _, m := range ms {
 		if the(m) {

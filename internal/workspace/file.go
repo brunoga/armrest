@@ -9,6 +9,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/brunoga/armrest/internal/i18n"
 	"github.com/brunoga/sofabaton/dump"
 	"github.com/brunoga/sofabaton/profile"
 )
@@ -51,32 +52,32 @@ func Open(ctx context.Context, r io.Reader) (*Workspace, time.Time, error) {
 		return nil, time.Time{}, err
 	}
 	if len(b) > MaxFile {
-		return nil, time.Time{}, errors.New("the file is too big to be a hub's")
+		return nil, time.Time{}, errors.New(i18n.T("the file is too big to be a hub's"))
 	}
 	var f file
 	if err := json.Unmarshal(b, &f); err != nil {
-		return nil, time.Time{}, errors.New("this is not a file Armrest or sbx saved")
+		return nil, time.Time{}, errors.New(i18n.T("this is not a file Armrest or sbx saved"))
 	}
 	if f.Armrest == 0 {
 		// A dump: the same fields as its own top level.
 		f = file{}
 		if err := json.Unmarshal(b, &f.Dump); err != nil {
-			return nil, time.Time{}, errors.New("this is not a file Armrest or sbx saved")
+			return nil, time.Time{}, errors.New(i18n.T("this is not a file Armrest or sbx saved"))
 		}
 	}
 	switch {
 	case f.Armrest > Format:
-		return nil, time.Time{}, errors.New("this file was saved by a newer Armrest: update the app to open it")
+		return nil, time.Time{}, errors.New(i18n.T("this file was saved by a newer Armrest: update the app to open it"))
 	case f.Dump == nil || f.Dump.Info.ID == "" || len(f.Dump.Entities) == 0 && f.Dump.Devices == nil:
-		return nil, time.Time{}, errors.New("this is not a file Armrest or sbx saved")
+		return nil, time.Time{}, errors.New(i18n.T("this is not a file Armrest or sbx saved"))
 	}
 	w, err := FromDump(ctx, f.Dump)
 	if err != nil {
-		return nil, time.Time{}, fmt.Errorf("the hub in this file cannot be read: %w", err)
+		return nil, time.Time{}, fmt.Errorf("%s: %w", i18n.T("the hub in this file cannot be read"), err)
 	}
 	if f.Edits != "" {
 		if err := w.LoadEdits([]byte(f.Edits)); err != nil {
-			return nil, time.Time{}, fmt.Errorf("the changes in this file cannot be read: %w", err)
+			return nil, time.Time{}, fmt.Errorf("%s: %w", i18n.T("the changes in this file cannot be read"), err)
 		}
 	}
 	return w, f.Saved, nil
@@ -114,6 +115,6 @@ func (w *Workspace) Restore(cfg *profile.Config, sameHub bool) error {
 	if err := c.Validate(); err != nil {
 		return err
 	}
-	w.commit(c, "restoring the file")
+	w.commit(c, i18n.T("restoring the file"))
 	return nil
 }

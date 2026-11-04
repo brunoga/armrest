@@ -11,6 +11,7 @@ import (
 	"fyne.io/fyne/v2/widget"
 
 	"github.com/brunoga/armrest/internal/backend"
+	"github.com/brunoga/armrest/internal/i18n"
 	"github.com/brunoga/armrest/internal/workspace"
 	"github.com/brunoga/sofabaton/hub"
 	"github.com/brunoga/sofabaton/profile"
@@ -54,7 +55,7 @@ type browseScreen struct {
 	// pages are the tabs' contents, each with its slot for bottom.
 	pages []*fyne.Container
 	// undoBtn and redoBtn take back and make again the last edit.
-	undoBtn, redoBtn *widget.Button
+	undoBtn, redoBtn *iconButton
 	// root is the screen's content.
 	root fyne.CanvasObject
 }
@@ -89,9 +90,9 @@ func (r browseRow) text() string {
 	case r.device != nil:
 		return r.device.Name
 	case r.add:
-		return "Add a device…"
+		return i18n.T("Add a device…")
 	case r.addActivity:
-		return "Add an activity…"
+		return i18n.T("Add an activity…")
 	}
 	return ""
 }
@@ -125,14 +126,14 @@ func (s *browseScreen) back() bool {
 // undo takes back the last edit.
 func (s *browseScreen) undo() {
 	if what := s.app.work.Undo(); what != "" {
-		s.edited("Undone: " + what + ".")
+		s.edited(i18n.T("Undone: %s.", what))
 	}
 }
 
 // redo makes the last edit undone again.
 func (s *browseScreen) redo() {
 	if what := s.app.work.Redo(); what != "" {
-		s.edited("Redone: " + what + ".")
+		s.edited(i18n.T("Redone: %s.", what))
 	}
 }
 
@@ -147,7 +148,7 @@ func (s *browseScreen) edited(status string) {
 // showUndo enables Undo and Redo when they have something to do.
 func (s *browseScreen) showUndo() {
 	for _, b := range []struct {
-		btn *widget.Button
+		btn *iconButton
 		can bool
 	}{{s.undoBtn, s.app.work.CanUndo()}, {s.redoBtn, s.app.work.CanRedo()}} {
 		if b.can {
@@ -205,9 +206,9 @@ func (s *browseScreen) state(r browseRow) string {
 	}
 	switch st {
 	case workspace.New:
-		return "New"
+		return i18n.T("New")
 	case workspace.Edited:
-		return "Edited"
+		return i18n.T("Edited")
 	}
 	return ""
 }
@@ -224,7 +225,7 @@ func (s *browseScreen) controls(name string, isNew bool) *controls {
 	do := func(doing, failed, done string, f func(context.Context, *workspace.Workspace, *hub.Client) error) {
 		w, c := s.app.work, s.app.client
 		if c == nil {
-			s.setStatus(false, "Not connected to the hub: reconnect first.")
+			s.setStatus(false, i18n.T("Not connected to the hub: reconnect first."))
 			if !s.app.reconnecting {
 				s.offerReconnect()
 			}
@@ -253,23 +254,23 @@ func (s *browseScreen) controls(name string, isNew bool) *controls {
 	}
 	return &controls{
 		press: func(key string, hold bool) {
-			verb := "press"
+			failed := i18n.T("Could not press %s", key)
 			if hold {
-				verb = "hold"
+				failed = i18n.T("Could not hold %s", key)
 			}
-			do("", fmt.Sprintf("Could not %s %s", verb, key), "",
+			do("", failed, "",
 				func(ctx context.Context, w *workspace.Workspace, c *hub.Client) error {
 					return w.Press(ctx, c, name, key, hold)
 				})
 		},
 		run: func(macro string) {
-			do("", fmt.Sprintf("Could not run %s", macro), "",
+			do("", i18n.T("Could not run %s", macro), "",
 				func(ctx context.Context, w *workspace.Workspace, c *hub.Client) error {
 					return w.RunMacro(ctx, c, name, macro)
 				})
 		},
 		send: func(device, command string) {
-			do(fmt.Sprintf("Sending %s…", command), fmt.Sprintf("Could not send %s", command), fmt.Sprintf("Sent %s. Did %s respond?", command, device),
+			do(i18n.T("Sending %s…", command), i18n.T("Could not send %s", command), i18n.T("Sent %s. Did %s respond?", command, device),
 				func(ctx context.Context, w *workspace.Workspace, c *hub.Client) error {
 					return w.Send(ctx, c, device, command)
 				})
@@ -301,10 +302,10 @@ func (s *browseScreen) showChanges() {
 	// background check read it.
 	if s.app.checking {
 		s.review.Disable()
-		s.pending.SetText("You have changes that are not on the hub yet. Review them once the hub is checked.")
+		s.pending.SetText(i18n.T("You have changes that are not on the hub yet. Review them once the hub is checked."))
 	} else {
 		s.review.Enable()
-		s.pending.SetText("You have changes that are not on the hub yet.")
+		s.pending.SetText(i18n.T("You have changes that are not on the hub yet."))
 	}
 	s.changes.Show()
 	s.relayout()
@@ -319,14 +320,14 @@ func (s *browseScreen) reload() {
 }
 
 func (s *browseScreen) content(h backend.Hub) fyne.CanvasObject {
-	s.devices = s.newList("Pick a device to see its commands and keys.", func() []browseRow {
+	s.devices = s.newList(i18n.T("Pick a device to see its commands and keys."), func() []browseRow {
 		var rows []browseRow
 		for _, d := range s.app.work.Config.Devices {
 			rows = append(rows, browseRow{device: d})
 		}
 		return append(rows, browseRow{add: true})
 	})
-	s.activities = s.newList("Pick an activity to see what it does.", func() []browseRow {
+	s.activities = s.newList(i18n.T("Pick an activity to see what it does."), func() []browseRow {
 		var rows []browseRow
 		for _, a := range s.app.work.Config.Activities {
 			rows = append(rows, browseRow{activity: a})
@@ -338,20 +339,20 @@ func (s *browseScreen) content(h backend.Hub) fyne.CanvasObject {
 	s.status.TextStyle.Italic = true
 	s.busy = newPulse()
 	s.busy.Hide()
-	s.retry = container.NewCenter(widget.NewButtonWithIcon("Reconnect", theme.ViewRefreshIcon(), func() {
+	s.retry = container.NewCenter(widget.NewButtonWithIcon(i18n.T("Reconnect"), theme.ViewRefreshIcon(), func() {
 		s.retry.Hide()
 		s.app.reconnect()
 	}))
 	s.retry.Hide()
 	s.footer = container.NewBorder(container.NewVBox(widget.NewSeparator(), s.busy), nil, nil, s.retry, s.status)
 	s.footer.Hide()
-	s.review = widget.NewButtonWithIcon("Review changes", theme.DocumentIcon(), s.app.showReview)
+	s.review = widget.NewButtonWithIcon(i18n.T("Review changes"), theme.DocumentIcon(), s.app.showReview)
 	s.review.Importance = widget.HighImportance
 	s.pending = wrapped("")
 	s.changes = container.NewBorder(widget.NewSeparator(), nil, nil, container.NewCenter(s.review), s.pending)
 	s.bottom = container.NewVBox(s.changes, s.footer)
-	s.undoBtn = widget.NewButtonWithIcon("", theme.ContentUndoIcon(), s.undo)
-	s.redoBtn = widget.NewButtonWithIcon("", theme.ContentRedoIcon(), s.redo)
+	s.undoBtn = newIconButton(i18n.T("Undo"), theme.ContentUndoIcon(), s.undo)
+	s.redoBtn = newIconButton(i18n.T("Redo"), theme.ContentRedoIcon(), s.redo)
 
 	slot := func(o fyne.CanvasObject) fyne.CanvasObject {
 		c := container.NewStack()
@@ -361,10 +362,10 @@ func (s *browseScreen) content(h backend.Hub) fyne.CanvasObject {
 		return page
 	}
 	// In the tabs' order: slots are found by the tab's index.
-	hub := container.NewTabItemWithIcon("Hub", theme.HomeIcon(), slot(s.hubContent(h)))
-	s.devices.tab = container.NewTabItemWithIcon("Devices", theme.ComputerIcon(), slot(s.devices.split))
-	s.activities.tab = container.NewTabItemWithIcon("Activities", theme.MediaPlayIcon(), slot(s.activities.split))
-	about := container.NewTabItemWithIcon("About", theme.InfoIcon(), slot(s.app.aboutContent(s.app.backToBrowse)))
+	hub := container.NewTabItemWithIcon(i18n.T("Hub"), theme.HomeIcon(), slot(s.hubContent(h)))
+	s.devices.tab = container.NewTabItemWithIcon(i18n.T("Devices"), theme.ComputerIcon(), slot(s.devices.split))
+	s.activities.tab = container.NewTabItemWithIcon(i18n.T("Activities"), theme.MediaPlayIcon(), slot(s.activities.split))
+	about := container.NewTabItemWithIcon(i18n.T("About"), theme.InfoIcon(), slot(s.app.aboutContent(s.app.backToBrowse)))
 	s.tabs = container.NewAppTabs(hub, s.devices.tab, s.activities.tab, about)
 	if fyne.CurrentDevice().IsMobile() {
 		s.tabs.SetTabLocation(container.TabLocationBottom)
@@ -396,44 +397,40 @@ func (s *browseScreen) header() fyne.CanvasObject {
 func (s *browseScreen) hubContent(h backend.Hub) fyne.CanvasObject {
 	s.hubInfo = wrapped("")
 	s.showHub()
-	save := widget.NewButtonWithIcon("Save to a file…", theme.DocumentSaveIcon(), s.app.saveToFile)
+	save := widget.NewButtonWithIcon(i18n.T("Save to a file…"), theme.DocumentSaveIcon(), s.app.saveToFile)
 	files := container.NewVBox(
-		wrapped("Save the hub, with your changes, to a file: as a backup, or to apply later. Open it from the hubs screen, without the hub."),
+		wrapped(i18n.T("Save the hub, with your changes, to a file: as a backup, or to apply later. Open it from the hubs screen, without the hub.")),
 		container.NewHBox(save))
-	leave := widget.NewButtonWithIcon("Disconnect", theme.LogoutIcon(), s.app.disconnect)
+	leave := widget.NewButtonWithIcon(i18n.T("Disconnect"), theme.LogoutIcon(), s.app.disconnect)
 	if s.app.offline() {
-		restore := widget.NewButtonWithIcon("Restore to a hub…", theme.UploadIcon(), s.app.applyFile)
-		files.Add(wrapped("Restoring makes a hub hold what this file has. You see every change before anything is written."))
+		restore := widget.NewButtonWithIcon(i18n.T("Restore to a hub…"), theme.UploadIcon(), s.app.applyFile)
+		files.Add(wrapped(i18n.T("Restoring makes a hub hold what this file has. You see every change before anything is written.")))
 		files.Add(container.NewHBox(restore))
-		leave = widget.NewButtonWithIcon("Close the file", theme.LogoutIcon(), s.app.closeFile)
+		leave = widget.NewButtonWithIcon(i18n.T("Close the file"), theme.LogoutIcon(), s.app.closeFile)
 	}
 	return scrolled(container.NewVBox(
-		card("The hub", s.hubInfo),
-		card("Files", files),
+		card(i18n.T("The hub"), s.hubInfo),
+		card(i18n.T("Files"), files),
 		container.NewHBox(leave)))
 }
 
 // showHub says what the hub is, on its tab.
 func (s *browseScreen) showHub() {
 	a, info, cfg := s.app, s.app.work.Dump.Info, s.app.work.Config
-	text := fmt.Sprintf("%s, firmware %d", info.Model, info.Firmware)
+	var text string
 	switch {
+	case a.offline() && !a.file.saved.IsZero():
+		text = i18n.T("From the file %s, saved %s: %s, firmware %d.", a.file.name, ago(a.file.saved, a.now()), info.Model, info.Firmware)
 	case a.offline():
-		text = "From the file " + a.file.name
-		if !a.file.saved.IsZero() {
-			text += ", saved " + ago(a.file.saved, a.now())
-		}
-		text += fmt.Sprintf(": %s, firmware %d.", info.Model, info.Firmware)
+		text = i18n.T("From the file %s: %s, firmware %d.", a.file.name, info.Model, info.Firmware)
 	case s.hub.Demo:
-		text = "A demo hub: a simulated " + text + "."
+		text = i18n.T("A demo hub: a simulated %s, firmware %d.", info.Model, info.Firmware)
 	default:
-		text += ", at " + s.hub.Addr.String() + "."
+		text = i18n.T("%s, firmware %d, at %s.", info.Model, info.Firmware, s.hub.Addr.String())
 	}
-	acts := "1 activity"
-	if len(cfg.Activities) != 1 {
-		acts = fmt.Sprintf("%d activities", len(cfg.Activities))
-	}
-	text += fmt.Sprintf("\n%s and %s.", plural(len(cfg.Devices), "device"), acts)
+	devs := i18n.N("%d device", "%d devices", len(cfg.Devices), len(cfg.Devices))
+	acts := i18n.N("%d activity", "%d activities", len(cfg.Activities), len(cfg.Activities))
+	text += "\n" + i18n.T("%s and %s.", devs, acts)
 	s.hubInfo.SetText(text)
 }
 
@@ -479,7 +476,7 @@ func (s *browseScreen) newList(hint string, build func() []browseRow) *browseLis
 		case r.addActivity:
 			b.list.Unselect(i)
 			if len(s.app.work.Config.Devices) == 0 {
-				s.setStatus(false, "Add a device first: an activity needs at least one.")
+				s.setStatus(false, i18n.T("Add a device first: an activity needs at least one."))
 				return
 			}
 			s.app.showEditActivity("")

@@ -5,7 +5,6 @@ import (
 	"context"
 	"encoding/hex"
 	"errors"
-	"fmt"
 	"io"
 	"time"
 
@@ -17,6 +16,7 @@ import (
 
 	"github.com/brunoga/armrest/internal/backend"
 	"github.com/brunoga/armrest/internal/cache"
+	"github.com/brunoga/armrest/internal/i18n"
 	"github.com/brunoga/armrest/internal/workspace"
 	"github.com/brunoga/sofabaton/session"
 )
@@ -43,7 +43,7 @@ func (a *App) showHome(h backend.Hub) {
 		}
 	}
 
-	title := widget.NewLabelWithStyle("Reading "+info.Name, fyne.TextAlignLeading, fyne.TextStyle{Bold: true})
+	title := widget.NewLabelWithStyle(i18n.T("Reading %s", info.Name), fyne.TextAlignLeading, fyne.TextStyle{Bold: true})
 	title.SizeName = theme.SizeNameHeadingText
 	// The hub's first answers take a few seconds before the bar moves:
 	// the line under it shows the read is alive meanwhile, and while each
@@ -51,19 +51,19 @@ func (a *App) showHome(h backend.Hub) {
 	bar := widget.NewProgressBar()
 	alive := newPulse()
 	alive.Start()
-	step := wrapped("Asking the hub what it has…")
+	step := wrapped(i18n.T("Asking the hub what it has…"))
 	ctx, cancel := context.WithCancel(context.Background())
-	cancelBtn := widget.NewButtonWithIcon("Cancel", theme.CancelIcon(), func() {
+	cancelBtn := widget.NewButtonWithIcon(i18n.T("Cancel"), theme.CancelIcon(), func() {
 		cancel()
 		a.disconnect()
 	})
-	retry := widget.NewButtonWithIcon("Try again", theme.ViewRefreshIcon(), func() {
+	retry := widget.NewButtonWithIcon(i18n.T("Try again"), theme.ViewRefreshIcon(), func() {
 		a.Close()
 		a.connect(h)
 	})
 	retry.Importance = widget.HighImportance
 	retry.Hide()
-	intro := wrapped("This takes a few seconds for each device and activity. Keep the app open until it is done.")
+	intro := wrapped(i18n.T("This takes a few seconds for each device and activity. Keep the app open until it is done."))
 	a.show(column(container.NewPadded(container.NewVBox(
 		title, intro, bar, alive, step, container.NewHBox(retry, cancelBtn)))), backTo(cancelBtn.OnTapped))
 	a.awake(true)
@@ -77,9 +77,9 @@ func (a *App) showHome(h backend.Hub) {
 				switch name {
 				case "":
 				case workspace.Again:
-					step.SetText("The hub gave an answer that does not add up: reading it again…")
+					step.SetText(i18n.T("The hub gave an answer that does not add up: reading it again…"))
 				default:
-					step.SetText(fmt.Sprintf("Reading %s (%d of %d)", name, done+1, total))
+					step.SetText(i18n.T("Reading %s (%d of %d)", name, done+1, total))
 				}
 			})
 		})
@@ -90,11 +90,11 @@ func (a *App) showHome(h backend.Hub) {
 			case errors.Is(err, context.Canceled):
 				// Cancel went back to the hubs already.
 			case err != nil:
-				title.SetText("Could not read " + info.Name)
+				title.SetText(i18n.T("Could not read %s", info.Name))
 				intro.Hide()
 				bar.Hide()
 				step.SetText(readFailure(err))
-				cancelBtn.SetText("Back")
+				cancelBtn.SetText(i18n.T("Back"))
 				cancelBtn.SetIcon(theme.NavigateBackIcon())
 				retry.Show()
 			case a.file != nil:
@@ -141,7 +141,7 @@ func (a *App) saveEdits(h backend.Hub, w *workspace.Workspace) {
 func (a *App) checkForChanges(h backend.Hub, s *browseScreen, since time.Time) {
 	a.checking = true
 	s.showChanges()
-	s.setStatus(true, fmt.Sprintf("Showing the hub as it was %s. Checking for changes…", ago(since, a.now())))
+	s.setStatus(true, i18n.T("Showing the hub as it was %s. Checking for changes…", ago(since, a.now())))
 	c := a.client
 	a.async(func() {
 		// The signals of commands whose record is as cached are kept: the
@@ -159,7 +159,7 @@ func (a *App) checkForChanges(h backend.Hub, s *browseScreen, since time.Time) {
 			s := a.browse
 			switch {
 			case err != nil:
-				s.setStatus(false, fmt.Sprintf("Showing the hub as it was %s: checking it for changes failed. %s", ago(since, a.now()), readFailure(err)))
+				s.setStatus(false, i18n.T("Showing the hub as it was %s: checking it for changes failed. %s", ago(since, a.now()), readFailure(err)))
 				s.showChanges()
 				return
 			case a.work.Same(w) || (a.work.Changed() && a.work.SameBase(w)):
@@ -168,12 +168,12 @@ func (a *App) checkForChanges(h backend.Hub, s *browseScreen, since time.Time) {
 				w.KeepEdits(a.work)
 				a.work = w
 				a.remember(h, w)
-				s.setStatus(false, "Up to date.")
+				s.setStatus(false, i18n.T("Up to date."))
 			case !a.work.Changed():
 				a.work = w
 				a.remember(h, w)
 				s.reload()
-				s.setStatus(false, "Updated with the hub's changes.")
+				s.setStatus(false, i18n.T("Updated with the hub's changes."))
 			default:
 				// Remembered once the user chose: the edits are cached
 				// until then.
@@ -187,21 +187,21 @@ func (a *App) checkForChanges(h backend.Hub, s *browseScreen, since time.Time) {
 // hubChangedUnderEdits asks what to do when the hub changed since it was
 // cached and the user has edits made on the cached copy.
 func (a *App) hubChangedUnderEdits(fresh *workspace.Workspace) {
-	d := dialog.NewCustomConfirm("The hub was changed elsewhere",
-		"Start over", "Keep my changes",
-		wrapped("The hub was changed by another app since your copy of it was read. Your changes were made on the older copy, and writing them could undo those changes. Start over from the hub as it is now (your changes are lost), or keep them?"),
+	d := dialog.NewCustomConfirm(i18n.T("The hub was changed elsewhere"),
+		i18n.T("Start over"), i18n.T("Keep my changes"),
+		wrapped(i18n.T("The hub was changed by another app since your copy of it was read. Your changes were made on the older copy, and writing them could undo those changes. Start over from the hub as it is now (your changes are lost), or keep them?")),
 		func(startOver bool) {
 			if startOver {
 				a.work = fresh
 				a.remember(a.hub, fresh)
-				a.showBrowse(a.hub).setStatus(false, "Showing the hub as it is now.")
+				a.showBrowse(a.hub).setStatus(false, i18n.T("Showing the hub as it is now."))
 				return
 			}
 			// The edits stay, now compared with the hub as it is.
 			fresh.KeepEdits(a.work)
 			a.work = fresh
 			a.remember(a.hub, fresh)
-			a.showBrowse(a.hub).setStatus(false, "Your changes are kept. Review them carefully before applying.")
+			a.showBrowse(a.hub).setStatus(false, i18n.T("Your changes are kept. Review them carefully before applying."))
 		}, a.win)
 	d.Show()
 }
@@ -211,27 +211,23 @@ func ago(t, now time.Time) string {
 	d := now.Sub(t)
 	switch {
 	case d < time.Minute:
-		return "just now"
+		return i18n.T("just now")
 	case d < time.Hour:
-		return plural(int(d/time.Minute), "minute") + " ago"
+		n := int(d / time.Minute)
+		return i18n.N("%d minute ago", "%d minutes ago", n, n)
 	case d < 24*time.Hour:
-		return plural(int(d/time.Hour), "hour") + " ago"
+		n := int(d / time.Hour)
+		return i18n.N("%d hour ago", "%d hours ago", n, n)
 	default:
-		return plural(int(d/(24*time.Hour)), "day") + " ago"
+		n := int(d / (24 * time.Hour))
+		return i18n.N("%d day ago", "%d days ago", n, n)
 	}
-}
-
-func plural(n int, unit string) string {
-	if n == 1 {
-		return "1 " + unit
-	}
-	return fmt.Sprintf("%d %ss", n, unit)
 }
 
 // readFailure is why reading the hub failed, in words.
 func readFailure(err error) string {
 	if errors.Is(err, session.ErrClosed) || errors.Is(err, context.DeadlineExceeded) || errors.Is(err, io.EOF) {
-		return "The connection to the hub was lost. This happens when the device sleeps or leaves the Wi-Fi network while reading. Try again, and keep the app open until it is done."
+		return i18n.T("The connection to the hub was lost. This happens when the device sleeps or leaves the Wi-Fi network while reading. Try again, and keep the app open until it is done.")
 	}
-	return "Reading the hub failed: " + err.Error()
+	return i18n.T("Reading the hub failed: %s", err.Error())
 }

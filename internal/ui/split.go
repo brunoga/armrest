@@ -6,6 +6,8 @@ import (
 	"fyne.io/fyne/v2/container"
 	"fyne.io/fyne/v2/theme"
 	"fyne.io/fyne/v2/widget"
+
+	"github.com/brunoga/armrest/internal/i18n"
 )
 
 // SplitWidth is the narrowest window that shows a list beside its detail;
@@ -41,7 +43,7 @@ func newListDetail(list fyne.CanvasObject) *listDetail {
 	s.title = widget.NewLabelWithStyle("", fyne.TextAlignLeading, fyne.TextStyle{Bold: true})
 	s.title.Truncation = fyne.TextTruncateEllipsis
 	s.bar = container.NewBorder(nil, nil,
-		widget.NewButtonWithIcon("Back", theme.NavigateBackIcon(), s.back), nil, s.title)
+		widget.NewButtonWithIcon(i18n.T("Back"), theme.NavigateBackIcon(), s.back), nil, s.title)
 	s.body = container.NewStack()
 	s.detail = container.NewBorder(s.bar, nil, nil, nil, s.body)
 	s.rule = canvas.NewRectangle(theme.Color(theme.ColorNameSeparator))

@@ -6,6 +6,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/brunoga/armrest/internal/i18n"
 	"github.com/brunoga/sofabaton/profile"
 )
 
@@ -24,9 +25,9 @@ type Protocol struct {
 
 // Protocols are the IR protocols, the most common first.
 var Protocols = []Protocol{
-	{ID: "NEC", Title: "NEC", About: "Most TVs, projectors, media players and set-top boxes. Each device has a system code (often listed as its address or custom code), and each command a code from 0x00 to 0xFF.", MaxCode: 0xFF},
-	{ID: "DenonK", Title: "Denon, newer receivers", About: "Denon and Marantz receivers whose IR charts list a device, a subdevice and a function (0 to 4095) for each command.", MaxCode: 0xFFF, Decimal: true},
-	{ID: "Denon", Title: "Denon, older receivers", About: "Denon receivers whose IR charts list a device (an address, 0 to 31) and a function (0 to 255).", MaxCode: 0xFF, Decimal: true},
+	{ID: "NEC", Title: i18n.Mark("NEC"), About: i18n.Mark("Most TVs, projectors, media players and set-top boxes. Each device has a system code (often listed as its address or custom code), and each command a code from 0x00 to 0xFF."), MaxCode: 0xFF},
+	{ID: "DenonK", Title: i18n.Mark("Denon, newer receivers"), About: i18n.Mark("Denon and Marantz receivers whose IR charts list a device, a subdevice and a function (0 to 4095) for each command."), MaxCode: 0xFFF, Decimal: true},
+	{ID: "Denon", Title: i18n.Mark("Denon, older receivers"), About: i18n.Mark("Denon receivers whose IR charts list a device (an address, 0 to 31) and a function (0 to 255)."), MaxCode: 0xFF, Decimal: true},
 }
 
 // ProtocolNamed is the protocol with that ID.
@@ -76,34 +77,34 @@ func (e *FieldError) Error() string { return e.Msg }
 func (s Spec) Build() (*profile.Device, error) {
 	name := strings.TrimSpace(s.Name)
 	if name == "" {
-		return nil, &FieldError{Field: "name", Msg: "The device needs a name."}
+		return nil, &FieldError{Field: "name", Msg: i18n.T("The device needs a name.")}
 	}
 	p, ok := ProtocolNamed(s.Protocol)
 	if !ok {
-		return nil, &FieldError{Field: "protocol", Msg: "Pick how the device's remote sends its codes."}
+		return nil, &FieldError{Field: "protocol", Msg: i18n.T("Pick how the device's remote sends its codes.")}
 	}
 	ir := &profile.IR{Protocol: p.ID}
 	switch p.ID {
 	case "NEC":
 		v, err := strconv.ParseUint(strings.TrimSpace(s.System), 0, 16)
 		if err != nil {
-			return nil, &FieldError{Field: "system", Msg: "The system code is a number from 0x0000 to 0xFFFF, such as 0x00FF."}
+			return nil, &FieldError{Field: "system", Msg: i18n.T("The system code is a number from 0x0000 to 0xFFFF, such as 0x00FF.")}
 		}
 		ir.System = profile.Hex16(v)
 	case "DenonK":
 		d, err1 := small(s.Device, 15)
 		sub, err2 := small(s.Subdevice, 15)
 		if err1 != nil {
-			return nil, &FieldError{Field: "device", Msg: "The device is a number from 0 to 15 (4 for most receivers)."}
+			return nil, &FieldError{Field: "device", Msg: i18n.T("The device is a number from 0 to 15 (4 for most receivers).")}
 		}
 		if err2 != nil {
-			return nil, &FieldError{Field: "subdevice", Msg: "The subdevice is a number from 0 to 15 (1 for a receiver's main zone)."}
+			return nil, &FieldError{Field: "subdevice", Msg: i18n.T("The subdevice is a number from 0 to 15 (1 for a receiver's main zone).")}
 		}
 		ir.Device, ir.Subdevice = &d, &sub
 	case "Denon":
 		d, err := small(s.Device, 31)
 		if err != nil {
-			return nil, &FieldError{Field: "device", Msg: "The device is a number from 0 to 31 (2 or 12 for most receivers)."}
+			return nil, &FieldError{Field: "device", Msg: i18n.T("The device is a number from 0 to 31 (2 or 12 for most receivers).")}
 		}
 		ir.Device = &d
 	}
@@ -117,15 +118,15 @@ func (s Spec) Build() (*profile.Device, error) {
 			continue // an empty row
 		}
 		if cname == "" {
-			return nil, &FieldError{Field: "command", Index: i, Msg: fmt.Sprintf("Command %d needs a name.", i+1)}
+			return nil, &FieldError{Field: "command", Index: i, Msg: i18n.T("Command %d needs a name.", i+1)}
 		}
 		if seen[strings.ToLower(cname)] {
-			return nil, &FieldError{Field: "command", Index: i, Msg: fmt.Sprintf("There are two commands named %q.", cname)}
+			return nil, &FieldError{Field: "command", Index: i, Msg: i18n.T("There are two commands named %q.", cname)}
 		}
 		seen[strings.ToLower(cname)] = true
 		v, err := strconv.ParseUint(code, 0, 16)
 		if err != nil || v > uint64(p.MaxCode) {
-			return nil, &FieldError{Field: "command", Index: i, Msg: fmt.Sprintf("%s: the code is a number from 0 to %d (0x%X).", cname, p.MaxCode, p.MaxCode)}
+			return nil, &FieldError{Field: "command", Index: i, Msg: i18n.T("%s: the code is a number from 0 to %d (0x%X).", cname, p.MaxCode, p.MaxCode)}
 		}
 		decimal := !strings.HasPrefix(strings.ToLower(code), "0x")
 		d.Commands = append(d.Commands, profile.Command{Name: cname, Code: &profile.Code{Value: uint16(v), Decimal: decimal}})
@@ -136,7 +137,7 @@ func (s Spec) Build() (*profile.Device, error) {
 		}
 	}
 	if len(d.Commands) == 0 {
-		return nil, &FieldError{Field: "commands", Msg: "Add at least one command."}
+		return nil, &FieldError{Field: "commands", Msg: i18n.T("Add at least one command.")}
 	}
 	if len(d.Buttons) == 0 {
 		d.Buttons = nil
@@ -144,17 +145,17 @@ func (s Spec) Build() (*profile.Device, error) {
 	on, off := strings.TrimSpace(s.PowerOn), strings.TrimSpace(s.PowerOff)
 	if on != "" || off != "" {
 		if on == "" || off == "" {
-			return nil, &FieldError{Field: "power", Msg: "Pick both the command that turns the device on and the one that turns it off (the same one if it has a single power key)."}
+			return nil, &FieldError{Field: "power", Msg: i18n.T("Pick both the command that turns the device on and the one that turns it off (the same one if it has a single power key).")}
 		}
 		for _, n := range []string{on, off} {
 			if !seen[strings.ToLower(n)] {
-				return nil, &FieldError{Field: "power", Msg: fmt.Sprintf("There is no command named %q.", n)}
+				return nil, &FieldError{Field: "power", Msg: i18n.T("There is no command named %q.", n)}
 			}
 		}
 		d.Power = &profile.Power{On: on, Off: off}
 	}
 	if err := d.Validate(); err != nil {
-		return nil, fmt.Errorf("the device is not valid: %w", err)
+		return nil, fmt.Errorf("%s: %w", i18n.T("the device is not valid"), err)
 	}
 	return d, nil
 }

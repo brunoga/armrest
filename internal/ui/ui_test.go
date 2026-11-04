@@ -157,7 +157,7 @@ func button(t *testing.T, w fyne.Window, text string) *widget.Button {
 func TestHubsScreen(t *testing.T) {
 	_, w := newApp(t, backend.Hub{Name: "Lounge", Model: "X2", Firmware: 9, Addr: lounge})
 	got := texts(w)
-	for _, want := range []string{"[Lounge (X2, 192.168.1.20)]", "1 found.", "[Hub not listed?]"} {
+	for _, want := range []string{"[Lounge (X2, 192.168.1.20)]", "1 hub found.", "[Hub not listed?]"} {
 		if !strings.Contains(got, want) {
 			t.Errorf("missing %q in:\n%s", want, got)
 		}
@@ -1020,11 +1020,11 @@ func TestDragToReorder(t *testing.T) {
 }
 
 // editButton is the Edit button of the device or activity shown.
-func editButton(t *testing.T, w fyne.Window) *widget.Button {
+func editButton(t *testing.T, w fyne.Window) *iconButton {
 	t.Helper()
-	var found *widget.Button
+	var found *iconButton
 	walk(w, func(o fyne.CanvasObject) {
-		if b, ok := o.(*widget.Button); ok && b.Visible() && b.Icon == theme.DocumentCreateIcon() && b.Text == "" && b.Importance == widget.HighImportance {
+		if b, ok := o.(*iconButton); ok && b.Visible() && b.Icon == theme.DocumentCreateIcon() && b.Text == "" && b.Importance == widget.HighImportance {
 			found = b
 		}
 	})

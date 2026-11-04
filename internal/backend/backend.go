@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/brunoga/armrest/internal/demo"
+	"github.com/brunoga/armrest/internal/i18n"
 	"github.com/brunoga/sofabaton/hub"
 	"github.com/brunoga/sofabaton/transport"
 )
@@ -19,7 +20,12 @@ const DiscoverTime = 3 * time.Second
 
 // ErrBusy reports a hub that is serving another client: it takes one at a
 // time.
-var ErrBusy = errors.New("the hub is busy with another app, or this is not a hub: close the Sofabaton app (or sbx) and try again")
+var ErrBusy error = textError(i18n.Mark("the hub is busy with another app, or this is not a hub: close the Sofabaton app (or sbx) and try again"))
+
+// textError is an error whose text is shown in the user's language.
+type textError string
+
+func (e textError) Error() string { return i18n.T(string(e)) }
 
 // Hub is a hub the app can connect to.
 type Hub struct {
@@ -32,11 +38,11 @@ type Hub struct {
 }
 
 // DemoHub is the simulated hub.
-var DemoHub = Hub{Name: "Demo hub", Model: "X2", Demo: true}
+var DemoHub = Hub{Name: i18n.Mark("Demo hub"), Model: "X2", Demo: true}
 
 func (h Hub) String() string {
 	if h.Demo {
-		return h.Name
+		return i18n.T(h.Name)
 	}
 	return fmt.Sprintf("%s (%s, %v)", h.Name, h.Model, h.Addr)
 }

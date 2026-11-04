@@ -16,6 +16,7 @@ import (
 
 	"go.yaml.in/yaml/v3"
 
+	"github.com/brunoga/armrest/internal/i18n"
 	"github.com/brunoga/sofabaton/dump"
 	"github.com/brunoga/sofabaton/hub"
 	"github.com/brunoga/sofabaton/profile"
@@ -294,7 +295,7 @@ func (w *Workspace) Discard() error {
 	if err != nil {
 		return err
 	}
-	w.commit(cfg, "discarding the changes")
+	w.commit(cfg, i18n.T("discarding the changes"))
 	return nil
 }
 
@@ -342,10 +343,10 @@ func (w *Workspace) ActivityState(a *profile.Activity) State {
 // AddDevice adds a new device. Its name must be one no device has.
 func (w *Workspace) AddDevice(d *profile.Device) error {
 	if strings.TrimSpace(d.Name) == "" {
-		return errors.New("the device needs a name")
+		return errors.New(i18n.T("the device needs a name"))
 	}
 	if o := w.Config.Device(d.Name); o != nil {
-		return fmt.Errorf("there is a device named %q already", o.Name)
+		return errors.New(i18n.T("there is a device named %q already", o.Name))
 	}
 	cfg, err := cloneConfig(w.Config)
 	if err != nil {
@@ -353,6 +354,6 @@ func (w *Workspace) AddDevice(d *profile.Device) error {
 	}
 	d.ID = 0
 	cfg.Devices = append(cfg.Devices, d)
-	w.commit(cfg, "adding "+d.Name)
+	w.commit(cfg, i18n.T("adding %s", d.Name))
 	return nil
 }

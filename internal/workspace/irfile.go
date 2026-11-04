@@ -1,11 +1,13 @@
 package workspace
 
 import (
+	"errors"
 	"fmt"
 	"io"
 	"path/filepath"
 	"strings"
 
+	"github.com/brunoga/armrest/internal/i18n"
 	"github.com/brunoga/sofabaton/irfile"
 	"github.com/brunoga/sofabaton/profile"
 )
@@ -32,11 +34,10 @@ func FromIRFile(file string, r io.Reader) (*Imported, error) {
 	name := strings.Join(strings.Fields(strings.ReplaceAll(strings.TrimSuffix(filepath.Base(file), filepath.Ext(file)), "_", " ")), " ")
 	d, skipped := irfile.Device(name, sigs)
 	if len(d.Commands) == 0 {
-		why := "it has no codes"
 		if len(skipped) > 0 {
-			why = "none of its codes can be sent by the hub yet (" + skipped[0].Why + ")"
+			return nil, errors.New(i18n.T("%s cannot be added: none of its codes can be sent by the hub yet (%s)", filepath.Base(file), skipped[0].Why))
 		}
-		return nil, fmt.Errorf("%s cannot be added: %s", filepath.Base(file), why)
+		return nil, errors.New(i18n.T("%s cannot be added: it has no codes", filepath.Base(file)))
 	}
 	d.Buttons = profile.Buttons{}
 	has := map[string]bool{}
@@ -58,7 +59,7 @@ func FromIRFile(file string, r io.Reader) (*Imported, error) {
 		d.Power = &profile.Power{On: "Power", Off: "Power"}
 	}
 	if err := d.Validate(); err != nil {
-		return nil, fmt.Errorf("%s: the device is not valid: %w", filepath.Base(file), err)
+		return nil, fmt.Errorf("%s: %s: %w", filepath.Base(file), i18n.T("the device is not valid"), err)
 	}
 	return &Imported{Device: d, Skipped: skipped}, nil
 }

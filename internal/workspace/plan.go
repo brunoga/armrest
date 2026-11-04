@@ -9,6 +9,7 @@ import (
 	"strings"
 	"sync"
 
+	"github.com/brunoga/armrest/internal/i18n"
 	"github.com/brunoga/sofabaton/dump"
 	"github.com/brunoga/sofabaton/hub"
 	"github.com/brunoga/sofabaton/hubsim"
@@ -198,23 +199,32 @@ func (r *reporter) line(l string) {
 	case reMatches.MatchString(l):
 	case reCreated.MatchString(l):
 		m := reCreated.FindStringSubmatch(l)
-		r.changes = append(r.changes, Change{Title: fmt.Sprintf("Add %s %s", m[1], m[2]), Details: r.pending})
+		r.changes = append(r.changes, Change{Title: changeTitle(m[1], i18n.Mark("Add device %s"), i18n.Mark("Add activity %s"), m[2]), Details: r.pending})
 		r.pending = nil
 	case reChanges.MatchString(l):
 		m := reChanges.FindStringSubmatch(l)
-		r.changes = append(r.changes, Change{Title: fmt.Sprintf("Change %s %s", m[1], m[2])})
+		r.changes = append(r.changes, Change{Title: changeTitle(m[1], i18n.Mark("Change device %s"), i18n.Mark("Change activity %s"), m[2])})
 		r.owed, _ = strconv.Atoi(m[3])
 	case reDeleted.MatchString(l):
 		m := reDeleted.FindStringSubmatch(l)
 		// One write, which takes the hub up to 15 s for a device.
-		r.changes = append(r.changes, Change{Title: fmt.Sprintf("Delete %s %s", m[1], m[2]), Details: []string{"delete"}})
+		r.changes = append(r.changes, Change{Title: changeTitle(m[1], i18n.Mark("Delete device %s"), i18n.Mark("Delete activity %s"), m[2]), Details: []string{"delete"}})
 		r.writes++
 	case reSkipped.MatchString(l):
 		m := reSkipped.FindStringSubmatch(l)
-		r.changes = append(r.changes, Change{Title: fmt.Sprintf("Cannot add %s %s: %s", m[1], m[2], m[3]), Warning: true})
+		r.changes = append(r.changes, Change{Title: changeTitle(m[1], i18n.Mark("Cannot add device %s: %s"), i18n.Mark("Cannot add activity %s: %s"), m[2], m[3]), Warning: true})
 	default:
 		r.changes = append(r.changes, Change{Title: l})
 	}
+}
+
+// changeTitle is a change's title, in the user's language: device's
+// format for the library's kind "device", activity's for "activity".
+func changeTitle(kind, device, activity string, args ...any) string {
+	if kind == "activity" {
+		return i18n.T(activity, args...)
+	}
+	return i18n.T(device, args...)
 }
 
 func (r *reporter) plan() *Plan {

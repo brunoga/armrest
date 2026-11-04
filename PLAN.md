@@ -383,8 +383,17 @@ drag-reorder lists.
       Flipper Zero's .ir or irdb's .csv (the library's irfile). Its
       commands named like the remote's keys go on them, its power
       commands make its power; codes the X2 cannot send yet (raw
-      timings, RC5, Kaseikyo…) are left out and listed. Next: searching
-      irdb and Flipper-IRDB from the app, once their maintainers agree.
+      timings, RC5, Kaseikyo…) are left out and listed.
+- [x] "Add a device" searches irdb and Flipper-IRDB (the library's
+      irsource; indexes cached for a week) and browses them by type of
+      device and maker; a picked device's file is fetched and imported.
+      irdb's maintainer was told, as its license asks (irdb#246), and
+      About credits both.
+- [x] Writing reads only what was edited: the library's apply used to
+      read every device and activity first (86 s on the X2, whatever the
+      edit). The hub's own pace stays: about a quarter second a write,
+      up to 15 s to delete a device, 14 s to read the hub back. The
+      result says how long writing and reading back took.
 - [ ] Later: the profile library server (section 10).
 
 ## 10. The profile library server (later; not built yet)

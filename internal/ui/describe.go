@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"slices"
 	"strings"
+	"time"
 
 	"github.com/brunoga/sofabaton/profile"
 	"github.com/brunoga/sofabaton/record"
@@ -73,6 +74,21 @@ func seconds(n uint8) string {
 		return "1 second"
 	}
 	return fmt.Sprintf("%d seconds", n)
+}
+
+// took is how long something took, to the second.
+func took(d time.Duration) string {
+	if d < time.Second {
+		return "under a second"
+	}
+	n := int(d.Round(time.Second) / time.Second)
+	switch {
+	case n == 1:
+		return "1 second"
+	case n < 60:
+		return fmt.Sprintf("%d seconds", n)
+	}
+	return fmt.Sprintf("%d min %d s", n/60, n%60)
 }
 
 // describeLook is an icon and color, in words; empty if neither is set.

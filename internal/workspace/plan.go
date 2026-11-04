@@ -39,7 +39,7 @@ func (w *Workspace) Plan(ctx context.Context) (*Plan, error) {
 	}
 	defer func() { _ = sim.Close() }()
 	var r reporter
-	if err := profile.ApplyConfig(ctx, sim, w.Config, applyOptions(r.line)); err != nil {
+	if err := profile.ApplyConfig(ctx, sim, w.Config, w.applyOptions(r.line)); err != nil {
 		return nil, fmt.Errorf("workspace: %w", err)
 	}
 	return r.plan(), nil
@@ -59,13 +59,14 @@ func (w *Workspace) Apply(ctx context.Context, c *hub.Client, total int, progres
 			progress(min(done, total), total, strings.TrimSpace(line))
 		}
 	}
-	return profile.ApplyConfig(ctx, c, w.Config, applyOptions(report))
+	return profile.ApplyConfig(ctx, c, w.Config, w.applyOptions(report))
 }
 
 // applyOptions make the hub hold exactly the workspace: matched by id, as
-// the configuration was read from it, with what was removed deleted.
-func applyOptions(report func(string)) profile.ApplyOptions {
-	return profile.ApplyOptions{ByID: true, Prune: true, Delete: true, Report: report}
+// the configuration was read from it, with what was removed deleted. What
+// was not edited is not read again.
+func (w *Workspace) applyOptions(report func(string)) profile.ApplyOptions {
+	return profile.ApplyOptions{ByID: true, Prune: true, Delete: true, Report: report, Base: w.base}
 }
 
 var (
@@ -111,7 +112,7 @@ func (r *reporter) line(l string) {
 		r.owed, _ = strconv.Atoi(m[3])
 	case reDeleted.MatchString(l):
 		m := reDeleted.FindStringSubmatch(l)
-		// One write, which takes the hub a minute or more for a device.
+		// One write, which takes the hub up to 15 s for a device.
 		r.changes = append(r.changes, Change{Title: fmt.Sprintf("Delete %s %s", m[1], m[2]), Details: []string{"delete"}})
 		r.writes++
 	case reSkipped.MatchString(l):

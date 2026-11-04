@@ -7,6 +7,7 @@ import (
 	"io"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/container"
@@ -373,7 +374,7 @@ func (a *App) applyPlan(p *workspace.Plan) {
 	bar := widget.NewProgressBar()
 	alive := newPulse()
 	step := wrapped("Starting…")
-	note := wrapped("Keep the app open until it is done. Adding or deleting a device takes the hub a minute or two.")
+	note := wrapped("Keep the app open until it is done. The hub takes about a quarter of a second for each command or key, and up to 15 seconds to delete a device.")
 	ctx, cancel := context.WithCancel(context.Background())
 	stop := widget.NewButtonWithIcon("Stop", theme.MediaStopIcon(), cancel)
 	a.show(column(container.NewPadded(container.NewVBox(title, note, bar, alive, step, container.NewHBox(stop)))), stay)
@@ -381,6 +382,7 @@ func (a *App) applyPlan(p *workspace.Plan) {
 	alive.Start()
 
 	c, w, h := a.client, a.work, a.hub
+	start := a.now()
 	a.async(func() {
 		defer cancel()
 		err := w.Apply(ctx, c, p.Writes, func(done, total int, s string) {
@@ -407,17 +409,19 @@ func (a *App) applyPlan(p *workspace.Plan) {
 				title.SetText("Written")
 				step.SetText("Reading the hub back…")
 			}
-			a.readBack(h, w, err, alive.Stop)
+			a.readBack(h, w, err, a.now().Sub(start), alive.Stop)
 		})
 	})
 }
 
-// readBack reads the hub after writing, and shows it; done is called
-// once read.
-func (a *App) readBack(h backend.Hub, old *workspace.Workspace, writeErr error, done func()) {
+// readBack reads the hub after writing, which took wrote, and shows it;
+// done is called once read.
+func (a *App) readBack(h backend.Hub, old *workspace.Workspace, writeErr error, wrote time.Duration, done func()) {
 	c := a.client
+	start := a.now()
 	a.async(func() {
 		w, err := old.ReadBack(context.Background(), c, nil)
+		read := a.now().Sub(start)
 		fyne.Do(func() {
 			done()
 			a.awake(false)
@@ -439,7 +443,7 @@ func (a *App) readBack(h backend.Hub, old *workspace.Workspace, writeErr error, 
 			if writeErr != nil {
 				s.setStatus(false, "Writing stopped part way. This is the hub as it is now; your other changes were not kept.")
 			} else {
-				s.setStatus(false, "Your changes are on the hub.")
+				s.setStatus(false, fmt.Sprintf("Your changes are on the hub. Writing took %s, reading back %s.", took(wrote), took(read)))
 			}
 		})
 	})

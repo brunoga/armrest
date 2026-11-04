@@ -1,6 +1,7 @@
 package workspace
 
 import (
+	"bytes"
 	"errors"
 	"fmt"
 	"io"
@@ -9,6 +10,7 @@ import (
 
 	"github.com/brunoga/armrest/internal/i18n"
 	"github.com/brunoga/sofabaton/irfile"
+	"github.com/brunoga/sofabaton/irsource"
 	"github.com/brunoga/sofabaton/profile"
 )
 
@@ -29,7 +31,11 @@ type Imported struct {
 // power commands make its power; codes the X2 cannot send are left out,
 // and listed.
 func FromIRFile(file string, r io.Reader) (*Imported, error) {
-	sigs, err := irfile.Read(file, r)
+	data, err := io.ReadAll(r)
+	if err != nil {
+		return nil, err
+	}
+	sigs, err := irfile.Read(file, bytes.NewReader(data))
 	if err != nil {
 		return nil, err
 	}
@@ -55,6 +61,11 @@ func FromIRFile(file string, r io.Reader) (*Imported, error) {
 		d.Buttons = nil
 	}
 	switch {
+	case strings.HasSuffix(file, irsource.SofabatonExt):
+		// Sofabaton's code sets say which keys switch the device.
+		if on, off, err := irfile.SofabatonPower(bytes.NewReader(data)); err == nil && has[on] && has[off] {
+			d.Power = &profile.Power{On: on, Off: off}
+		}
 	case has["Power On"] && has["Power Off"]:
 		d.Power = &profile.Power{On: "Power On", Off: "Power Off"}
 	case has["Power"]:

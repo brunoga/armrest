@@ -148,13 +148,7 @@ func TestReadBackRecoded(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := w.Apply(ctx, c, p.Writes, nil); err != nil {
-		t.Fatal(err)
-	}
-	back, err := w.ReadBack(ctx, c, nil)
-	if err != nil {
-		t.Fatal(err)
-	}
+	back := applied(t, w, c, p.Writes, nil, true)
 	if got := back.Config.Device(name).Commands[0].Code; got == nil || got.Value != 0x7F {
 		t.Errorf("read back %+v, want 0x7F", got)
 	}

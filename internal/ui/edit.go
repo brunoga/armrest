@@ -385,7 +385,7 @@ func (a *App) applyPlan(p *workspace.Plan) {
 	start := a.now()
 	a.async(func() {
 		defer cancel()
-		err := w.Apply(ctx, c, p.Writes, func(done, total int, s string) {
+		next, err := w.Apply(ctx, c, p.Writes, func(done, total int, s string) {
 			fyne.Do(func() {
 				bar.SetValue(float64(done) / float64(max(total, 1)))
 				step.SetText(s)
@@ -405,6 +405,12 @@ func (a *App) applyPlan(p *workspace.Plan) {
 				} else {
 					step.SetText("Writing failed: " + err.Error() + ". What was written before stays on the hub; reading the hub to show where it is…")
 				}
+			} else if next != nil {
+				// The hub answered as expected: it holds next.
+				alive.Stop()
+				a.awake(false)
+				a.written(h, next, fmt.Sprintf("Your changes are on the hub. Writing took %s.", took(a.now().Sub(start))))
+				return
 			} else {
 				title.SetText("Written")
 				step.SetText("Reading the hub back…")
@@ -437,14 +443,18 @@ func (a *App) readBack(h backend.Hub, old *workspace.Workspace, writeErr error, 
 					}))))), backTo(a.disconnect))
 				return
 			}
-			a.work = w
-			a.remember(h, w)
-			s := a.showBrowse(h)
 			if writeErr != nil {
-				s.setStatus(false, "Writing stopped part way. This is the hub as it is now; your other changes were not kept.")
+				a.written(h, w, "Writing stopped part way. This is the hub as it is now; your other changes were not kept.")
 			} else {
-				s.setStatus(false, fmt.Sprintf("Your changes are on the hub. Writing took %s, reading back %s.", took(wrote), took(read)))
+				a.written(h, w, fmt.Sprintf("Your changes are on the hub. Writing took %s, reading back %s.", took(wrote), took(read)))
 			}
 		})
 	})
+}
+
+// written shows the hub as it is after writing, w, saying status.
+func (a *App) written(h backend.Hub, w *workspace.Workspace, status string) {
+	a.work = w
+	a.remember(h, w)
+	a.showBrowse(h).setStatus(false, status)
 }

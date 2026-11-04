@@ -19,6 +19,7 @@ type DeviceEdit struct {
 	Name, Brand string
 	Icon        profile.Icon
 	Color       profile.Color
+	Category    profile.Category
 	// Commands are in the order the remote lists them.
 	Commands []CommandEdit
 	// Keys bind keys of the remote (by name) to commands (by their names
@@ -64,7 +65,7 @@ func (w *Workspace) EditDevice(name string) (DeviceEdit, error) {
 	if d == nil {
 		return DeviceEdit{}, errors.New(i18n.T("no device %q", name))
 	}
-	e := DeviceEdit{Original: d.Name, Name: d.Name, Brand: d.Brand, Icon: d.Icon, Color: d.Color, Keys: profile.Buttons{}}
+	e := DeviceEdit{Original: d.Name, Name: d.Name, Brand: d.Brand, Icon: d.Icon, Color: d.Color, Category: d.Category, Keys: profile.Buttons{}}
 	for _, c := range d.Commands {
 		ce := CommandEdit{Original: c.Name, Name: c.Name, Fixed: c.Code == nil}
 		if c.Code != nil {
@@ -260,7 +261,7 @@ func (w *Workspace) SaveDevice(e DeviceEdit) error {
 		cmds = append(cmds, pc)
 	}
 	d.Brand = strings.TrimSpace(e.Brand)
-	d.Icon, d.Color = e.Icon, e.Color
+	d.Icon, d.Color, d.Category = e.Icon, e.Color, e.Category
 	d.Commands = cmds
 	has := func(n string) bool { return n != "" && seen[strings.ToLower(n)] }
 	d.Buttons = nil

@@ -31,7 +31,7 @@ type deviceEditor struct {
 	e   workspace.DeviceEdit
 
 	name, brand *widget.Entry
-	icon, color *widget.Select
+	icon, color, category *widget.Select
 
 	cmds    []*cmdRow
 	cmdList *fyne.Container
@@ -101,11 +101,14 @@ func (ed *deviceEditor) content() fyne.CanvasObject {
 	ed.icon.SetSelected(lookChoice(e.Icon.String(), e.Icon.IsZero()))
 	ed.color = widget.NewSelect(colorChoices(), nil)
 	ed.color.SetSelected(lookChoice(e.Color.String(), e.Color.IsZero()))
+	ed.category = widget.NewSelect(categoryChoices(e.Category), nil)
+	ed.category.SetSelected(lookChoice(e.Category.String(), e.Category.IsZero()))
 	device := widget.NewCard(i18n.T("Device"), "", widget.NewForm(
 		widget.NewFormItem(i18n.T("Name"), ed.name),
 		widget.NewFormItem(i18n.T("Brand"), ed.brand),
 		widget.NewFormItem(i18n.T("Icon"), ed.icon),
-		widget.NewFormItem(i18n.T("Color"), ed.color)))
+		widget.NewFormItem(i18n.T("Color"), ed.color),
+		widget.NewFormItem(i18n.T("Kind"), ed.category)))
 
 	ed.problem = wrapped("")
 	ed.problem.Importance = widget.DangerImportance
@@ -204,6 +207,28 @@ func lookChoice(name string, zero bool) string {
 		return i18n.T("Unchanged")
 	}
 	return name
+}
+
+// categoryChoices are the categories' names, "Unchanged" first, and cur
+// as its number if it has no name. The names have gaps: those the app
+// was seen to write.
+func categoryChoices(cur profile.Category) []string {
+	out := []string{i18n.T("Unchanged")}
+	for i := uint8(1); i != 0; i++ {
+		if n := profile.Category(i).String(); n != strconv.Itoa(int(i)) || i == uint8(cur) {
+			out = append(out, n)
+		}
+	}
+	return out
+}
+
+func parseCategory(s string) profile.Category {
+	for i := uint8(1); i != 0; i++ {
+		if profile.Category(i).String() == s {
+			return profile.Category(i)
+		}
+	}
+	return 0
 }
 
 func parseIcon(s string) profile.Icon {
@@ -477,6 +502,7 @@ func (ed *deviceEditor) edit() workspace.DeviceEdit {
 	e := workspace.DeviceEdit{
 		Original: ed.e.Original, Name: ed.name.Text, Brand: ed.brand.Text,
 		Icon: parseIcon(ed.icon.Selected), Color: parseColor(ed.color.Selected),
+		Category: parseCategory(ed.category.Selected),
 		Keys:    profile.Buttons{},
 		PowerOn: pick(ed.powerOn), PowerOff: pick(ed.powerOff),
 		NoInputs: ed.e.NoInputs && len(ed.inputs) == 0,

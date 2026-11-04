@@ -169,6 +169,7 @@
   "Keep the app open until it is done. The hub takes about a quarter of a second for each command or key, and up to 15 seconds to delete a device.": "Mantenha o app aberto até terminar. O hub leva cerca de um quarto de segundo para cada comando ou tecla, e até 15 segundos para excluir um dispositivo.",
   "Keys": "Teclas",
   "Keys set from command names: %s.": "Teclas definidas pelos nomes dos comandos: %s.",
+  "Kind": "Tipo",
   "Larger": "Maior",
   "Largest": "O maior",
   "Left out, as the hub cannot send them yet:\n%s": "Deixados de fora, pois o hub ainda não consegue enviá-los:\n%s",

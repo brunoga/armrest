@@ -4,7 +4,6 @@ package ui
 
 import (
 	"context"
-	"fmt"
 	"time"
 
 	"fyne.io/fyne/v2"
@@ -16,6 +15,7 @@ import (
 
 	"github.com/brunoga/armrest/internal/backend"
 	"github.com/brunoga/armrest/internal/cache"
+	"github.com/brunoga/armrest/internal/i18n"
 	"github.com/brunoga/armrest/internal/workspace"
 	"github.com/brunoga/sofabaton/hub"
 	"github.com/brunoga/sofabaton/irsource"
@@ -190,8 +190,8 @@ func (a *App) awake(on bool) {
 // screen.
 func (a *App) connect(h backend.Hub) {
 	alive := newPulse()
-	wait := dialog.NewCustomWithoutButtons("Connecting to "+h.Name,
-		container.NewVBox(widget.NewLabel("The hub connects back to this device."), alive), a.win)
+	wait := dialog.NewCustomWithoutButtons(i18n.T("Connecting to %s", hubName(h)),
+		container.NewVBox(widget.NewLabel(i18n.T("The hub connects back to this device.")), alive), a.win)
 	wait.Show()
 	alive.Start()
 	a.async(func() {
@@ -275,7 +275,7 @@ func (a *App) reconnect() {
 	}
 	h, s := a.hub, a.browse
 	a.reconnecting = true
-	s.setStatus(true, fmt.Sprintf("The connection to %s dropped. Reconnecting…", h.Name))
+	s.setStatus(true, i18n.T("The connection to %s dropped. Reconnecting…", hubName(h)))
 	a.async(func() {
 		var c *hub.Client
 		var err error
@@ -300,7 +300,7 @@ func (a *App) reconnect() {
 				return
 			}
 			if err != nil {
-				a.browse.setStatus(false, fmt.Sprintf("Could not reconnect to %s: %v", h.Name, err))
+				a.browse.setStatus(false, i18n.T("Could not reconnect to %s: %v", hubName(h), err))
 				a.browse.offerReconnect()
 				return
 			}
@@ -309,6 +309,14 @@ func (a *App) reconnect() {
 			a.checkForChanges(h, a.browse, a.readAt)
 		})
 	})
+}
+
+// hubName is h's name, in the user's language for the demo hub.
+func hubName(h backend.Hub) string {
+	if h.Demo {
+		return i18n.T(h.Name)
+	}
+	return h.Name
 }
 
 // reconnectTries is how many times reconnect tries.

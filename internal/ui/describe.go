@@ -1,10 +1,11 @@
 package ui
 
 import (
-	"fmt"
 	"slices"
 	"strings"
 	"time"
+
+	"github.com/brunoga/armrest/internal/i18n"
 
 	"github.com/brunoga/sofabaton/profile"
 	"github.com/brunoga/sofabaton/record"
@@ -36,24 +37,24 @@ func describeKey(k profile.Key) string {
 	if k.Long == "" {
 		return k.Short
 	}
-	return fmt.Sprintf("%s; held: %s", k.Short, k.Long)
+	return i18n.T("%s; held: %s", k.Short, k.Long)
 }
 
 // describeStep is an activity's step, in words.
 func describeStep(s profile.Step) string {
 	switch s.Kind {
 	case profile.StepWait:
-		return fmt.Sprintf("Wait %s", seconds(s.Seconds))
+		return i18n.T("Wait %s", seconds(s.Seconds))
 	case profile.StepPowerOn:
-		return "Turn on " + s.Device
+		return i18n.T("Turn on %s", s.Device)
 	case profile.StepPowerOff:
-		return "Turn off " + s.Device
+		return i18n.T("Turn off %s", s.Device)
 	case profile.StepInput:
-		return "Switch " + s.Device + " to its input"
+		return i18n.T("Switch %s to its input", s.Device)
 	}
 	text := s.Device + ": " + s.Command
 	if s.Hold != 0 {
-		text += fmt.Sprintf(", held %s", seconds(s.Hold))
+		text = i18n.T("%s, held %s", text, seconds(s.Hold))
 	}
 	return text
 }
@@ -61,41 +62,35 @@ func describeStep(s profile.Step) string {
 // describeDeviceStep is a device macro's step, in words.
 func describeDeviceStep(s profile.DeviceStep) string {
 	if s.Command == "" {
-		return fmt.Sprintf("Wait %s", seconds(s.Seconds))
+		return i18n.T("Wait %s", seconds(s.Seconds))
 	}
 	if s.Hold != 0 {
-		return fmt.Sprintf("%s, held %s", s.Command, seconds(s.Hold))
+		return i18n.T("%s, held %s", s.Command, seconds(s.Hold))
 	}
 	return s.Command
 }
 
 func seconds(n uint8) string {
-	if n == 1 {
-		return "1 second"
-	}
-	return fmt.Sprintf("%d seconds", n)
+	return i18n.N("%d second", "%d seconds", int(n), n)
 }
 
 // took is how long something took, to the second.
 func took(d time.Duration) string {
 	if d < time.Second {
-		return "under a second"
+		return i18n.T("under a second")
 	}
 	n := int(d.Round(time.Second) / time.Second)
-	switch {
-	case n == 1:
-		return "1 second"
-	case n < 60:
-		return fmt.Sprintf("%d seconds", n)
+	if n < 60 {
+		return i18n.N("%d second", "%d seconds", n, n)
 	}
-	return fmt.Sprintf("%d min %d s", n/60, n%60)
+	return i18n.T("%d min %d s", n/60, n%60)
 }
 
 // describeLook is an icon and color, in words; empty if neither is set.
 func describeLook(icon profile.Icon, color profile.Color) string {
 	var parts []string
 	if !icon.IsZero() {
-		parts = append(parts, icon.String()+" icon")
+		parts = append(parts, i18n.T("%s icon", icon.String()))
 	}
 	if !color.IsZero() {
 		parts = append(parts, color.String())

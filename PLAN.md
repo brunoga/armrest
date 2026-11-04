@@ -403,6 +403,19 @@ drag-reorder lists.
       cached signals of commands whose record is as cached (14 s, from
       32): a signal another app rewrote under the same record shows once
       the device is edited, as an apply reads what it edits from the hub.
+- [x] Translations: the app's text goes through `internal/i18n` (Fyne's
+      `lang`, the English text as the key), in Brazilian Portuguese
+      besides English, picked from the system's language. A test checks
+      each translation has every text, with the same `%` verbs. Names
+      from the hub, the library's text (its errors, a change's details)
+      and the remote's key, icon and color names stay as they are.
+- [x] Accessibility, first pass: text contrast at WCAG AA in both themes
+      (a test checks it; error and placeholder text were darker than
+      that), icon-only buttons named for screen readers, the text size
+      setting (About). Screen readers themselves wait on Fyne: its 2.8
+      support is behind the `accessibility` build tag and only sees
+      widgets in plain containers, not inside scrolls, tabs or cards,
+      which is most of the app; we turn it on once it does.
 - [ ] Later: the profile library server (section 10).
 
 ## 10. The profile library server (later; not built yet)

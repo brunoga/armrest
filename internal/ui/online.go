@@ -11,6 +11,7 @@ import (
 	"fyne.io/fyne/v2/dialog"
 
 	"github.com/brunoga/armrest/internal/cache"
+	"github.com/brunoga/armrest/internal/i18n"
 	"github.com/brunoga/armrest/internal/workspace"
 	"github.com/brunoga/sofabaton/irsource"
 )
@@ -109,7 +110,7 @@ func (a *App) importOnline(e irsource.Entry, fetching func(bool)) {
 				return
 			}
 			im.Device.Name = e.Name()
-			a.confirmImport("Add from "+string(e.Source), im)
+			a.confirmImport(i18n.T("Add from %s", string(e.Source)), im)
 		})
 	})
 }

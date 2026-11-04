@@ -2,7 +2,6 @@ package ui
 
 import (
 	"errors"
-	"fmt"
 	"strconv"
 	"strings"
 
@@ -13,13 +12,18 @@ import (
 	"fyne.io/fyne/v2/theme"
 	"fyne.io/fyne/v2/widget"
 
+	"github.com/brunoga/armrest/internal/i18n"
 	"github.com/brunoga/armrest/internal/workspace"
 	"github.com/brunoga/sofabaton/profile"
 	"github.com/brunoga/sofabaton/record"
 )
 
-// none is the choice of no command in a picker.
+// none is the choice of no command in a picker, in English: pickers show
+// it as noneChoice(), and pick maps that back to "".
 const none = "Nothing"
+
+// noneChoice is none as pickers show it, in the user's language.
+func noneChoice() string { return i18n.T(none) }
 
 // deviceEditor edits a device of the workspace.
 type deviceEditor struct {
@@ -83,7 +87,7 @@ func (a *App) showEditDevice(name string) {
 		return
 	}
 	ed := &deviceEditor{app: a, e: e}
-	a.screen("Edit "+e.Name, a.backToBrowse, scrolled(ed.content()))
+	a.screen(i18n.T("Edit %s", e.Name), a.backToBrowse, scrolled(ed.content()))
 }
 
 func (ed *deviceEditor) content() fyne.CanvasObject {
@@ -92,16 +96,16 @@ func (ed *deviceEditor) content() fyne.CanvasObject {
 	ed.name.SetText(e.Name)
 	ed.brand = widget.NewEntry()
 	ed.brand.SetText(e.Brand)
-	ed.brand.SetPlaceHolder("Optional")
+	ed.brand.SetPlaceHolder(i18n.T("Optional"))
 	ed.icon = widget.NewSelect(iconChoices(), nil)
 	ed.icon.SetSelected(lookChoice(e.Icon.String(), e.Icon.IsZero()))
 	ed.color = widget.NewSelect(colorChoices(), nil)
 	ed.color.SetSelected(lookChoice(e.Color.String(), e.Color.IsZero()))
-	device := widget.NewCard("Device", "", widget.NewForm(
-		widget.NewFormItem("Name", ed.name),
-		widget.NewFormItem("Brand", ed.brand),
-		widget.NewFormItem("Icon", ed.icon),
-		widget.NewFormItem("Color", ed.color)))
+	device := widget.NewCard(i18n.T("Device"), "", widget.NewForm(
+		widget.NewFormItem(i18n.T("Name"), ed.name),
+		widget.NewFormItem(i18n.T("Brand"), ed.brand),
+		widget.NewFormItem(i18n.T("Icon"), ed.icon),
+		widget.NewFormItem(i18n.T("Color"), ed.color)))
 
 	ed.problem = wrapped("")
 	ed.problem.Importance = widget.DangerImportance
@@ -112,60 +116,60 @@ func (ed *deviceEditor) content() fyne.CanvasObject {
 	for _, c := range e.Commands {
 		ed.addCmd(c)
 	}
-	add := widget.NewButtonWithIcon("Add a command", theme.ContentAddIcon(), func() {
+	add := widget.NewButtonWithIcon(i18n.T("Add a command"), theme.ContentAddIcon(), func() {
 		ed.addCmd(workspace.CommandEdit{})
 		ed.refreshPickers()
 	})
 	var addNote fyne.CanvasObject = container.NewHBox(add)
 	if !ed.app.work.CanAddCommands(e.Original) {
 		add.Disable()
-		n := wrapped("This device has no IR protocol (its commands were learned), so new commands cannot be given as codes.")
+		n := wrapped(i18n.T("This device has no IR protocol (its commands were learned), so new commands cannot be given as codes."))
 		n.TextStyle.Italic = true
 		addNote = container.NewVBox(n, container.NewHBox(add))
 	}
-	commands := widget.NewCard("Commands", "", container.NewVBox(
-		wrapped("In the order the remote lists them. "+dragHint+" Renaming a command renames it in the activities too."),
+	commands := widget.NewCard(i18n.T("Commands"), "", container.NewVBox(
+		wrapped(i18n.T("In the order the remote lists them. %s Renaming a command renames it in the activities too.", i18n.T(dragHint))),
 		ed.cmdList, addNote))
 
 	ed.pad = newKeyPad(ed.app.win, ed.app.work.Dump.Info.Model, e.Keys, ed.keyPicker, ed.refreshPickers)
-	keys := widget.NewCard("Keys", "", container.NewVBox(
-		wrapped("What the remote's keys do while this device's page is shown."),
+	keys := widget.NewCard(i18n.T("Keys"), "", container.NewVBox(
+		wrapped(i18n.T("What the remote's keys do while this device's page is shown.")),
 		ed.pad.box))
 
 	ed.powerOn = ed.picker(e.PowerOn)
 	ed.powerOff = ed.picker(e.PowerOff)
-	power := widget.NewCard("Power", "", container.NewVBox(
-		wrapped("The commands activities use to turn the device on and off; the same one twice for a single power key."),
-		widget.NewForm(widget.NewFormItem("On", ed.powerOn), widget.NewFormItem("Off", ed.powerOff))))
+	power := widget.NewCard(i18n.T("Power"), "", container.NewVBox(
+		wrapped(i18n.T("The commands activities use to turn the device on and off; the same one twice for a single power key.")),
+		widget.NewForm(widget.NewFormItem(i18n.T("On"), ed.powerOn), widget.NewFormItem(i18n.T("Off"), ed.powerOff))))
 
 	ed.inputList = container.NewVBox()
 	for _, in := range e.Inputs {
 		ed.addInput(in)
 	}
-	addInput := widget.NewButtonWithIcon("Add an input", theme.ContentAddIcon(), func() {
+	addInput := widget.NewButtonWithIcon(i18n.T("Add an input"), theme.ContentAddIcon(), func() {
 		ed.addInput("")
 	})
-	inputs := widget.NewCard("Inputs", "", container.NewVBox(
-		wrapped("The commands that switch the device to each of its inputs, in order. Activities pick one."),
+	inputs := widget.NewCard(i18n.T("Inputs"), "", container.NewVBox(
+		wrapped(i18n.T("The commands that switch the device to each of its inputs, in order. Activities pick one.")),
 		ed.inputList, container.NewHBox(addInput)))
 
 	ed.macroList = container.NewVBox()
 	for _, m := range e.Macros {
 		ed.addMacro(m)
 	}
-	addMacro := widget.NewButtonWithIcon("Add a macro", theme.ContentAddIcon(), func() {
+	addMacro := widget.NewButtonWithIcon(i18n.T("Add a macro"), theme.ContentAddIcon(), func() {
 		ed.addMacro(workspace.MacroEdit{})
 	})
-	macros := widget.NewCard("Macros", "", container.NewVBox(
-		wrapped("Sequences of this device's commands. Activities with the device can run them from their keys."),
+	macros := widget.NewCard(i18n.T("Macros"), "", container.NewVBox(
+		wrapped(i18n.T("Sequences of this device's commands. Activities with the device can run them from their keys.")),
 		ed.macroList, container.NewHBox(addMacro)))
 
-	save := widget.NewButtonWithIcon("Save", theme.DocumentSaveIcon(), ed.save)
+	save := widget.NewButtonWithIcon(i18n.T("Save"), theme.DocumentSaveIcon(), ed.save)
 	save.Importance = widget.HighImportance
-	cancel := widget.NewButtonWithIcon("Cancel", theme.CancelIcon(), ed.app.backToBrowse)
-	remove := widget.NewButtonWithIcon("Delete this device", theme.DeleteIcon(), ed.remove)
+	cancel := widget.NewButtonWithIcon(i18n.T("Cancel"), theme.CancelIcon(), ed.app.backToBrowse)
+	remove := widget.NewButtonWithIcon(i18n.T("Delete this device"), theme.DeleteIcon(), ed.remove)
 	remove.Importance = widget.DangerImportance
-	note := wrapped("Saving keeps your changes in the app; review and apply them to write them to the hub.")
+	note := wrapped(i18n.T("Saving keeps your changes in the app; review and apply them to write them to the hub."))
 	note.TextStyle.Italic = true
 
 	ed.refreshPickers()
@@ -174,6 +178,7 @@ func (ed *deviceEditor) content() fyne.CanvasObject {
 }
 
 // iconChoices are the icons' names, "Unchanged" first for no icon set.
+// The icons' and colors' names are the library's, untranslated.
 func iconChoices() []string {
 	return lookChoices(func(i uint8) string { return profile.Icon(i).String() })
 }
@@ -183,7 +188,7 @@ func colorChoices() []string {
 }
 
 func lookChoices(name func(uint8) string) []string {
-	out := []string{"Unchanged"}
+	out := []string{i18n.T("Unchanged")}
 	for i := uint8(1); i != 0; i++ {
 		n := name(i)
 		if _, err := strconv.Atoi(n); err == nil {
@@ -196,7 +201,7 @@ func lookChoices(name func(uint8) string) []string {
 
 func lookChoice(name string, zero bool) string {
 	if zero {
-		return "Unchanged"
+		return i18n.T("Unchanged")
 	}
 	return name
 }
@@ -223,23 +228,23 @@ func parseColor(s string) profile.Color {
 func (ed *deviceEditor) addCmd(c workspace.CommandEdit) {
 	r := &cmdRow{edit: c, name: widget.NewEntry(), code: widget.NewEntry(), last: c.Name}
 	r.name.SetText(c.Name)
-	r.name.SetPlaceHolder("Name")
+	r.name.SetPlaceHolder(i18n.T("Name"))
 	r.name.OnChanged = func(s string) {
 		ed.renamed(r.last, s)
 		r.last = s
 	}
 	r.code.SetText(c.Code)
-	r.code.SetPlaceHolder("Code")
+	r.code.SetPlaceHolder(i18n.T("Code"))
 	if c.Fixed {
-		r.code.SetText("learned")
+		r.code.SetText(i18n.T("learned"))
 		r.code.Disable()
 	}
-	more := widget.NewButtonWithIcon("", theme.MoreVerticalIcon(), nil)
+	more := newIconButton(i18n.T("More"), theme.MoreVerticalIcon(), nil)
 	more.OnTapped = func() {
 		menu := fyne.NewMenu("",
-			fyne.NewMenuItem("Move up", func() { ed.moveCmd(r, -1) }),
-			fyne.NewMenuItem("Move down", func() { ed.moveCmd(r, 1) }),
-			fyne.NewMenuItem("Delete", func() { ed.removeCmd(r) }))
+			fyne.NewMenuItem(i18n.T("Move up"), func() { ed.moveCmd(r, -1) }),
+			fyne.NewMenuItem(i18n.T("Move down"), func() { ed.moveCmd(r, 1) }),
+			fyne.NewMenuItem(i18n.T("Delete"), func() { ed.removeCmd(r) }))
 		widget.ShowPopUpMenuAtRelativePosition(menu, ed.app.win.Canvas(), fyne.NewPos(0, more.Size().Height), more)
 	}
 	grip := newDragHandle(ed.cmdList, func(i, j int) { ed.cmds[i], ed.cmds[j] = ed.cmds[j], ed.cmds[i] }, nil)
@@ -295,7 +300,7 @@ func (ed *deviceEditor) names() []string {
 // picker is a command picker, first showing selected.
 func (ed *deviceEditor) picker(selected string) *widget.Select {
 	s := widget.NewSelect(nil, nil)
-	s.PlaceHolder = none
+	s.PlaceHolder = noneChoice()
 	if selected != "" {
 		s.Selected = selected
 	}
@@ -306,7 +311,7 @@ func (ed *deviceEditor) picker(selected string) *widget.Select {
 // keyPicker is a picker of a command or a macro, for a key.
 func (ed *deviceEditor) keyPicker(selected string) *widget.Select {
 	s := widget.NewSelect(nil, nil)
-	s.PlaceHolder = none
+	s.PlaceHolder = noneChoice()
 	s.Selected = selected
 	ed.keyPickers = append(ed.keyPickers, s)
 	return s
@@ -325,7 +330,7 @@ func (ed *deviceEditor) renamed(from, to string) {
 }
 
 func (ed *deviceEditor) refreshPickers() {
-	options := append([]string{none}, ed.names()...)
+	options := append([]string{noneChoice()}, ed.names()...)
 	var macros []string
 	for _, m := range ed.macros {
 		if n := strings.TrimSpace(m.name.Text); n != "" {
@@ -335,7 +340,7 @@ func (ed *deviceEditor) refreshPickers() {
 	refresh := func(ps []*widget.Select, options []string) {
 		for _, p := range ps {
 			p.Options = options
-			if p.Selected == none {
+			if p.Selected == noneChoice() {
 				p.Selected = ""
 			}
 			p.Refresh()
@@ -352,7 +357,7 @@ func (ed *deviceEditor) refreshPickers() {
 func (ed *deviceEditor) addMacro(m workspace.MacroEdit) {
 	b := &macroBox{original: m.Original, name: widget.NewEntry(), list: container.NewVBox(), last: m.Name}
 	b.name.SetText(m.Name)
-	b.name.SetPlaceHolder("Macro name")
+	b.name.SetPlaceHolder(i18n.T("Macro name"))
 	b.name.OnChanged = func(s string) {
 		ed.renamed(b.last, s)
 		b.last = s
@@ -360,14 +365,14 @@ func (ed *deviceEditor) addMacro(m workspace.MacroEdit) {
 	for _, st := range m.Steps {
 		ed.addStep(b, st)
 	}
-	addCmd := widget.NewButtonWithIcon("Command", theme.ContentAddIcon(), func() {
+	addCmd := widget.NewButtonWithIcon(i18n.T("Command"), theme.ContentAddIcon(), func() {
 		ed.addStep(b, profile.DeviceStep{})
 		ed.refreshPickers()
 	})
-	addWait := widget.NewButtonWithIcon("Wait", theme.ContentAddIcon(), func() {
+	addWait := widget.NewButtonWithIcon(i18n.T("Wait"), theme.ContentAddIcon(), func() {
 		ed.addStep(b, profile.DeviceStep{Seconds: 1})
 	})
-	remove := widget.NewButtonWithIcon("", theme.DeleteIcon(), func() {
+	remove := newIconButton(i18n.T("Delete"), theme.DeleteIcon(), func() {
 		for i, o := range ed.macros {
 			if o == b {
 				ed.macros = append(ed.macros[:i], ed.macros[i+1:]...)
@@ -380,7 +385,7 @@ func (ed *deviceEditor) addMacro(m workspace.MacroEdit) {
 	b.box = container.NewVBox(widget.NewSeparator(),
 		container.NewBorder(nil, nil, nil, remove, b.name),
 		b.list,
-		container.NewHBox(widget.NewLabel("Add a step:"), addCmd, addWait))
+		container.NewHBox(widget.NewLabel(i18n.T("Add a step:")), addCmd, addWait))
 	ed.macros = append(ed.macros, b)
 	ed.macroList.Add(b.box)
 }
@@ -395,14 +400,14 @@ func (ed *deviceEditor) addStep(b *macroBox, st profile.DeviceStep) {
 	} else {
 		r.wait = widget.NewEntry()
 		r.wait.SetText(strconv.Itoa(int(st.Seconds)))
-		main = container.NewBorder(nil, nil, widget.NewLabel("Wait"), widget.NewLabel("seconds"), r.wait)
+		main = container.NewBorder(nil, nil, widget.NewLabel(i18n.T("Wait")), widget.NewLabel(i18n.T("seconds")), r.wait)
 	}
-	more := widget.NewButtonWithIcon("", theme.MoreVerticalIcon(), nil)
+	more := newIconButton(i18n.T("More"), theme.MoreVerticalIcon(), nil)
 	more.OnTapped = func() {
 		menu := fyne.NewMenu("",
-			fyne.NewMenuItem("Move up", func() { ed.moveStep(b, r, -1) }),
-			fyne.NewMenuItem("Move down", func() { ed.moveStep(b, r, 1) }),
-			fyne.NewMenuItem("Delete", func() { ed.moveStep(b, r, 0) }))
+			fyne.NewMenuItem(i18n.T("Move up"), func() { ed.moveStep(b, r, -1) }),
+			fyne.NewMenuItem(i18n.T("Move down"), func() { ed.moveStep(b, r, 1) }),
+			fyne.NewMenuItem(i18n.T("Delete"), func() { ed.moveStep(b, r, 0) }))
 		widget.ShowPopUpMenuAtRelativePosition(menu, ed.app.win.Canvas(), fyne.NewPos(0, more.Size().Height), more)
 	}
 	r.box = container.NewBorder(nil, nil, nil, more, main)
@@ -433,8 +438,9 @@ func (ed *deviceEditor) moveStep(b *macroBox, r *stepRow, by int) {
 	b.list.Refresh()
 }
 
+// pick is the choice of s, "" for none.
 func pick(s *widget.Select) string {
-	if s.Selected == none {
+	if s.Selected == noneChoice() {
 		return ""
 	}
 	return s.Selected
@@ -451,7 +457,7 @@ func isRemoteKey(name string) bool {
 func (ed *deviceEditor) addInput(selected string) {
 	p := ed.picker(selected)
 	var box fyne.CanvasObject
-	remove := widget.NewButtonWithIcon("", theme.DeleteIcon(), func() {
+	remove := newIconButton(i18n.T("Delete"), theme.DeleteIcon(), func() {
 		for i, o := range ed.inputs {
 			if o == p {
 				ed.inputs = append(ed.inputs[:i], ed.inputs[i+1:]...)
@@ -528,16 +534,16 @@ func (ed *deviceEditor) save() {
 	}
 	b := ed.app.showBrowse(ed.app.hub)
 	b.selectDevice(strings.TrimSpace(e.Name))
-	b.setStatus(false, "Saved. Review your changes to write them to the hub.")
+	b.setStatus(false, i18n.T("Saved. Review your changes to write them to the hub."))
 }
 
 func (ed *deviceEditor) remove() {
 	name := ed.e.Original
-	msg := fmt.Sprintf("%s will be deleted from the hub when you apply your changes.", name)
+	msg := i18n.T("%s will be deleted from the hub when you apply your changes.", name)
 	if users := ed.app.work.ActivitiesUsing(name); len(users) > 0 {
-		msg += fmt.Sprintf(" It is used by %s, which will no longer turn it on or use its commands.", strings.Join(users, ", "))
+		msg += " " + i18n.T("It is used by %s, which will no longer turn it on or use its commands.", strings.Join(users, ", "))
 	}
-	dialog.ShowConfirm("Delete "+name+"?", msg, func(ok bool) {
+	dialog.ShowConfirm(i18n.T("Delete %s?", name), msg, func(ok bool) {
 		if !ok {
 			return
 		}
@@ -546,6 +552,6 @@ func (ed *deviceEditor) remove() {
 			return
 		}
 		b := ed.app.showBrowse(ed.app.hub)
-		b.setStatus(false, fmt.Sprintf("Deleted %s. Review your changes to write them to the hub.", name))
+		b.setStatus(false, i18n.T("Deleted %s. Review your changes to write them to the hub.", name))
 	}, ed.app.win)
 }

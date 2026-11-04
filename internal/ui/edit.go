@@ -16,13 +16,14 @@ import (
 	"fyne.io/fyne/v2/widget"
 
 	"github.com/brunoga/armrest/internal/backend"
+	"github.com/brunoga/armrest/internal/i18n"
 	"github.com/brunoga/armrest/internal/workspace"
 	"github.com/brunoga/sofabaton/irsource"
 )
 
 // screen is a full-window page with a title, Back, and content.
 func (a *App) screen(title string, back func(), content fyne.CanvasObject) {
-	top := bar(widget.NewButtonWithIcon("Back", theme.NavigateBackIcon(), back), title, nil)
+	top := bar(widget.NewButtonWithIcon(i18n.T("Back"), theme.NavigateBackIcon(), back), title, nil)
 	a.show(container.NewBorder(top, nil, nil, nil, content), backTo(back))
 	// Wrapped text learns its height from its width: lay out again now
 	// that the widths are known.
@@ -36,7 +37,7 @@ func (a *App) showAddDevice() {
 	shown := all
 	var found []irsource.Entry // online, after the templates
 	search := widget.NewEntry()
-	search.SetPlaceHolder("Search by brand or model")
+	search.SetPlaceHolder(i18n.T("Search by brand or model"))
 	list := widget.NewList(
 		func() int { return len(shown) + len(found) },
 		func() fyne.CanvasObject {
@@ -52,14 +53,14 @@ func (a *App) showAddDevice() {
 			if i < len(shown) {
 				t := shown[i]
 				name.SetText(t.Model)
-				sub.SetText(fmt.Sprintf("%s · %d commands", t.Brand, t.Commands))
+				sub.SetText(i18n.N("%s · %d command", "%s · %d commands", t.Commands, t.Brand, t.Commands))
 				return
 			}
 			e := found[i-len(shown)]
 			name.SetText(e.Name())
 			sub.SetText(onlineAbout(e))
 		})
-	none := wrapped("No device matches. Try fewer words, or start from scratch.")
+	none := wrapped(i18n.T("No device matches. Try fewer words, or start from scratch."))
 	none.TextStyle.Italic = true
 	none.Hide()
 	status := wrapped("")
@@ -80,11 +81,12 @@ func (a *App) showAddDevice() {
 	// Narrowing by type and maker: the online sources' types, and their
 	// makers of the type picked (all the makers would be too many to
 	// pick from).
+	anyType, anyMaker := i18n.T(anyType), i18n.T(anyMaker)
 	kind := widget.NewSelect(append([]string{anyType}, irsource.Types...), nil)
 	kind.SetSelected(anyType)
 	maker := widget.NewSelect([]string{anyMaker}, nil)
 	maker.SetSelected(anyMaker)
-	maker.PlaceHolder = "Maker"
+	maker.PlaceHolder = i18n.T("Maker")
 	maker.Disable()
 	more := wrapped("")
 	more.TextStyle.Italic = true
@@ -110,7 +112,7 @@ func (a *App) showAddDevice() {
 		if (len(strings.TrimSpace(q)) >= 2 || typ != "" || mk != "") && a.online.loaded {
 			found, n = irsource.Browse(a.online.entries, typ, mk, q, onlineMax)
 		}
-		more.SetText(fmt.Sprintf("The first %d of %d: pick a maker, or search, to narrow them.", len(found), n))
+		more.SetText(i18n.T("The first %d of %d: pick a maker, or search, to narrow them.", len(found), n))
 		more.Hidden = n <= len(found)
 		more.Refresh()
 		none.Hidden = len(shown)+len(found) > 0
@@ -139,17 +141,17 @@ func (a *App) showAddDevice() {
 		e := found[i-len(shown)]
 		a.importOnline(e, func(busy bool) {
 			if busy {
-				say(true, "Getting "+e.Name()+" from "+string(e.Source)+"…")
+				say(true, i18n.T("Getting %s from %s…", e.Name(), string(e.Source)))
 			} else {
 				say(false, "")
 			}
 		})
 	}
-	say(true, "Getting the lists of irdb and Flipper-IRDB…")
+	say(true, i18n.T("Getting the lists of irdb and Flipper-IRDB…"))
 	a.loadOnline(func() {
 		switch {
 		case len(a.online.entries) == 0 && a.online.err != nil:
-			say(false, "Searching online failed: "+a.online.err.Error())
+			say(false, i18n.T("Searching online failed: %s", a.online.err.Error()))
 		default:
 			say(false, "")
 		}
@@ -159,23 +161,24 @@ func (a *App) showAddDevice() {
 		update()
 	})
 
-	intro := wrapped("Pick your device's model. Its commands, keys and power settings come with it, and you can change them before anything is written to the hub.")
-	scratch := widget.NewButtonWithIcon("From scratch", theme.DocumentCreateIcon(), a.showScratch)
-	fromFile := widget.NewButtonWithIcon("From a file…", theme.FolderOpenIcon(), a.importIRFile)
+	intro := wrapped(i18n.T("Pick your device's model. Its commands, keys and power settings come with it, and you can change them before anything is written to the hub."))
+	scratch := widget.NewButtonWithIcon(i18n.T("From scratch"), theme.DocumentCreateIcon(), a.showScratch)
+	fromFile := widget.NewButtonWithIcon(i18n.T("From a file…"), theme.FolderOpenIcon(), a.importIRFile)
 	notListed := container.NewVBox(
-		wrapped("Not listed? Make it from its IR codes, or from a file of them (Flipper Zero's .ir, irdb's .csv)."),
+		wrapped(i18n.T("Not listed? Make it from its IR codes, or from a file of them (Flipper Zero's .ir, irdb's .csv).")),
 		container.NewThemeOverride(container.NewGridWithColumns(2, scratch, fromFile), tightKeys{}))
-	credit := wrapped("Online results come from Flipper-IRDB and irdb: untested, and the About page says whose they are.")
+	credit := wrapped(i18n.T("Online results come from Flipper-IRDB and irdb: untested, and the About page says whose they are."))
 	credit.TextStyle.Italic = true
 	narrow := container.NewGridWithColumns(2, kind, maker)
 	top := container.NewVBox(intro, notListed, search, narrow, alive, status, more, none)
-	a.screen("Add a device", a.backToBrowse, column(container.NewPadded(container.NewBorder(top, credit, nil, nil, list))))
+	a.screen(i18n.T("Add a device"), a.backToBrowse, column(container.NewPadded(container.NewBorder(top, credit, nil, nil, list))))
 }
 
 // onlineMax is the most online results shown.
 const onlineMax = 100
 
-// The type and maker pickers' choice of any.
+// The type and maker pickers' choice of any, in English: shown as
+// i18n.T(anyType) and i18n.T(anyMaker).
 const (
 	anyType  = "Any type"
 	anyMaker = "Any maker"
@@ -187,18 +190,18 @@ func (a *App) confirmTemplate(t workspace.Template) {
 	name.SetText(t.Model)
 	name.Validator = func(s string) error {
 		if strings.TrimSpace(s) == "" {
-			return errors.New("the device needs a name")
+			return errors.New(i18n.T("the device needs a name"))
 		}
 		if o := a.work.Config.Device(s); o != nil {
-			return fmt.Errorf("there is a device named %q already", o.Name)
+			return errors.New(i18n.T("there is a device named %q already", o.Name))
 		}
 		return nil
 	}
-	items := []*widget.FormItem{widget.NewFormItem("Name", name)}
+	items := []*widget.FormItem{widget.NewFormItem(i18n.T("Name"), name)}
 	if t.Summary != "" {
 		items = append(items, widget.NewFormItem("", wrapped(t.Summary)))
 	}
-	form := dialog.NewForm("Add "+t.Model, "Add", "Cancel", items, func(ok bool) {
+	form := dialog.NewForm(i18n.T("Add %s", t.Model), i18n.T("Add"), i18n.T("Cancel"), items, func(ok bool) {
 		if !ok {
 			return
 		}
@@ -212,7 +215,7 @@ func (a *App) confirmTemplate(t workspace.Template) {
 		}
 		s := a.showBrowse(a.hub)
 		s.selectDevice(d.Name)
-		s.setStatus(false, fmt.Sprintf("Added %s. Review your changes to write them to the hub.", d.Name))
+		s.setStatus(false, i18n.T("Added %s. Review your changes to write them to the hub.", d.Name))
 	}, a.win)
 	form.Resize(fyne.NewSize(min(a.win.Canvas().Size().Width-32, 480), 0))
 	form.Show()
@@ -223,7 +226,7 @@ func (a *App) confirmTemplate(t workspace.Template) {
 func (a *App) importIRFile() {
 	a.pickers.open(a.win, workspace.IRFileExts, func(r io.ReadCloser, file string, err error) {
 		if err != nil {
-			dialog.ShowError(fmt.Errorf("opening failed: %w", err), a.win)
+			dialog.ShowError(fmt.Errorf("%s: %w", i18n.T("opening failed"), err), a.win)
 			return
 		}
 		im, err := workspace.FromIRFile(file, r)
@@ -232,7 +235,7 @@ func (a *App) importIRFile() {
 			dialog.ShowError(err, a.win)
 			return
 		}
-		a.confirmImport("Add from "+filepath.Base(file), im)
+		a.confirmImport(i18n.T("Add from %s", filepath.Base(file)), im)
 	})
 }
 
@@ -245,38 +248,38 @@ func (a *App) confirmImport(title string, im *workspace.Imported) {
 	name.SetText(d.Name)
 	name.Validator = func(s string) error {
 		if strings.TrimSpace(s) == "" {
-			return errors.New("the device needs a name")
+			return errors.New(i18n.T("the device needs a name"))
 		}
 		if o := a.work.Config.Device(s); o != nil {
-			return fmt.Errorf("there is a device named %q already", o.Name)
+			return errors.New(i18n.T("there is a device named %q already", o.Name))
 		}
 		return nil
 	}
-	about := fmt.Sprintf("%d commands, %d of them on the remote's keys.", len(d.Commands), len(d.Buttons))
+	about := i18n.T("%d commands, %d of them on the remote's keys.", len(d.Commands), len(d.Buttons))
 	if d.Power != nil {
-		about += " Power: " + d.Power.On
 		if d.Power.Off != d.Power.On {
-			about += " and " + d.Power.Off
+			about += " " + i18n.T("Power: %s and %s.", d.Power.On, d.Power.Off)
+		} else {
+			about += " " + i18n.T("Power: %s.", d.Power.On)
 		}
-		about += "."
 	}
-	items := []*widget.FormItem{widget.NewFormItem("Name", name), widget.NewFormItem("", wrapped(about))}
+	items := []*widget.FormItem{widget.NewFormItem(i18n.T("Name"), name), widget.NewFormItem("", wrapped(about))}
 	if n := len(im.Skipped); n > 0 {
 		const shown = 5
 		var lines []string
 		for i, s := range im.Skipped {
 			if i == shown {
-				lines = append(lines, fmt.Sprintf("and %d more.", n-shown))
+				lines = append(lines, i18n.T("and %d more.", n-shown))
 				break
 			}
 			lines = append(lines, s.Name+": "+s.Why)
 		}
-		left := wrapped(fmt.Sprintf("Left out, as the hub cannot send them yet:\n%s", strings.Join(lines, "\n")))
+		left := wrapped(i18n.T("Left out, as the hub cannot send them yet:\n%s", strings.Join(lines, "\n")))
 		left.TextStyle.Italic = true
 		items = append(items, widget.NewFormItem("", left))
 	}
-	items = append(items, widget.NewFormItem("", wrapped("Untested codes: check each one with Test once the device is on the hub.")))
-	form := dialog.NewForm(title, "Add", "Cancel", items, func(ok bool) {
+	items = append(items, widget.NewFormItem("", wrapped(i18n.T("Untested codes: check each one with Test once the device is on the hub."))))
+	form := dialog.NewForm(title, i18n.T("Add"), i18n.T("Cancel"), items, func(ok bool) {
 		if !ok {
 			return
 		}
@@ -287,7 +290,7 @@ func (a *App) confirmImport(title string, im *workspace.Imported) {
 		}
 		s := a.showBrowse(a.hub)
 		s.selectDevice(d.Name)
-		s.setStatus(false, fmt.Sprintf("Added %s. Review your changes to write them to the hub, then test its commands.", d.Name))
+		s.setStatus(false, i18n.T("Added %s. Review your changes to write them to the hub, then test its commands.", d.Name))
 	}, a.win)
 	form.Resize(fyne.NewSize(min(a.win.Canvas().Size().Width-32, 480), 0))
 	form.Show()
@@ -300,11 +303,11 @@ func (a *App) backToBrowse() {
 
 // showReview works out and shows what applying the edits writes.
 func (a *App) showReview() {
-	status := wrapped("Working out the changes…")
+	status := wrapped(i18n.T("Working out the changes…"))
 	alive := newPulse()
 	body := container.NewVBox(alive, status)
 	alive.Start()
-	a.screen("Review changes", a.backToBrowse, scrolled(body))
+	a.screen(i18n.T("Review changes"), a.backToBrowse, scrolled(body))
 	w := a.work
 	a.async(func() {
 		p, err := w.Plan(context.Background())
@@ -314,7 +317,7 @@ func (a *App) showReview() {
 				return
 			}
 			if err != nil {
-				status.SetText("These changes cannot be written: " + err.Error())
+				status.SetText(i18n.T("These changes cannot be written: %s", err.Error()))
 				return
 			}
 			a.showPlan(body, status, p)
@@ -324,14 +327,14 @@ func (a *App) showReview() {
 
 func (a *App) showPlan(body *fyne.Container, status *widget.Label, p *workspace.Plan) {
 	if len(p.Changes) == 0 {
-		status.SetText("Nothing to write: the hub already has all of this.")
+		status.SetText(i18n.T("Nothing to write: the hub already has all of this."))
 		return
 	}
 	name := a.work.Dump.Info.Name
 	if a.offline() {
-		status.SetText(fmt.Sprintf("Applying makes these changes on %s, in about %d steps, if it is as the file has it. Nothing has been written yet.", name, p.Writes))
+		status.SetText(i18n.N("Applying makes these changes on %s, in about %d step, if it is as the file has it. Nothing has been written yet.", "Applying makes these changes on %s, in about %d steps, if it is as the file has it. Nothing has been written yet.", p.Writes, name, p.Writes))
 	} else {
-		status.SetText(fmt.Sprintf("Applying makes these changes on %s, in %d steps. Nothing has been written yet.", name, p.Writes))
+		status.SetText(i18n.N("Applying makes these changes on %s, in %d step. Nothing has been written yet.", "Applying makes these changes on %s, in %d steps. Nothing has been written yet.", p.Writes, name, p.Writes))
 	}
 	for _, ch := range p.Changes {
 		title := ch.Title
@@ -341,18 +344,18 @@ func (a *App) showPlan(body *fyne.Container, status *widget.Label, p *workspace.
 		var detail fyne.CanvasObject = widget.NewLabel("")
 		if len(ch.Details) > 0 {
 			acc := widget.NewAccordion(widget.NewAccordionItem(
-				fmt.Sprintf("%d steps", len(ch.Details)), container.NewVBox(lines(ch.Details)...)))
+				i18n.N("%d step", "%d steps", len(ch.Details), len(ch.Details)), container.NewVBox(lines(ch.Details)...)))
 			detail = acc
 		}
 		body.Add(card(title, detail))
 	}
-	apply := widget.NewButtonWithIcon("Apply to the hub", theme.ConfirmIcon(), func() { a.applyPlan(p) })
+	apply := widget.NewButtonWithIcon(i18n.T("Apply to the hub"), theme.ConfirmIcon(), func() { a.applyPlan(p) })
 	if a.offline() {
-		apply = widget.NewButtonWithIcon("Connect to the hub and apply", theme.LoginIcon(), a.applyFile)
+		apply = widget.NewButtonWithIcon(i18n.T("Connect to the hub and apply"), theme.LoginIcon(), a.applyFile)
 	}
 	apply.Importance = widget.HighImportance
-	discard := widget.NewButtonWithIcon("Discard changes", theme.DeleteIcon(), func() {
-		dialog.ShowConfirm("Discard changes?", "The hub is not touched. Undo brings your changes back.", func(ok bool) {
+	discard := widget.NewButtonWithIcon(i18n.T("Discard changes"), theme.DeleteIcon(), func() {
+		dialog.ShowConfirm(i18n.T("Discard changes?"), i18n.T("The hub is not touched. Undo brings your changes back."), func(ok bool) {
 			if !ok {
 				return
 			}
@@ -369,14 +372,14 @@ func (a *App) showPlan(body *fyne.Container, status *widget.Label, p *workspace.
 
 // applyPlan writes the edits to the hub, then reads it back.
 func (a *App) applyPlan(p *workspace.Plan) {
-	title := widget.NewLabelWithStyle("Writing to "+a.client.Info().Name, fyne.TextAlignLeading, fyne.TextStyle{Bold: true})
+	title := widget.NewLabelWithStyle(i18n.T("Writing to %s", a.client.Info().Name), fyne.TextAlignLeading, fyne.TextStyle{Bold: true})
 	title.SizeName = theme.SizeNameHeadingText
 	bar := widget.NewProgressBar()
 	alive := newPulse()
-	step := wrapped("Starting…")
-	note := wrapped("Keep the app open until it is done. The hub takes about a quarter of a second for each command or key, and up to 15 seconds to delete a device.")
+	step := wrapped(i18n.T("Starting…"))
+	note := wrapped(i18n.T("Keep the app open until it is done. The hub takes about a quarter of a second for each command or key, and up to 15 seconds to delete a device."))
 	ctx, cancel := context.WithCancel(context.Background())
-	stop := widget.NewButtonWithIcon("Stop", theme.MediaStopIcon(), cancel)
+	stop := widget.NewButtonWithIcon(i18n.T("Stop"), theme.MediaStopIcon(), cancel)
 	a.show(column(container.NewPadded(container.NewVBox(title, note, bar, alive, step, container.NewHBox(stop)))), stay)
 	a.awake(true)
 	alive.Start()
@@ -399,21 +402,21 @@ func (a *App) applyPlan(p *workspace.Plan) {
 			note.Hide()
 			bar.Hide()
 			if err != nil {
-				title.SetText("Writing stopped")
+				title.SetText(i18n.T("Writing stopped"))
 				if errors.Is(err, context.Canceled) {
-					step.SetText("Stopped. What was written before stays on the hub; reading the hub to show where it is…")
+					step.SetText(i18n.T("Stopped. What was written before stays on the hub; reading the hub to show where it is…"))
 				} else {
-					step.SetText("Writing failed: " + err.Error() + ". What was written before stays on the hub; reading the hub to show where it is…")
+					step.SetText(i18n.T("Writing failed: %s. What was written before stays on the hub; reading the hub to show where it is…", err.Error()))
 				}
 			} else if next != nil {
 				// The hub answered as expected: it holds next.
 				alive.Stop()
 				a.awake(false)
-				a.written(h, next, fmt.Sprintf("Your changes are on the hub. Writing took %s.", took(a.now().Sub(start))))
+				a.written(h, next, i18n.T("Your changes are on the hub. Writing took %s.", took(a.now().Sub(start))))
 				return
 			} else {
-				title.SetText("Written")
-				step.SetText("Reading the hub back…")
+				title.SetText(i18n.T("Written"))
+				step.SetText(i18n.T("Reading the hub back…"))
 			}
 			a.readBack(h, w, err, a.now().Sub(start), alive.Stop)
 		})
@@ -436,17 +439,17 @@ func (a *App) readBack(h backend.Hub, old *workspace.Workspace, writeErr error, 
 			}
 			if err != nil {
 				a.show(column(container.NewPadded(container.NewVBox(
-					wrapped("Reading the hub back failed: "+readFailure(err)),
-					container.NewHBox(widget.NewButtonWithIcon("Reconnect", theme.ViewRefreshIcon(), func() {
+					wrapped(i18n.T("Reading the hub back failed: %s", readFailure(err))),
+					container.NewHBox(widget.NewButtonWithIcon(i18n.T("Reconnect"), theme.ViewRefreshIcon(), func() {
 						a.Close()
 						a.connect(h)
 					}))))), backTo(a.disconnect))
 				return
 			}
 			if writeErr != nil {
-				a.written(h, w, "Writing stopped part way. This is the hub as it is now; your other changes were not kept.")
+				a.written(h, w, i18n.T("Writing stopped part way. This is the hub as it is now; your other changes were not kept."))
 			} else {
-				a.written(h, w, fmt.Sprintf("Your changes are on the hub. Writing took %s, reading back %s.", took(wrote), took(read)))
+				a.written(h, w, i18n.T("Your changes are on the hub. Writing took %s, reading back %s.", took(wrote), took(read)))
 			}
 		})
 	})

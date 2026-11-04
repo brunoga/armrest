@@ -1,7 +1,6 @@
 package ui
 
 import (
-	"fmt"
 	"image/color"
 	"strings"
 
@@ -11,6 +10,8 @@ import (
 	"fyne.io/fyne/v2/layout"
 	"fyne.io/fyne/v2/theme"
 	"fyne.io/fyne/v2/widget"
+
+	"github.com/brunoga/armrest/internal/i18n"
 
 	"github.com/brunoga/sofabaton/profile"
 	"github.com/brunoga/sofabaton/record"
@@ -120,7 +121,7 @@ func drawRemote(model string, set func(string) bool, key func(k, label string) f
 	}
 	rows := grids(remoteRows)
 	if numbers := grids(numberRows); len(numbers.Objects) > 0 {
-		note := wrapped("Number keys, on the remote's screen")
+		note := wrapped(i18n.T("Number keys, on the remote's screen"))
 		note.Alignment, note.TextStyle.Italic = fyne.TextAlignCenter, true
 		rows.Add(note)
 		rows.Add(numbers)
@@ -147,17 +148,17 @@ func (p *keyPad) open(key string) {
 		p.changed()
 	}
 	var d dialog.Dialog
-	clear := widget.NewButtonWithIcon("Clear", theme.DeleteIcon(), func() {
+	clear := widget.NewButtonWithIcon(i18n.T("Clear"), theme.DeleteIcon(), func() {
 		r.short.ClearSelected()
 		r.long.ClearSelected()
 		d.Hide()
 	})
-	done := widget.NewButtonWithIcon("Done", theme.ConfirmIcon(), func() { d.Hide() })
+	done := widget.NewButtonWithIcon(i18n.T("Done"), theme.ConfirmIcon(), func() { d.Hide() })
 	done.Importance = widget.HighImportance
 	content := container.NewVBox(
-		widget.NewForm(widget.NewFormItem("Press", r.short), widget.NewFormItem("Hold", r.long)),
+		widget.NewForm(widget.NewFormItem(i18n.T("Press"), r.short), widget.NewFormItem(i18n.T("Hold"), r.long)),
 		container.NewGridWithColumns(2, clear, done))
-	d = dialog.NewCustomWithoutButtons(fmt.Sprintf("The %s key", key), content, p.win)
+	d = dialog.NewCustomWithoutButtons(i18n.T("The %s key", key), content, p.win)
 	d.SetOnClosed(func() {
 		if pick(r.short) == "" {
 			p.remove(r)
@@ -198,11 +199,11 @@ func (p *keyPad) refresh() {
 	}
 	p.list.Objects = nil
 	for _, k := range drawingOrder(set) {
-		edit := widget.NewButtonWithIcon("", theme.DocumentCreateIcon(), func() { p.open(k) })
+		edit := newIconButton(i18n.T("Edit"), theme.DocumentCreateIcon(), func() { p.open(k) })
 		p.list.Add(container.NewBorder(nil, nil, nil, edit, wrapped(k+": "+describeKey(set[k]))))
 	}
 	if len(set) == 0 {
-		none := wrapped("No key is set: tap one to set it.")
+		none := wrapped(i18n.T("No key is set: tap one to set it."))
 		none.TextStyle.Italic = true
 		p.list.Add(none)
 	}

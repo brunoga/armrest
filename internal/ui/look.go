@@ -11,6 +11,7 @@ import (
 	"fyne.io/fyne/v2/theme"
 	"fyne.io/fyne/v2/widget"
 
+	"github.com/brunoga/armrest/internal/i18n"
 	"github.com/brunoga/sofabaton/profile"
 )
 
@@ -56,10 +57,12 @@ var palettes = map[fyne.ThemeVariant]map[fyne.ThemeColorName]color.Color{
 		theme.ColorNameSelection:           color.NRGBA{0x1F, 0x6B, 0x78, 0x24},
 		theme.ColorNameFocus:               color.NRGBA{0xF4, 0xA0, 0x4B, 0x99},
 		theme.ColorNameSeparator:           color.NRGBA{0xE4, 0xDE, 0xD4, 0xFF},
-		theme.ColorNamePlaceHolder:         color.NRGBA{0x7A, 0x84, 0x86, 0xFF},
+		theme.ColorNamePlaceHolder:         color.NRGBA{0x5F, 0x69, 0x6B, 0xFF},
+		theme.ColorNameError:               color.NRGBA{0xC6, 0x28, 0x28, 0xFF},
 		theme.ColorNameShadow:              color.NRGBA{0x1E, 0x2A, 0x2E, 0x22},
 		theme.ColorNameHeaderBackground:    color.NRGBA{0xEC, 0xE7, 0xDF, 0xFF},
 		theme.ColorNameWarning:             orange,
+		theme.ColorNameForegroundOnWarning: color.NRGBA{0x1E, 0x2A, 0x2E, 0xFF},
 		theme.ColorNameHyperlink:           teal,
 	},
 	theme.VariantDark: {
@@ -80,6 +83,7 @@ var palettes = map[fyne.ThemeVariant]map[fyne.ThemeColorName]color.Color{
 		theme.ColorNameFocus:               color.NRGBA{0xF4, 0xA0, 0x4B, 0x99},
 		theme.ColorNameSeparator:           color.NRGBA{0x2C, 0x38, 0x3B, 0xFF},
 		theme.ColorNamePlaceHolder:         color.NRGBA{0x8A, 0x96, 0x98, 0xFF},
+		theme.ColorNameError:               color.NRGBA{0xFF, 0x6B, 0x5E, 0xFF},
 		theme.ColorNameShadow:              color.NRGBA{0, 0, 0, 0x66},
 		theme.ColorNameHeaderBackground:    color.NRGBA{0x22, 0x2D, 0x30, 0xFF},
 		theme.ColorNameWarning:             orange,
@@ -106,7 +110,7 @@ func (look) Icon(n fyne.ThemeIconName) fyne.Resource { return theme.DefaultTheme
 var textSizes = []struct {
 	name   string
 	factor float32
-}{{"Smaller", 0.85}, {"Normal", 1}, {"Larger", 1.15}, {"Largest", 1.3}}
+}{{i18n.Mark("Smaller"), 0.85}, {i18n.Mark("Normal"), 1}, {i18n.Mark("Larger"), 1.15}, {i18n.Mark("Largest"), 1.3}}
 
 // textSizePref is the preference holding the index of the text size.
 const textSizePref = "textSize"

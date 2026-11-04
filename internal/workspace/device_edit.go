@@ -8,6 +8,7 @@ import (
 
 	"go.yaml.in/yaml/v3"
 
+	"github.com/brunoga/armrest/internal/i18n"
 	"github.com/brunoga/sofabaton/profile"
 )
 
@@ -61,7 +62,7 @@ type CommandEdit struct {
 func (w *Workspace) EditDevice(name string) (DeviceEdit, error) {
 	d := w.Config.Device(name)
 	if d == nil {
-		return DeviceEdit{}, fmt.Errorf("no device %q", name)
+		return DeviceEdit{}, errors.New(i18n.T("no device %q", name))
 	}
 	e := DeviceEdit{Original: d.Name, Name: d.Name, Brand: d.Brand, Icon: d.Icon, Color: d.Color, Keys: profile.Buttons{}}
 	for _, c := range d.Commands {
@@ -123,11 +124,11 @@ func (w *Workspace) SaveDevice(e DeviceEdit) error {
 	}
 	d := cfg.Device(e.Original)
 	if d == nil {
-		return fmt.Errorf("no device %q", e.Original)
+		return errors.New(i18n.T("no device %q", e.Original))
 	}
 	name := strings.TrimSpace(e.Name)
 	if name == "" {
-		return &FieldError{Field: "name", Msg: "The device needs a name."}
+		return &FieldError{Field: "name", Msg: i18n.T("The device needs a name.")}
 	}
 	var proto Protocol
 	if d.IR != nil {
@@ -140,10 +141,10 @@ func (w *Workspace) SaveDevice(e DeviceEdit) error {
 	for i, c := range e.Commands {
 		c.Name = strings.TrimSpace(c.Name)
 		if c.Name == "" {
-			return &FieldError{Field: "command", Index: i, Msg: fmt.Sprintf("Command %d needs a name.", i+1)}
+			return &FieldError{Field: "command", Index: i, Msg: i18n.T("Command %d needs a name.", i+1)}
 		}
 		if seen[strings.ToLower(c.Name)] {
-			return &FieldError{Field: "command", Index: i, Msg: fmt.Sprintf("There are two commands named %q.", c.Name)}
+			return &FieldError{Field: "command", Index: i, Msg: i18n.T("There are two commands named %q.", c.Name)}
 		}
 		seen[strings.ToLower(c.Name)] = true
 		if c.Original != "" {
@@ -153,14 +154,14 @@ func (w *Workspace) SaveDevice(e DeviceEdit) error {
 			continue
 		}
 		if d.IR == nil {
-			return &FieldError{Field: "command", Index: i, Msg: fmt.Sprintf("%s: this device has no IR protocol, so a command cannot be given as a code.", c.Name)}
+			return &FieldError{Field: "command", Index: i, Msg: i18n.T("%s: this device has no IR protocol, so a command cannot be given as a code.", c.Name)}
 		}
 		if v, err := strconv.ParseUint(strings.TrimSpace(c.Code), 0, 16); err != nil || v > uint64(proto.MaxCode) {
-			return &FieldError{Field: "command", Index: i, Msg: fmt.Sprintf("%s: the code is a number from 0 to %d (0x%X).", c.Name, proto.MaxCode, proto.MaxCode)}
+			return &FieldError{Field: "command", Index: i, Msg: i18n.T("%s: the code is a number from 0 to %d (0x%X).", c.Name, proto.MaxCode, proto.MaxCode)}
 		}
 	}
 	if len(e.Commands) == 0 {
-		return &FieldError{Field: "commands", Msg: "A device needs at least one command."}
+		return &FieldError{Field: "commands", Msg: i18n.T("A device needs at least one command.")}
 	}
 	macros := map[string]bool{}
 	keptMacros := map[string]bool{}
@@ -168,13 +169,13 @@ func (w *Workspace) SaveDevice(e DeviceEdit) error {
 		n := strings.TrimSpace(m.Name)
 		switch {
 		case n == "":
-			return &FieldError{Field: "macro", Index: i, Msg: fmt.Sprintf("Macro %d needs a name.", i+1)}
+			return &FieldError{Field: "macro", Index: i, Msg: i18n.T("Macro %d needs a name.", i+1)}
 		case macros[strings.ToLower(n)]:
-			return &FieldError{Field: "macro", Index: i, Msg: fmt.Sprintf("There are two macros named %q.", n)}
+			return &FieldError{Field: "macro", Index: i, Msg: i18n.T("There are two macros named %q.", n)}
 		case seen[strings.ToLower(n)]:
-			return &FieldError{Field: "macro", Index: i, Msg: fmt.Sprintf("%q is a command's name; a macro needs another.", n)}
+			return &FieldError{Field: "macro", Index: i, Msg: i18n.T("%q is a command's name; a macro needs another.", n)}
 		case len(m.Steps) == 0:
-			return &FieldError{Field: "macro", Index: i, Msg: fmt.Sprintf("%s: a macro needs at least one step.", n)}
+			return &FieldError{Field: "macro", Index: i, Msg: i18n.T("%s: a macro needs at least one step.", n)}
 		}
 		macros[strings.ToLower(n)] = true
 		if m.Original != "" {
@@ -182,10 +183,10 @@ func (w *Workspace) SaveDevice(e DeviceEdit) error {
 		}
 		for j, st := range m.Steps {
 			if st.Command == "" && st.Seconds == 0 {
-				return &FieldError{Field: "macro", Index: i, Msg: fmt.Sprintf("%s, step %d: pick a command, or wait at least a second.", n, j+1)}
+				return &FieldError{Field: "macro", Index: i, Msg: i18n.T("%s, step %d: pick a command, or wait at least a second.", n, j+1)}
 			}
 			if st.Command != "" && !seen[strings.ToLower(st.Command)] {
-				return &FieldError{Field: "macro", Index: i, Msg: fmt.Sprintf("%s, step %d: there is no command named %q.", n, j+1, st.Command)}
+				return &FieldError{Field: "macro", Index: i, Msg: i18n.T("%s, step %d: there is no command named %q.", n, j+1, st.Command)}
 			}
 		}
 	}
@@ -282,7 +283,7 @@ func (w *Workspace) SaveDevice(e DeviceEdit) error {
 	case has(e.PowerOn) && has(e.PowerOff):
 		d.Power = &profile.Power{On: e.PowerOn, Off: e.PowerOff}
 	default:
-		return &FieldError{Field: "power", Msg: "Pick both the command that turns the device on and the one that turns it off, or neither."}
+		return &FieldError{Field: "power", Msg: i18n.T("Pick both the command that turns the device on and the one that turns it off, or neither.")}
 	}
 	d.Inputs = nil
 	if e.NoInputs {
@@ -300,12 +301,12 @@ func (w *Workspace) SaveDevice(e DeviceEdit) error {
 		}
 	}
 	if err := d.Validate(); err != nil {
-		return fmt.Errorf("the device is not valid: %w", err)
+		return fmt.Errorf("%s: %w", i18n.T("the device is not valid"), err)
 	}
 	if err := cfg.Validate(); err != nil {
 		return err
 	}
-	w.commit(cfg, "changes to "+name)
+	w.commit(cfg, i18n.T("changes to %s", name))
 	return nil
 }
 
@@ -318,7 +319,7 @@ func (w *Workspace) RemoveDevice(name string) error {
 	if err := cfg.RemoveDevice(name); err != nil {
 		return err
 	}
-	w.commit(cfg, "deleting "+name)
+	w.commit(cfg, i18n.T("deleting %s", name))
 	return nil
 }
 

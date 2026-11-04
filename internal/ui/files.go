@@ -13,6 +13,7 @@ import (
 	"fyne.io/fyne/v2/storage"
 
 	"github.com/brunoga/armrest/internal/backend"
+	"github.com/brunoga/armrest/internal/i18n"
 	"github.com/brunoga/armrest/internal/workspace"
 )
 
@@ -89,15 +90,15 @@ func (a *App) saveToFile() {
 			}
 		}
 		if err != nil {
-			dialog.ShowError(fmt.Errorf("saving failed: %w", err), a.win)
+			dialog.ShowError(fmt.Errorf("%s: %w", i18n.T("saving failed"), err), a.win)
 			return
 		}
 		if s != nil && a.browse == s {
-			what := "the hub"
+			status := i18n.T("Saved the hub to a file.")
 			if w.Changed() {
-				what = "the hub and your changes"
+				status = i18n.T("Saved the hub and your changes to a file.")
 			}
-			s.setStatus(false, fmt.Sprintf("Saved %s to a file.", what))
+			s.setStatus(false, status)
 		}
 	})
 }
@@ -107,7 +108,7 @@ func (a *App) saveToFile() {
 func (a *App) openFile() {
 	a.pickers.open(a.win, []string{workspace.Ext, ".json"}, func(r io.ReadCloser, name string, err error) {
 		if err != nil {
-			dialog.ShowError(fmt.Errorf("opening failed: %w", err), a.win)
+			dialog.ShowError(fmt.Errorf("%s: %w", i18n.T("opening failed"), err), a.win)
 			return
 		}
 		a.async(func() {
@@ -130,7 +131,7 @@ func (a *App) openFile() {
 func (a *App) showFile() {
 	f := a.file
 	a.work, a.hub = f.work, backend.Hub{Name: f.work.Dump.Info.Name}
-	status := fmt.Sprintf("Opened %s. Changes stay in the app until you apply them to the hub.", f.name)
+	status := i18n.T("Opened %s. Changes stay in the app until you apply them to the hub.", f.name)
 	a.showBrowse(a.hub).setStatus(false, status)
 }
 
@@ -168,18 +169,18 @@ func (a *App) adoptFile(h backend.Hub, w *workspace.Workspace) {
 		if w.Changed() {
 			a.showReview()
 		} else {
-			a.browse.setStatus(false, "The hub is as the file has it: there is nothing to apply.")
+			a.browse.setStatus(false, i18n.T("The hub is as the file has it: there is nothing to apply."))
 		}
 		return
 	}
-	title := "The hub changed since"
-	text := fmt.Sprintf("%s was changed since %s was saved. Applying the file makes the hub as the file has it again, undoing those changes too.", info.Name, f.name)
+	title := i18n.T("The hub changed since")
+	text := i18n.T("%s was changed since %s was saved. Applying the file makes the hub as the file has it again, undoing those changes too.", info.Name, f.name)
 	if !sameHub {
-		title = "Restore onto another hub"
-		text = fmt.Sprintf("%s was saved from another hub, %s. Applying it makes %s hold what the file has: devices and activities are matched by name, those it lacks are added, and its others are deleted.", f.name, f.work.Dump.Info.Name, info.Name)
+		title = i18n.T("Restore onto another hub")
+		text = i18n.T("%s was saved from another hub, %s. Applying it makes %s hold what the file has: devices and activities are matched by name, those it lacks are added, and its others are deleted.", f.name, f.work.Dump.Info.Name, info.Name)
 	}
-	text += " You see every change before anything is written."
-	dialog.NewCustomConfirm(title, "Review", "Cancel", wrapped(text), func(ok bool) {
+	text += " " + i18n.T("You see every change before anything is written.")
+	dialog.NewCustomConfirm(title, i18n.T("Review"), i18n.T("Cancel"), wrapped(text), func(ok bool) {
 		if !ok {
 			// Back to the file, as it was.
 			a.Close()
@@ -187,7 +188,7 @@ func (a *App) adoptFile(h backend.Hub, w *workspace.Workspace) {
 			return
 		}
 		if err := w.Restore(f.work.Config, sameHub); err != nil {
-			dialog.ShowError(fmt.Errorf("the file cannot be restored: %w", err), a.win)
+			dialog.ShowError(fmt.Errorf("%s: %w", i18n.T("the file cannot be restored"), err), a.win)
 			return
 		}
 		a.file = nil

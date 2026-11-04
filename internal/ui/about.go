@@ -1,7 +1,6 @@
 package ui
 
 import (
-	"fmt"
 	"net/url"
 	"runtime/debug"
 	"strings"
@@ -12,6 +11,7 @@ import (
 	"fyne.io/fyne/v2/theme"
 	"fyne.io/fyne/v2/widget"
 
+	"github.com/brunoga/armrest/internal/i18n"
 	"github.com/brunoga/sofabaton/irsource"
 )
 
@@ -41,13 +41,13 @@ func (a *App) aboutContent(resized func()) fyne.CanvasObject {
 
 	made := container.NewVBox(
 		wrapped(author),
-		link("Questions, problems and ideas: open an issue", issues),
-		link("The app's page, with its source", website),
-		link(author+" on GitHub", authorPage))
+		link(i18n.T("Questions, problems and ideas: open an issue"), issues),
+		link(i18n.T("The app's page, with its source"), website),
+		link(i18n.T("%s on GitHub", author), authorPage))
 
 	sizes := make([]string, len(textSizes))
 	for i, s := range textSizes {
-		sizes[i] = s.name
+		sizes[i] = i18n.T(s.name)
 	}
 	size := widget.NewSelect(sizes, nil)
 	size.SetSelectedIndex(textSize())
@@ -61,12 +61,12 @@ func (a *App) aboutContent(resized func()) fyne.CanvasObject {
 	}
 
 	built := container.NewVBox(
-		wrapped(fmt.Sprintf("The Sofabaton library %s (%s), and Fyne %s.", depVersion(library), library, depVersion("fyne.io/fyne/v2"))),
-		wrapped("The X2's icon drawings come from the home-assistant-sofabaton-x1s project, under the MIT license; the logos among them are their owners'."),
+		wrapped(i18n.T("The Sofabaton library %s (%s), and Fyne %s.", depVersion(library), library, depVersion("fyne.io/fyne/v2"))),
+		wrapped(i18n.T("The X2's icon drawings come from the home-assistant-sofabaton-x1s project, under the MIT license; the logos among them are their owners'.")),
 		link("home-assistant-sofabaton-x1s", iconsPage))
 
 	codes := container.NewVBox(
-		wrapped("Adding a device can search two online collections of IR codes, and fetches a device's file from them when you pick it. Thank you to both, and to their contributors."),
+		wrapped(i18n.T("Adding a device can search two online collections of IR codes, and fetches a device's file from them when you pick it. Thank you to both, and to their contributors.")),
 		wrapped(irsource.Credit(irsource.IRDB)),
 		link("irdb", irdbPage),
 		wrapped(irsource.Credit(irsource.Flipper)),
@@ -74,11 +74,11 @@ func (a *App) aboutContent(resized func()) fyne.CanvasObject {
 
 	return scrolled(container.NewVBox(
 		top,
-		card("Text size", container.NewVBox(wrapped("How large the app's text is."), size)),
-		card("Author", made),
-		card("Built with", built),
-		card("IR codes", codes),
-		card("License", wrapped("Armrest is free software, under the Apache License 2.0. It is not affiliated with or endorsed by Sofabaton.")),
+		card(i18n.T("Text size"), container.NewVBox(wrapped(i18n.T("How large the app's text is.")), size)),
+		card(i18n.T("Author"), made),
+		card(i18n.T("Built with"), built),
+		card(i18n.T("IR codes"), codes),
+		card(i18n.T("License"), wrapped(i18n.T("Armrest is free software, under the Apache License 2.0. It is not affiliated with or endorsed by Sofabaton."))),
 	))
 }
 
@@ -93,7 +93,7 @@ func brand() fyne.CanvasObject {
 	name := widget.NewLabelWithStyle("Armrest", fyne.TextAlignCenter, fyne.TextStyle{Bold: true})
 	name.SizeName = theme.SizeNameHeadingText
 	ver := widget.NewLabelWithStyle(version(), fyne.TextAlignCenter, fyne.TextStyle{})
-	what := wrapped("Set up Sofabaton X1, X1S and X2 hubs on your own network, without the cloud.")
+	what := wrapped(i18n.T("Set up Sofabaton X1, X1S and X2 hubs on your own network, without the cloud."))
 	what.Alignment = fyne.TextAlignCenter
 	return container.NewVBox(container.NewCenter(icon), name, ver, what)
 }
@@ -101,7 +101,7 @@ func brand() fyne.CanvasObject {
 // showAbout shows the About page on its own, from the hubs screen.
 func (a *App) showAbout() {
 	var show func()
-	show = func() { a.screen("About", a.showHubs, a.aboutContent(show)) }
+	show = func() { a.screen(i18n.T("About"), a.showHubs, a.aboutContent(show)) }
 	show()
 }
 
@@ -120,16 +120,16 @@ var buildInfo = debug.ReadBuildInfo
 // source, its commit.
 func version() string {
 	if m := fyne.CurrentApp().Metadata(); m.Version != "" {
-		return fmt.Sprintf("Version %s (build %d)", m.Version, m.Build)
+		return i18n.T("Version %s (build %d)", m.Version, m.Build)
 	}
 	if bi, ok := buildInfo(); ok {
 		for _, s := range bi.Settings {
 			if s.Key == "vcs.revision" && len(s.Value) >= 7 {
-				return "Built from the source, at " + s.Value[:7]
+				return i18n.T("Built from the source, at %s", s.Value[:7])
 			}
 		}
 	}
-	return "Built from the source"
+	return i18n.T("Built from the source")
 }
 
 // depVersion is the version of the module path the app is built with: a
@@ -142,10 +142,10 @@ func depVersion(path string) string {
 			}
 			// A pseudo-version ends in the commit's first 12 digits.
 			if parts := strings.Split(d.Version, "-"); len(parts) >= 3 && len(parts[len(parts)-1]) == 12 {
-				return "at " + parts[len(parts)-1][:7]
+				return i18n.T("at %s", parts[len(parts)-1][:7])
 			}
 			return d.Version
 		}
 	}
-	return "(version unknown)"
+	return i18n.T("(version unknown)")
 }

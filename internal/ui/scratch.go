@@ -2,7 +2,6 @@ package ui
 
 import (
 	"errors"
-	"fmt"
 	"strings"
 
 	"fyne.io/fyne/v2"
@@ -11,6 +10,7 @@ import (
 	"fyne.io/fyne/v2/theme"
 	"fyne.io/fyne/v2/widget"
 
+	"github.com/brunoga/armrest/internal/i18n"
 	"github.com/brunoga/armrest/internal/workspace"
 )
 
@@ -44,21 +44,21 @@ type commandRow struct {
 
 func (a *App) showScratch() {
 	s := &scratchScreen{app: a}
-	a.screen("New device", a.showAddDevice, scrolled(s.content()))
+	a.screen(i18n.T("New device"), a.showAddDevice, scrolled(s.content()))
 }
 
 func (s *scratchScreen) content() fyne.CanvasObject {
 	s.name = widget.NewEntry()
-	s.name.SetPlaceHolder("Living room TV")
+	s.name.SetPlaceHolder(i18n.T("Living room TV"))
 	s.brand = widget.NewEntry()
-	s.brand.SetPlaceHolder("Optional")
-	device := widget.NewCard("Device", "", widget.NewForm(
-		widget.NewFormItem("Name", s.name),
-		widget.NewFormItem("Brand", s.brand)))
+	s.brand.SetPlaceHolder(i18n.T("Optional"))
+	device := widget.NewCard(i18n.T("Device"), "", widget.NewForm(
+		widget.NewFormItem(i18n.T("Name"), s.name),
+		widget.NewFormItem(i18n.T("Brand"), s.brand)))
 
 	var titles []string
 	for _, p := range workspace.Protocols {
-		titles = append(titles, p.Title)
+		titles = append(titles, i18n.T(p.Title))
 	}
 	s.about = wrapped("")
 	s.system = widget.NewEntry()
@@ -69,33 +69,33 @@ func (s *scratchScreen) content() fyne.CanvasObject {
 	s.sub.SetPlaceHolder("1")
 	s.fields = container.NewVBox()
 	s.protocol = widget.NewRadioGroup(titles, func(string) { s.showProtocol() })
-	s.protocol.SetSelected(workspace.Protocols[0].Title)
-	codes := widget.NewCard("Codes", "", container.NewVBox(
-		wrapped("How does the device's remote send its codes? The device's manual or IR code chart says; NEC is the most common."),
+	s.protocol.SetSelected(i18n.T(workspace.Protocols[0].Title))
+	codes := widget.NewCard(i18n.T("Codes"), "", container.NewVBox(
+		wrapped(i18n.T("How does the device's remote send its codes? The device's manual or IR code chart says; NEC is the most common.")),
 		s.protocol, s.about, s.fields))
 
 	s.list = container.NewVBox()
-	add := widget.NewButtonWithIcon("Add a command", theme.ContentAddIcon(), func() { s.addRow("", "") })
+	add := widget.NewButtonWithIcon(i18n.T("Add a command"), theme.ContentAddIcon(), func() { s.addRow("", "") })
 	s.addRow("", "")
-	commands := widget.NewCard("Commands", "", container.NewVBox(
-		wrapped("A name and a code for each. Commands named like a key of the remote (OK, Up, Volume Up…) are put on that key. "+dragHint),
+	commands := widget.NewCard(i18n.T("Commands"), "", container.NewVBox(
+		wrapped(i18n.T("A name and a code for each. Commands named like a key of the remote (OK, Up, Volume Up…) are put on that key.")+" "+i18n.T(dragHint)),
 		s.list, container.NewHBox(add)))
 
 	s.powerOn = widget.NewSelect(nil, nil)
 	s.powerOf = widget.NewSelect(nil, nil)
-	s.powerOn.PlaceHolder = "None"
-	s.powerOf.PlaceHolder = "None"
+	s.powerOn.PlaceHolder = i18n.T("None")
+	s.powerOf.PlaceHolder = i18n.T("None")
 	s.refreshPower()
-	power := widget.NewCard("Power", "", container.NewVBox(
-		wrapped("The commands activities use to turn the device on and off. Pick the same one twice if it has a single power key."),
-		widget.NewForm(widget.NewFormItem("On", s.powerOn), widget.NewFormItem("Off", s.powerOf))))
+	power := widget.NewCard(i18n.T("Power"), "", container.NewVBox(
+		wrapped(i18n.T("The commands activities use to turn the device on and off. Pick the same one twice if it has a single power key.")),
+		widget.NewForm(widget.NewFormItem(i18n.T("On"), s.powerOn), widget.NewFormItem(i18n.T("Off"), s.powerOf))))
 
 	s.problem = wrapped("")
 	s.problem.Importance = widget.DangerImportance
 	s.problem.Hide()
-	create := widget.NewButtonWithIcon("Add the device", theme.ConfirmIcon(), s.create)
+	create := widget.NewButtonWithIcon(i18n.T("Add the device"), theme.ConfirmIcon(), s.create)
 	create.Importance = widget.HighImportance
-	note := wrapped("Nothing is written to the hub until you review and apply your changes. Once it is on the hub, you can test each command.")
+	note := wrapped(i18n.T("Nothing is written to the hub until you review and apply your changes. Once it is on the hub, you can test each command."))
 	note.TextStyle.Italic = true
 
 	return container.NewVBox(device, codes, commands, power, s.problem, create, note)
@@ -104,21 +104,21 @@ func (s *scratchScreen) content() fyne.CanvasObject {
 // showProtocol shows the fields the picked protocol needs.
 func (s *scratchScreen) showProtocol() {
 	p := s.picked()
-	s.about.SetText(p.About)
+	s.about.SetText(i18n.T(p.About))
 	switch p.ID {
 	case "NEC":
-		s.fields.Objects = []fyne.CanvasObject{widget.NewForm(widget.NewFormItem("System code", s.system))}
+		s.fields.Objects = []fyne.CanvasObject{widget.NewForm(widget.NewFormItem(i18n.T("System code"), s.system))}
 	case "DenonK":
-		s.fields.Objects = []fyne.CanvasObject{widget.NewForm(widget.NewFormItem("Device", s.device), widget.NewFormItem("Subdevice", s.sub))}
+		s.fields.Objects = []fyne.CanvasObject{widget.NewForm(widget.NewFormItem(i18n.T("Device"), s.device), widget.NewFormItem(i18n.T("Subdevice"), s.sub))}
 	default:
-		s.fields.Objects = []fyne.CanvasObject{widget.NewForm(widget.NewFormItem("Device", s.device))}
+		s.fields.Objects = []fyne.CanvasObject{widget.NewForm(widget.NewFormItem(i18n.T("Device"), s.device))}
 	}
 	s.fields.Refresh()
 }
 
 func (s *scratchScreen) picked() workspace.Protocol {
 	for _, p := range workspace.Protocols {
-		if p.Title == s.protocol.Selected {
+		if i18n.T(p.Title) == s.protocol.Selected {
 			return p
 		}
 	}
@@ -128,12 +128,12 @@ func (s *scratchScreen) picked() workspace.Protocol {
 // addRow adds a command row.
 func (s *scratchScreen) addRow(name, code string) {
 	r := &commandRow{name: widget.NewSelectEntry(workspace.CommonCommands), code: widget.NewEntry()}
-	r.name.SetPlaceHolder("Name")
+	r.name.SetPlaceHolder(i18n.T("Name"))
 	r.name.SetText(name)
 	r.name.OnChanged = func(string) { s.refreshPower() }
-	r.code.SetPlaceHolder("Code")
+	r.code.SetPlaceHolder(i18n.T("Code"))
 	r.code.SetText(code)
-	remove := widget.NewButtonWithIcon("", theme.DeleteIcon(), func() { s.removeRow(r) })
+	remove := newIconButton(i18n.T("Delete"), theme.DeleteIcon(), func() { s.removeRow(r) })
 	grip := newDragHandle(s.list, func(i, j int) { s.rows[i], s.rows[j] = s.rows[j], s.rows[i] }, s.refreshPower)
 	r.box = container.NewBorder(nil, nil, grip,
 		container.NewHBox(container.New(layout.NewGridWrapLayout(fyne.NewSize(CodeWidth*Scale(), r.code.MinSize().Height)), r.code), remove),
@@ -164,7 +164,7 @@ func (s *scratchScreen) refreshPower() {
 			names = append(names, n)
 		}
 	}
-	options := append([]string{"None"}, names...)
+	options := append([]string{i18n.T("None")}, names...)
 	for _, sel := range []*widget.Select{s.powerOn, s.powerOf} {
 		sel.Options = options
 		if sel.Selected != "" && !contains(options, sel.Selected) {
@@ -200,7 +200,7 @@ func (s *scratchScreen) spec() workspace.Spec {
 		sel *widget.Select
 		to  *string
 	}{{s.powerOn, &sp.PowerOn}, {s.powerOf, &sp.PowerOff}} {
-		if x.sel.Selected != "None" {
+		if x.sel.Selected != i18n.T("None") {
 			*x.to = x.sel.Selected
 		}
 	}
@@ -223,11 +223,11 @@ func (s *scratchScreen) create() {
 		return
 	}
 	keys := keyNames(d.Buttons)
-	msg := fmt.Sprintf("Added %s.", d.Name)
+	msg := i18n.T("Added %s.", d.Name)
 	if len(keys) > 0 {
-		msg += fmt.Sprintf(" Keys set from command names: %s.", strings.Join(keys, ", "))
+		msg += " " + i18n.T("Keys set from command names: %s.", strings.Join(keys, ", "))
 	}
 	b := s.app.showBrowse(s.app.hub)
 	b.selectDevice(d.Name)
-	b.setStatus(false, msg+" Review your changes to write them to the hub.")
+	b.setStatus(false, msg+" "+i18n.T("Review your changes to write them to the hub."))
 }

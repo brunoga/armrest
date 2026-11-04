@@ -2,7 +2,7 @@ package ui
 
 import (
 	"context"
-	"fmt"
+	"errors"
 	"net/netip"
 	"strings"
 
@@ -13,6 +13,7 @@ import (
 	"fyne.io/fyne/v2/widget"
 
 	"github.com/brunoga/armrest/internal/backend"
+	"github.com/brunoga/armrest/internal/i18n"
 )
 
 // hubsScreen is the first screen: the app, and the hubs found on the
@@ -39,29 +40,29 @@ func (s *hubsScreen) content() fyne.CanvasObject {
 	s.status = wrapped("")
 	s.busy = newPulse()
 	s.busy.Hide()
-	s.search = widget.NewButtonWithIcon("Search again", theme.SearchIcon(), s.discover)
-	notListed := widget.NewButton("Hub not listed?", s.askAddress)
+	s.search = widget.NewButtonWithIcon(i18n.T("Search again"), theme.SearchIcon(), s.discover)
+	notListed := widget.NewButton(i18n.T("Hub not listed?"), s.askAddress)
 	notListed.Importance = widget.LowImportance
-	network := widget.NewCard("Hubs on your network", "",
+	network := widget.NewCard(i18n.T("Hubs on your network"), "",
 		container.NewVBox(s.found, s.busy, s.status, container.NewHBox(s.search), container.NewHBox(notListed)))
 
 	cards := container.NewVBox(brand())
 	if f := s.app.file; f != nil {
 		// Applying a file: its hub is to be picked.
-		back := widget.NewButtonWithIcon("Back to the file", theme.NavigateBackIcon(), s.app.showFile)
+		back := widget.NewButtonWithIcon(i18n.T("Back to the file"), theme.NavigateBackIcon(), s.app.showFile)
 		back.Importance = widget.HighImportance
-		cards.Add(card("Applying "+f.name, container.NewVBox(
-			wrapped(fmt.Sprintf("Connect to %s to apply the file's changes to it. It is read first, and you review the changes before anything is written.", f.work.Dump.Info.Name)),
-			container.NewVBox(back, widget.NewButtonWithIcon("Close the file", theme.CancelIcon(), s.app.closeFile)))))
+		cards.Add(card(i18n.T("Applying %s", f.name), container.NewVBox(
+			wrapped(i18n.T("Connect to %s to apply the file's changes to it. It is read first, and you review the changes before anything is written.", f.work.Dump.Info.Name)),
+			container.NewVBox(back, widget.NewButtonWithIcon(i18n.T("Close the file"), theme.CancelIcon(), s.app.closeFile)))))
 	}
 	cards.Add(network)
 	s.root = scrolled(cards)
 
 	s.app.hubsMenu = fyne.NewMenu("",
-		fyne.NewMenuItem("Open a saved file…", s.app.openFile),
-		fyne.NewMenuItem("Try the demo hub", func() { s.app.connect(backend.DemoHub) }),
-		fyne.NewMenuItem("About Armrest", s.app.showAbout))
-	more := widget.NewButtonWithIcon("", theme.MoreVerticalIcon(), nil)
+		fyne.NewMenuItem(i18n.T("Open a saved file…"), s.app.openFile),
+		fyne.NewMenuItem(i18n.T("Try the demo hub"), func() { s.app.connect(backend.DemoHub) }),
+		fyne.NewMenuItem(i18n.T("About Armrest"), s.app.showAbout))
+	more := newIconButton(i18n.T("More"), theme.MoreVerticalIcon(), nil)
 	more.OnTapped = func() {
 		widget.ShowPopUpMenuAtRelativePosition(s.app.hubsMenu, s.app.win.Canvas(), fyne.NewPos(0, more.Size().Height), more)
 	}
@@ -82,11 +83,11 @@ func (s *hubsScreen) askAddress() {
 		}
 	}
 	addr.OnSubmitted = func(string) { connect() }
-	ok := widget.NewButtonWithIcon("Connect", theme.LoginIcon(), connect)
+	ok := widget.NewButtonWithIcon(i18n.T("Connect"), theme.LoginIcon(), connect)
 	ok.Importance = widget.HighImportance
-	cancel := widget.NewButtonWithIcon("Cancel", theme.CancelIcon(), func() { d.Hide() })
-	d = dialog.NewCustomWithoutButtons("Connect by address", container.NewVBox(
-		wrapped("A hub on another part of the network, or behind a router that keeps it from being found: its address is in the router's list of devices, or the Sofabaton app's hub settings."),
+	cancel := widget.NewButtonWithIcon(i18n.T("Cancel"), theme.CancelIcon(), func() { d.Hide() })
+	d = dialog.NewCustomWithoutButtons(i18n.T("Connect by address"), container.NewVBox(
+		wrapped(i18n.T("A hub on another part of the network, or behind a router that keeps it from being found: its address is in the router's list of devices, or the Sofabaton app's hub settings.")),
 		addr, container.NewGridWithColumns(2, cancel, ok)), s.app.win)
 	d.Resize(fyne.NewSize(min(ReadableWidth*Scale()*0.6, s.app.win.Canvas().Size().Width), d.MinSize().Height))
 	d.Show()
@@ -97,7 +98,7 @@ func (s *hubsScreen) askAddress() {
 func (s *hubsScreen) discover() {
 	s.search.Disable()
 	s.busy.Start()
-	s.status.SetText("Searching…")
+	s.status.SetText(i18n.T("Searching…"))
 	s.found.RemoveAll()
 	s.root.Refresh()
 	s.app.async(func() {
@@ -117,11 +118,11 @@ func (s *hubsScreen) show(hubs []backend.Hub, err error) {
 	}
 	switch {
 	case err != nil:
-		s.status.SetText("Searching failed: " + err.Error())
+		s.status.SetText(i18n.T("Searching failed: %s", err.Error()))
 	case len(hubs) == 0:
-		s.status.SetText("No hub answered. A hub connected to another app (Sofabaton's, or sbx) does not answer: close it. Or, if it is on another part of the network, connect to it by address.")
+		s.status.SetText(i18n.T("No hub answered. A hub connected to another app (Sofabaton's, or sbx) does not answer: close it. Or, if it is on another part of the network, connect to it by address."))
 	default:
-		s.status.SetText(fmt.Sprintf("%d found. A hub connected to another app does not show up.", len(hubs)))
+		s.status.SetText(i18n.N("%d hub found. A hub connected to another app does not show up.", "%d hubs found. A hub connected to another app does not show up.", len(hubs), len(hubs)))
 	}
 	s.root.Refresh()
 }
@@ -132,7 +133,7 @@ func (s *hubsScreen) parseAddr(text string) (backend.Hub, bool) {
 	text = strings.TrimSpace(text)
 	addr, err := netip.ParseAddr(text)
 	if err != nil || !addr.Is4() {
-		dialog.ShowError(fmt.Errorf("%q is not an IPv4 address, such as 192.168.1.20", text), s.app.win)
+		dialog.ShowError(errors.New(i18n.T("%q is not an IPv4 address, such as 192.168.1.20", text)), s.app.win)
 		return backend.Hub{}, false
 	}
 	return backend.Hub{Name: addr.String(), Addr: addr}, true

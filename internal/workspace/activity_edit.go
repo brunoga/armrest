@@ -6,6 +6,7 @@ import (
 	"slices"
 	"strings"
 
+	"github.com/brunoga/armrest/internal/i18n"
 	"github.com/brunoga/sofabaton/profile"
 )
 
@@ -48,7 +49,7 @@ func (w *Workspace) NewActivity() ActivityEdit {
 func (w *Workspace) EditActivity(name string) (ActivityEdit, error) {
 	a := w.Config.Activity(name)
 	if a == nil {
-		return ActivityEdit{}, fmt.Errorf("no activity %q", name)
+		return ActivityEdit{}, errors.New(i18n.T("no activity %q", name))
 	}
 	e := ActivityEdit{
 		Original: a.Name, Name: a.Name, Icon: a.Icon, Color: a.Color,
@@ -115,10 +116,10 @@ func (w *Workspace) Inputs(device string) []string {
 func (w *Workspace) SaveActivity(e ActivityEdit) error {
 	name := strings.TrimSpace(e.Name)
 	if name == "" {
-		return &FieldError{Field: "name", Msg: "The activity needs a name."}
+		return &FieldError{Field: "name", Msg: i18n.T("The activity needs a name.")}
 	}
 	if o := w.Config.Activity(name); o != nil && !strings.EqualFold(o.Name, e.Original) {
-		return &FieldError{Field: "name", Msg: fmt.Sprintf("There is an activity named %q already.", o.Name)}
+		return &FieldError{Field: "name", Msg: i18n.T("There is an activity named %q already.", o.Name)}
 	}
 	var members []string
 	seen := map[string]bool{}
@@ -126,18 +127,18 @@ func (w *Workspace) SaveActivity(e ActivityEdit) error {
 		d := w.Config.Device(m.Device)
 		switch {
 		case d == nil:
-			return &FieldError{Field: "device", Index: i, Msg: fmt.Sprintf("Pick device %d.", i+1)}
+			return &FieldError{Field: "device", Index: i, Msg: i18n.T("Pick device %d.", i+1)}
 		case seen[strings.ToLower(d.Name)]:
-			return &FieldError{Field: "device", Index: i, Msg: fmt.Sprintf("%s is in the activity twice.", d.Name)}
+			return &FieldError{Field: "device", Index: i, Msg: i18n.T("%s is in the activity twice.", d.Name)}
 		case m.Input != "" && !slices.Contains(d.Inputs, m.Input):
-			return &FieldError{Field: "device", Index: i, Msg: fmt.Sprintf("%s has no input %q.", d.Name, m.Input)}
+			return &FieldError{Field: "device", Index: i, Msg: i18n.T("%s has no input %q.", d.Name, m.Input)}
 		}
 		seen[strings.ToLower(d.Name)] = true
 		members = append(members, d.Name)
 	}
 	if len(members) == 0 {
 		// The hub deletes an activity with no devices.
-		return &FieldError{Field: "devices", Msg: "An activity needs at least one device."}
+		return &FieldError{Field: "devices", Msg: i18n.T("An activity needs at least one device.")}
 	}
 
 	runs := map[string]bool{}
@@ -155,11 +156,11 @@ func (w *Workspace) SaveActivity(e ActivityEdit) error {
 		n := strings.TrimSpace(m.Name)
 		switch {
 		case n == "":
-			return &FieldError{Field: "macro", Index: i, Msg: fmt.Sprintf("Macro %d needs a name.", i+1)}
+			return &FieldError{Field: "macro", Index: i, Msg: i18n.T("Macro %d needs a name.", i+1)}
 		case macroNames[strings.ToLower(n)]:
-			return &FieldError{Field: "macro", Index: i, Msg: fmt.Sprintf("There are two macros named %q.", n)}
+			return &FieldError{Field: "macro", Index: i, Msg: i18n.T("There are two macros named %q.", n)}
 		case len(m.Steps) == 0:
-			return &FieldError{Field: "macro", Index: i, Msg: fmt.Sprintf("%s: a macro needs at least one step.", n)}
+			return &FieldError{Field: "macro", Index: i, Msg: i18n.T("%s: a macro needs at least one step.", n)}
 		}
 		if err := checkSteps(m.Steps, seen, commands, n); err != nil {
 			return &FieldError{Field: "macro", Index: i, Msg: err.Error()}
@@ -175,9 +176,9 @@ func (w *Workspace) SaveActivity(e ActivityEdit) error {
 		if p.steps == nil {
 			continue
 		}
-		what := "When it starts"
+		what := i18n.T("When it starts")
 		if p.field == "power_off" {
-			what = "When it ends"
+			what = i18n.T("When it ends")
 		}
 		if err := checkSteps(p.steps, seen, commands, what); err != nil {
 			return &FieldError{Field: p.field, Msg: err.Error()}
@@ -209,20 +210,20 @@ func (w *Workspace) SaveActivity(e ActivityEdit) error {
 	}
 
 	if err := a.Validate(); err != nil {
-		return fmt.Errorf("the activity is not valid: %w", err)
+		return fmt.Errorf("%s: %w", i18n.T("the activity is not valid"), err)
 	}
 	cfg, err := cloneConfig(w.Config)
 	if err != nil {
 		return err
 	}
-	what := "changes to " + name
+	what := i18n.T("changes to %s", name)
 	if e.Original == "" {
 		cfg.Activities = append(cfg.Activities, a)
-		what = "adding " + name
+		what = i18n.T("adding %s", name)
 	} else {
 		old := cfg.Activity(e.Original)
 		if old == nil {
-			return fmt.Errorf("no activity %q", e.Original)
+			return errors.New(i18n.T("no activity %q", e.Original))
 		}
 		a.ID = old.ID
 		*old = *a
@@ -241,15 +242,15 @@ func checkSteps(steps []profile.Step, members, commands map[string]bool, what st
 		switch s.Kind {
 		case profile.StepWait:
 			if s.Seconds == 0 {
-				return fmt.Errorf("%s, step %d: wait at least a second", what, j+1)
+				return errors.New(i18n.T("%s, step %d: wait at least a second", what, j+1))
 			}
 		case profile.StepCommand:
 			if !commands[strings.ToLower(s.Device+": "+s.Command)] {
-				return fmt.Errorf("%s, step %d: pick a command of the activity's devices", what, j+1)
+				return errors.New(i18n.T("%s, step %d: pick a command of the activity's devices", what, j+1))
 			}
 		default:
 			if !members[strings.ToLower(s.Device)] {
-				return fmt.Errorf("%s, step %d: pick one of the activity's devices", what, j+1)
+				return errors.New(i18n.T("%s, step %d: pick one of the activity's devices", what, j+1))
 			}
 		}
 	}
@@ -287,7 +288,7 @@ func IsUsual(steps []profile.Step, devices []string, on bool) bool {
 // RemoveActivity removes an activity.
 func (w *Workspace) RemoveActivity(name string) error {
 	if w.Config.Activity(name) == nil {
-		return errors.New("no activity " + name)
+		return errors.New(i18n.T("no activity %s", name))
 	}
 	cfg, err := cloneConfig(w.Config)
 	if err != nil {
@@ -296,6 +297,6 @@ func (w *Workspace) RemoveActivity(name string) error {
 	if err := cfg.RemoveActivity(name); err != nil {
 		return err
 	}
-	w.commit(cfg, "deleting "+name)
+	w.commit(cfg, i18n.T("deleting %s", name))
 	return nil
 }

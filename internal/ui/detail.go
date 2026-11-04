@@ -14,6 +14,7 @@ import (
 	"fyne.io/fyne/v2/theme"
 	"fyne.io/fyne/v2/widget"
 
+	"github.com/brunoga/armrest/internal/i18n"
 	"github.com/brunoga/sofabaton/profile"
 )
 
@@ -35,7 +36,7 @@ const (
 )
 
 // paneNames name the panes, on the buttons that pick them.
-var paneNames = []string{"Remote", "Macros", "Details"}
+var paneNames = []string{i18n.Mark("Remote"), i18n.Mark("Macros"), i18n.Mark("Details")}
 
 // activityView shows an activity: a remote to drive it with, its macros
 // and favorites, and its details (devices, keys, start and end). ctl is
@@ -62,23 +63,23 @@ func activityView(a *profile.Activity, model string, ctl *controls, edit func())
 		favorites = append(favorites, runnable(f, nil, ctl, func() { ctl.send(dev, cmd) }))
 	}
 	lists := []fyne.CanvasObject{
-		section("Macros", "No macros.", macros),
-		section("Favorites", "No favorites.", favorites),
+		section(i18n.T("Macros"), i18n.T("No macros."), macros),
+		section(i18n.T("Favorites"), i18n.T("No favorites."), favorites),
 	}
 
 	var devs []string
 	for _, m := range a.Devices {
 		if m.Input != "" {
-			devs = append(devs, fmt.Sprintf("%s, on %s", m.Device, m.Input))
+			devs = append(devs, i18n.T("%s, on %s", m.Device, m.Input))
 		} else {
 			devs = append(devs, m.Device)
 		}
 	}
 	details := []fyne.CanvasObject{
-		section("Devices", "No devices.", lines(devs)),
+		section(i18n.T("Devices"), i18n.T("No devices."), lines(devs)),
 		keysSection(a.Buttons),
-		section("When it starts", "Nothing.", numbered(steps(a.PowerOn))),
-		section("When it ends", "Nothing.", numbered(steps(a.PowerOff))),
+		section(i18n.T("When it starts"), i18n.T("Nothing."), numbered(steps(a.PowerOn))),
+		section(i18n.T("When it ends"), i18n.T("Nothing."), numbered(steps(a.PowerOff))),
 	}
 	return views(head, edit, remote(model, a.Buttons, ctl), lists, details)
 }
@@ -105,7 +106,7 @@ func deviceView(d *profile.Device, model string, ctl *controls, edit func()) fyn
 		}
 		macros = append(macros, runnable(m.Name, numbered(steps), ctl, func() { ctl.run(m.Name) }))
 	}
-	lists := []fyne.CanvasObject{section("Macros", "No macros.", macros)}
+	lists := []fyne.CanvasObject{section(i18n.T("Macros"), i18n.T("No macros."), macros)}
 
 	var cmds []fyne.CanvasObject
 	for _, c := range d.Commands {
@@ -114,27 +115,27 @@ func deviceView(d *profile.Device, model string, ctl *controls, edit func()) fyn
 			cmds = append(cmds, name)
 			continue
 		}
-		test := widget.NewButtonWithIcon("Test", theme.MediaPlayIcon(), func() { ctl.send(d.Name, c.Name) })
+		test := widget.NewButtonWithIcon(i18n.T("Test"), theme.MediaPlayIcon(), func() { ctl.send(d.Name, c.Name) })
 		cmds = append(cmds, container.NewBorder(nil, nil, nil, test, name))
 	}
 	if ctl != nil && len(cmds) > 0 {
-		hint := wrapped("Test sends a command from the hub, to check that the device responds.")
+		hint := wrapped(i18n.T("Test sends a command from the hub, to check that the device responds."))
 		hint.TextStyle.Italic = true
 		cmds = append([]fyne.CanvasObject{hint}, cmds...)
 	}
 	var power []fyne.CanvasObject
 	if d.Power != nil {
-		power = form("On", d.Power.On, "Off", d.Power.Off)
+		power = form(i18n.T("On"), d.Power.On, i18n.T("Off"), d.Power.Off)
 	}
-	inputs := "Not set."
+	inputs := i18n.T("Not set.")
 	if d.Inputs != nil {
-		inputs = "It has no inputs."
+		inputs = i18n.T("It has no inputs.")
 	}
 	details := []fyne.CanvasObject{
-		section(fmt.Sprintf("Commands (%d)", len(d.Commands)), "No commands.", cmds),
+		section(i18n.T("Commands (%d)", len(d.Commands)), i18n.T("No commands."), cmds),
 		keysSection(d.Buttons),
-		section("Power", "Not set: activities turn it on and off with its own power macros.", power),
-		section("Inputs", inputs, numbered(d.Inputs)),
+		section(i18n.T("Power"), i18n.T("Not set: activities turn it on and off with its own power macros."), power),
+		section(i18n.T("Inputs"), inputs, numbered(d.Inputs)),
 	}
 	return views(head, edit, remote(model, d.Buttons, ctl), lists, details)
 }
@@ -146,7 +147,7 @@ func runnable(name string, about []fyne.CanvasObject, ctl *controls, run func())
 	title.Wrapping = fyne.TextWrapWord
 	var top fyne.CanvasObject = title
 	if ctl != nil {
-		top = container.NewBorder(nil, nil, nil, widget.NewButtonWithIcon("Run", theme.MediaPlayIcon(), run), title)
+		top = container.NewBorder(nil, nil, nil, widget.NewButtonWithIcon(i18n.T("Run"), theme.MediaPlayIcon(), run), title)
 	}
 	return container.NewVBox(append([]fyne.CanvasObject{top}, about...)...)
 }
@@ -155,12 +156,12 @@ func runnable(name string, about []fyne.CanvasObject, ctl *controls, run func())
 // on the hub where ctl drives it: a tap presses a key, a long press (a
 // right click) holds it.
 func remote(model string, keys profile.Buttons, ctl *controls) []fyne.CanvasObject {
-	hint := "Click a key to press it; right-click it to hold it."
+	hint := i18n.T("Click a key to press it; right-click it to hold it.")
 	if fyne.CurrentDevice().IsMobile() {
-		hint = "Tap a key to press it; long-press it to hold it."
+		hint = i18n.T("Tap a key to press it; long-press it to hold it.")
 	}
 	if ctl == nil {
-		hint = "The remote works once this is on the hub: review and apply your changes, connected to it."
+		hint = i18n.T("The remote works once this is on the hub: review and apply your changes, connected to it.")
 	}
 	note := wrapped(hint)
 	note.TextStyle.Italic = true
@@ -329,7 +330,7 @@ func views(head func() fyne.CanvasObject, edit func(), panes ...[]fyne.CanvasObj
 	}
 	for i, p := range panes {
 		pages[i] = page(append([]fyne.CanvasObject{head()}, p...))
-		pick[i] = widget.NewButton(paneNames[i], func() { show(i) })
+		pick[i] = widget.NewButton(i18n.T(paneNames[i]), func() { show(i) })
 	}
 	show(remotePane)
 	bar := container.NewGridWithColumns(len(pick))
@@ -339,7 +340,7 @@ func views(head func() fyne.CanvasObject, edit func(), panes ...[]fyne.CanvasObj
 	var row fyne.CanvasObject = bar
 	if edit != nil {
 		// A pencil alone: four names across do not fit a phone.
-		b := widget.NewButtonWithIcon("", theme.DocumentCreateIcon(), edit)
+		b := newIconButton(i18n.T("Edit"), theme.DocumentCreateIcon(), edit)
 		b.Importance = widget.HighImportance
 		row = container.NewBorder(nil, nil, nil, b, bar)
 	}
@@ -354,7 +355,7 @@ func keysSection(bs profile.Buttons) fyne.CanvasObject {
 	for _, n := range keyNames(bs) {
 		rows = append(rows, n, describeKey(bs[n]))
 	}
-	return section("Keys", "No keys set.", form(rows...))
+	return section(i18n.T("Keys"), i18n.T("No keys set."), form(rows...))
 }
 
 // page is a detail's parts, scrolled, at a readable width.

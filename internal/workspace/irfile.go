@@ -13,7 +13,7 @@ import (
 )
 
 // IRFileExts are the extensions of the files of IR codes FromIRFile reads.
-var IRFileExts = []string{".ir", ".csv"}
+var IRFileExts = []string{".ir", ".csv", ".txt"}
 
 // Imported is a device made of a file of IR codes, with the codes left
 // out of it.
@@ -23,7 +23,7 @@ type Imported struct {
 }
 
 // FromIRFile makes a device of a file of IR codes named file: Flipper
-// Zero's .ir or irdb's .csv. Its commands named like a key of the remote
+// Zero's .ir, irdb's .csv, or Pronto codes (.txt). Its commands named like a key of the remote
 // are set on that key, and its power commands make its power; codes the
 // X2 cannot send yet are left out, and listed.
 func FromIRFile(file string, r io.Reader) (*Imported, error) {

@@ -91,6 +91,13 @@ func activityView(a *profile.Activity, model string, ctl *controls, edit func())
 // their codes to a file.
 func deviceView(d *profile.Device, model string, ctl *controls, edit, export func()) fyne.CanvasObject {
 	sub := d.Brand
+	// The kind, unless the icon says it already.
+	if !d.Category.IsZero() && d.Category.String() != d.Icon.String() {
+		if sub != "" {
+			sub += " · "
+		}
+		sub += d.Category.String()
+	}
 	if look := describeLook(d.Icon, d.Color); look != "" {
 		if sub != "" {
 			sub += " · "

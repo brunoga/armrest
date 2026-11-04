@@ -437,6 +437,9 @@ drag-reorder lists.
       (Details, "Save codes to a file…"), in any of those formats; codes
       a format cannot hold, and commands that are not IR, are left out
       and listed.
+- [x] A device's kind (the library's category: TV, Blu-ray, Projector,
+      Receiver) in the device editor, and on its page when the icon does
+      not say it; the Denon receiver's Zone 2 and Zone 3 templates.
 - [ ] Later: the profile library server (section 10).
 
 ## 10. The profile library server (later; not built yet)

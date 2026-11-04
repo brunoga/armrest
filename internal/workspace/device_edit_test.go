@@ -224,3 +224,24 @@ func TestSaveDeviceMacros(t *testing.T) {
 		t.Error("Blue still runs the removed macro")
 	}
 }
+
+// A device's category is edited as its icon is: kept when unchanged, and
+// planned when set.
+func TestSaveDeviceCategory(t *testing.T) {
+	w := demoWorkspace(t)
+	e, err := w.EditDevice("Receiver")
+	if err != nil {
+		t.Fatal(err)
+	}
+	e.Category = 6
+	if err := w.SaveDevice(e); err != nil {
+		t.Fatal(err)
+	}
+	if d := w.Config.Device("Receiver"); d.Category != 6 {
+		t.Fatalf("category %d", d.Category)
+	}
+	p, err := w.Plan(context.Background())
+	if err != nil || !strings.Contains(titles(p), "Change device Receiver") {
+		t.Errorf("plan: %v\n%s", err, titles(p))
+	}
+}

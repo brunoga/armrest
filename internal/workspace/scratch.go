@@ -1,13 +1,16 @@
 package workspace
 
 import (
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"strconv"
 	"strings"
 
 	"github.com/brunoga/armrest/internal/i18n"
+	"github.com/brunoga/sofabaton/irgen"
 	"github.com/brunoga/sofabaton/profile"
+	"github.com/brunoga/sofabaton/record"
 )
 
 // Protocol is an IR protocol a device made from scratch can use: one the
@@ -21,6 +24,11 @@ type Protocol struct {
 	// list codes in decimal.
 	MaxCode uint16
 	Decimal bool
+	// raw, for protocols the hub has no descriptor for, renders a code as
+	// timings, which the hub sends as they are; MaxDevice is the largest
+	// device.
+	raw       func(device uint8, code uint16) record.RawIR
+	MaxDevice uint8
 }
 
 // Protocols are the IR protocols, the most common first.
@@ -28,6 +36,12 @@ var Protocols = []Protocol{
 	{ID: "NEC", Title: i18n.Mark("NEC"), About: i18n.Mark("Most TVs, projectors, media players and set-top boxes. Each device has a system code (often listed as its address or custom code), and each command a code from 0x00 to 0xFF."), MaxCode: 0xFF},
 	{ID: "DenonK", Title: i18n.Mark("Denon, newer receivers"), About: i18n.Mark("Denon and Marantz receivers whose IR charts list a device, a subdevice and a function (0 to 4095) for each command."), MaxCode: 0xFFF, Decimal: true},
 	{ID: "Denon", Title: i18n.Mark("Denon, older receivers"), About: i18n.Mark("Denon receivers whose IR charts list a device (an address, 0 to 31) and a function (0 to 255)."), MaxCode: 0xFF, Decimal: true},
+	{ID: "RC5", Title: i18n.Mark("Philips RC5"), About: i18n.Mark("Philips and many European TVs, amplifiers and CD players. Each device has an address (0 to 31) and each command a code from 0 to 127."), MaxCode: 127, Decimal: true, MaxDevice: 31,
+		raw: func(d uint8, c uint16) record.RawIR { return irgen.RC5(d, uint8(c), false) }},
+	{ID: "RCA", Title: i18n.Mark("RCA"), About: i18n.Mark("RCA, GE and some older TVs and satellite receivers. Each device has an address (0 to 15) and each command a code from 0 to 255."), MaxCode: 0xFF, Decimal: true, MaxDevice: 15,
+		raw: func(d uint8, c uint16) record.RawIR { return irgen.RCA(d, uint8(c)) }},
+	{ID: "Pioneer", Title: i18n.Mark("Pioneer"), About: i18n.Mark("Pioneer receivers and players. Each device has an address (0 to 255) and each command a code from 0 to 255."), MaxCode: 0xFF, Decimal: true, MaxDevice: 0xFF,
+		raw: func(d uint8, c uint16) record.RawIR { return irgen.Pioneer(d, uint8(c)) }},
 }
 
 // ProtocolNamed is the protocol with that ID.
@@ -108,6 +122,14 @@ func (s Spec) Build() (*profile.Device, error) {
 		}
 		ir.Device = &d
 	}
+	var device uint8
+	if p.raw != nil {
+		v, err := small(s.Device, uint64(p.MaxDevice))
+		if err != nil {
+			return nil, &FieldError{Field: "device", Msg: i18n.T("The device is a number from 0 to %d.", p.MaxDevice)}
+		}
+		device, ir = v, nil
+	}
 
 	d := &profile.Device{Name: name, Brand: strings.TrimSpace(s.Brand), IR: ir, Buttons: profile.Buttons{}}
 	seen := map[string]bool{}
@@ -128,8 +150,16 @@ func (s Spec) Build() (*profile.Device, error) {
 		if err != nil || v > uint64(p.MaxCode) {
 			return nil, &FieldError{Field: "command", Index: i, Msg: i18n.T("%s: the code is a number from 0 to %d (0x%X).", cname, p.MaxCode, p.MaxCode)}
 		}
-		decimal := !strings.HasPrefix(strings.ToLower(code), "0x")
-		d.Commands = append(d.Commands, profile.Command{Name: cname, Code: &profile.Code{Value: uint16(v), Decimal: decimal}})
+		if p.raw != nil {
+			data, err := p.raw(device, uint16(v)).Encode()
+			if err != nil {
+				return nil, &FieldError{Field: "command", Index: i, Msg: fmt.Sprintf("%s: %v", cname, err)}
+			}
+			d.Commands = append(d.Commands, profile.Command{Name: cname, Data: hex.EncodeToString(data)})
+		} else {
+			decimal := !strings.HasPrefix(strings.ToLower(code), "0x")
+			d.Commands = append(d.Commands, profile.Command{Name: cname, Code: &profile.Code{Value: uint16(v), Decimal: decimal}})
+		}
 		if key, ok := KeyFor(cname); ok {
 			if _, taken := d.Buttons[key]; !taken {
 				d.Buttons[key] = profile.Key{Short: cname}

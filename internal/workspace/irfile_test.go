@@ -6,7 +6,7 @@ import (
 )
 
 // A made-up Flipper file: its keys go on the remote's, its power on the
-// device's power; the raw signal is left out.
+// device's power; the raw signal is a command too, sent as it is.
 func TestFromIRFile(t *testing.T) {
 	const file = `Filetype: IR signals file
 Version: 1
@@ -40,7 +40,7 @@ data: 9000 4500
 		t.Fatal(err)
 	}
 	d := im.Device
-	if d.Name != "Living Room TV" || len(d.Commands) != 3 {
+	if d.Name != "Living Room TV" || len(d.Commands) != 4 || d.Commands[3].Data == "" {
 		t.Fatalf("%s: %+v", d.Name, d.Commands)
 	}
 	for key, cmd := range map[string]string{"Power": "Power", "Vol+": "Volume Up", "OK": "OK"} {
@@ -51,12 +51,12 @@ data: 9000 4500
 	if d.Power == nil || d.Power.On != "Power" || d.Power.Off != "Power" {
 		t.Errorf("power %+v", d.Power)
 	}
-	if len(im.Skipped) != 1 || im.Skipped[0].Name != "Netflix" {
+	if len(im.Skipped) != 0 {
 		t.Errorf("skipped %+v", im.Skipped)
 	}
 
-	raw := "Filetype: IR signals file\nVersion: 1\nname: Power\ntype: raw\nfrequency: 38000\ndata: 1 2\n"
-	if _, err := FromIRFile("x.ir", strings.NewReader(raw)); err == nil || !strings.Contains(err.Error(), "raw timings") {
-		t.Errorf("a file of raw codes: %v", err)
+	odd := "Filetype: IR signals file\nVersion: 1\nname: Power\ntype: parsed\nprotocol: Samsung36\naddress: 01 00 00 00\ncommand: 02 00 00 00\n"
+	if _, err := FromIRFile("x.ir", strings.NewReader(odd)); err == nil || !strings.Contains(err.Error(), "Samsung36") {
+		t.Errorf("a file of codes the hub cannot send: %v", err)
 	}
 }

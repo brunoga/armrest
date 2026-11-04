@@ -6,6 +6,8 @@ import (
 	"testing"
 
 	"go.yaml.in/yaml/v3"
+
+	"github.com/brunoga/sofabaton/record"
 )
 
 func TestBuild(t *testing.T) {
@@ -35,6 +37,23 @@ func TestBuild(t *testing.T) {
 	k := Spec{Name: "AVR", Protocol: "DenonK", Device: "4", Subdevice: "1", Commands: []CommandSpec{{"Mute", "2312"}}}
 	if _, err := k.Build(); err != nil {
 		t.Errorf("DenonK: %v", err)
+	}
+
+	// RC5 has no descriptor: its commands are raw timings.
+	r := Spec{Name: "Amp", Protocol: "RC5", Device: "16", Commands: []CommandSpec{{"Volume Up", "16"}}}
+	rd, err := r.Build()
+	if err != nil {
+		t.Fatalf("RC5: %v", err)
+	}
+	sig, err := rd.Commands[0].Signal(rd)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if raw, err := record.ParseRawIR(sig); err != nil || raw.Carrier != 36000 || rd.IR != nil || rd.Buttons["Vol+"].Short != "Volume Up" {
+		t.Errorf("RC5: %+v, ir %v, keys %v (%v)", raw, rd.IR, rd.Buttons, err)
+	}
+	if _, err := (Spec{Name: "Amp", Protocol: "RC5", Device: "32", Commands: []CommandSpec{{"A", "1"}}}).Build(); err == nil {
+		t.Error("RC5 device 32 built")
 	}
 
 	for _, tc := range []struct {

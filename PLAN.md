@@ -423,6 +423,13 @@ drag-reorder lists.
       are connected): an activity in about 1 s, a device in 1-6 s, in the
       background. Captures showed the app reads only the device list on
       connecting, and each screen's records each time it opens.
+- [x] Raw IR (the library's, verified on the X2: a learned code written
+      back turned the projector on): Flipper's raw signals and Pronto
+      codes (.txt) import, and RC5, RCA, Pioneer, NEC42, 16-bit NEC and
+      other vendors' Kaseikyo become timings, in files and in the online
+      search's; "From scratch" makes RC5, RCA and Pioneer devices; devices
+      of learned codes restore. Next formats: Broadlink (SmartIR), LIRC,
+      Global Caché, Unfolded Circle.
 - [ ] Later: the profile library server (section 10).
 
 ## 10. The profile library server (later; not built yet)

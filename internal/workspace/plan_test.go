@@ -52,13 +52,16 @@ func applied(t *testing.T, w *Workspace, c *hub.Client, total int, progress func
 	differ = func(real, sim []exchanged) {
 		for i := range max(len(real), len(sim)) {
 			if i >= len(real) || i >= len(sim) || real[i] != sim[i] {
-				show := func(l []exchanged) string {
-					if i >= len(l) {
+				show := func(l []exchanged, j int) string {
+					if j >= len(l) {
 						return "nothing"
 					}
-					return fmt.Sprintf("%v %v % x", l[i].dir, l[i].family, l[i].payload)
+					return fmt.Sprintf("%v %v % x", l[j].dir, l[j].family, l[j].payload)
 				}
-				t.Logf("frame %d of %d/%d: the hub's %s, the copy's %s", i, len(real), len(sim), show(real), show(sim))
+				t.Logf("frame %d of %d/%d differs", i, len(real), len(sim))
+				for j := max(0, i-4); j <= i+2; j++ {
+					t.Logf("  %d: hub's %s | copy's %s", j, show(real, j), show(sim, j))
+				}
 				return
 			}
 		}

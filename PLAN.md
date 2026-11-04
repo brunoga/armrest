@@ -448,6 +448,11 @@ drag-reorder lists.
       it). Its search fetches a maker's models when the search names the
       maker, finds them by model number, and adds the device with its
       kind.
+- [x] One app bar on every screen: Back where there is somewhere to go
+      back to, the screen's title with the hub (or file) under it, and the
+      screen's actions. The browse screen's title is its tab's, or, on a
+      phone, the device or activity shown with Back; the tabs show on the
+      hub's views only, at the bottom on phones.
 - [ ] Later: the profile library server (section 10).
 
 ## 10. The profile library server (later; not built yet)

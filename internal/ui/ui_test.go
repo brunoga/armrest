@@ -205,15 +205,15 @@ func TestBrowse(t *testing.T) {
 	}
 	assertScreens(t, w, "device")
 
-	// On a phone, Back goes from the device to the list.
+	// On a phone, the bar has the device's name and Back, which goes to
+	// the list.
 	w.Resize(sizes[0].size)
-	for _, o := range u.browse.devices.split.bar.Objects {
-		if b, ok := o.(*widget.Button); ok && b.Text == "Back" {
-			test.Tap(b)
-		}
+	if !u.browse.barBackBox.Visible() || u.browse.title.Text != "Projector/Google TV" {
+		t.Fatalf("bar: Back %v, title %q", u.browse.barBackBox.Visible(), u.browse.title.Text)
 	}
-	if !u.browse.devices.split.list.Visible() {
-		t.Error("the list is not back")
+	test.Tap(u.browse.barBack)
+	if !u.browse.devices.split.list.Visible() || u.browse.barBackBox.Visible() || u.browse.title.Text != "Devices" {
+		t.Error("the list is not back, under the tab's name")
 	}
 
 	hubAction(t, u, "Disconnect")
@@ -271,7 +271,7 @@ func TestReadFailure(t *testing.T) {
 	u.Start()
 
 	test.Tap(button(t, w, "Lounge (X2, 192.168.1.20)"))
-	if got := texts(w); !strings.Contains(got, "Could not read X2 HUB") || !strings.Contains(got, "connection to the hub was lost") {
+	if got := texts(w); !strings.Contains(got, "Could not read the hub") || !strings.Contains(got, "connection to the hub was lost") {
 		t.Fatalf("no explanation:\n%s", got)
 	}
 	assertScreens(t, w, "read-failure")

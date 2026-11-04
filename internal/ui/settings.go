@@ -209,6 +209,8 @@ func (a *App) askSofabatonKey(done func()) {
 // showSettings shows the settings on their own, from the hubs screen.
 func (a *App) showSettings() {
 	var show func()
-	show = func() { a.screen(i18n.T("Settings"), a.showHubs, scrolled(container.NewVBox(a.settingsContent(show)...))) }
+	show = func() {
+		a.screen(i18n.T("Settings"), a.showHubs, scrolled(container.NewVBox(a.settingsContent(show)...)))
+	}
 	show()
 }

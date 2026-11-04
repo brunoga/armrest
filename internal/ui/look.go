@@ -8,6 +8,7 @@ import (
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/canvas"
 	"fyne.io/fyne/v2/container"
+	"fyne.io/fyne/v2/layout"
 	"fyne.io/fyne/v2/theme"
 	"fyne.io/fyne/v2/widget"
 
@@ -212,18 +213,32 @@ func (t onBar) Color(n fyne.ThemeColorName, v fyne.ThemeVariant) color.Color {
 
 // bar is the app bar: left (a Back button, say), the title, and right
 // (actions), cream on teal.
-func bar(left fyne.CanvasObject, title string, right fyne.CanvasObject) fyne.CanvasObject {
+//
+// Every screen has one, the same way: Back on the left where there is
+// somewhere to go back to, the screen's title and, under it in smaller
+// text, sub (the hub or file the app shows, "" for none), and the
+// screen's actions on the right. The title is returned, for screens whose
+// title changes.
+func bar(left fyne.CanvasObject, title, sub string, right fyne.CanvasObject) (fyne.CanvasObject, *widget.Label) {
 	t := widget.NewLabelWithStyle(title, fyne.TextAlignLeading, fyne.TextStyle{Bold: true})
 	t.SizeName = theme.SizeNameSubHeadingText
 	t.Truncation = fyne.TextTruncateEllipsis
+	var middle fyne.CanvasObject = t
+	if sub != "" {
+		s := widget.NewLabel(sub)
+		s.SizeName = theme.SizeNameCaptionText
+		s.Truncation = fyne.TextTruncateEllipsis
+		// The two lines close together, as one heading.
+		middle = container.New(layout.NewCustomPaddedVBoxLayout(-2*theme.Padding()), t, s)
+	}
 	var sides []fyne.CanvasObject // Border takes no nil sides
 	for _, o := range []fyne.CanvasObject{left, right} {
 		if o != nil {
 			sides = append(sides, o)
 		}
 	}
-	content := container.NewBorder(nil, nil, left, right, append([]fyne.CanvasObject{t}, sides...)...)
-	return container.NewStack(newFill(colorBar), container.NewThemeOverride(container.NewPadded(content), onBar{}))
+	content := container.NewBorder(nil, nil, left, right, append([]fyne.CanvasObject{middle}, sides...)...)
+	return container.NewStack(newFill(colorBar), container.NewThemeOverride(container.NewPadded(content), onBar{})), t
 }
 
 // tiles are the drawn tiles, by icon and color.

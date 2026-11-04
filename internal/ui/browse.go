@@ -32,6 +32,13 @@ type browseScreen struct {
 	app  *App
 	hub  backend.Hub
 	tabs *container.AppTabs
+	// tabNames are the tabs' names, which the bar shows as its title
+	// (title): phones show the tabs' icons only.
+	tabNames   []string
+	title      *widget.Label
+	barBack    *widget.Button
+	barBackBox *fyne.Container
+	barTop     fyne.CanvasObject
 	// hubInfo says what the hub is, on the hub's tab.
 	hubInfo             *widget.Label
 	devices, activities *browseList
@@ -367,12 +374,16 @@ func (s *browseScreen) content(h backend.Hub) fyne.CanvasObject {
 	s.activities.tab = container.NewTabItemWithIcon(i18n.T("Activities"), theme.MediaPlayIcon(), slot(s.activities.split))
 	about := container.NewTabItemWithIcon(i18n.T("Settings"), theme.SettingsIcon(), slot(s.app.settingsAndAbout(s.app.backToBrowse)))
 	s.tabs = container.NewAppTabs(hub, s.devices.tab, s.activities.tab, about)
+	for _, t := range s.tabs.Items {
+		s.tabNames = append(s.tabNames, t.Text)
+	}
 	if fyne.CurrentDevice().IsMobile() {
 		s.tabs.SetTabLocation(container.TabLocationBottom)
 	}
 	s.tabs.OnSelected = func(*container.TabItem) {
 		i := s.tabs.SelectedIndex()
 		s.app.tab = i
+		s.updateBar()
 		for j, c := range s.slots {
 			if j == i {
 				c.Objects = []fyne.CanvasObject{s.bottom}
@@ -388,8 +399,39 @@ func (s *browseScreen) content(h backend.Hub) fyne.CanvasObject {
 	return container.NewBorder(s.header(), nil, nil, nil, newFitTabs(s.tabs))
 }
 
+// header is the bar: the tab's name (or, a device or activity shown
+// alone, its name and Back), the hub's under it, and undo and redo.
 func (s *browseScreen) header() fyne.CanvasObject {
-	return bar(nil, s.app.work.Dump.Info.Name, container.NewHBox(s.undoBtn, s.redoBtn))
+	s.barBack = widget.NewButtonWithIcon(i18n.T("Back"), theme.NavigateBackIcon(), func() { s.back() })
+	s.barBackBox = container.NewCenter(s.barBack)
+	s.barBackBox.Hide()
+	top, title := bar(s.barBackBox, "", s.app.where(), container.NewCenter(container.NewHBox(s.undoBtn, s.redoBtn)))
+	s.title, s.barTop = title, top
+	for _, b := range []*browseList{s.devices, s.activities} {
+		b.split.onChange = s.updateBar
+	}
+	s.updateBar()
+	return top
+}
+
+// updateBar shows the tab's name in the bar, or the name of the device or
+// activity shown alone, with Back.
+func (s *browseScreen) updateBar() {
+	if s.title == nil {
+		return
+	}
+	i := s.tabs.SelectedIndex()
+	title, back := s.tabNames[i], false
+	for j, b := range []*browseList{s.devices, s.activities} {
+		if i == devicesTab+j && b.split.detailAlone() {
+			title, back = b.split.title, true
+		}
+	}
+	s.title.SetText(title)
+	if back != s.barBackBox.Visible() {
+		s.barBackBox.Hidden = !back
+		s.barTop.Refresh() // laid out again, Back in or out
+	}
 }
 
 // hubContent is the hub's tab: what it is, saving it to a file (and,

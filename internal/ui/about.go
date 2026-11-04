@@ -17,12 +17,14 @@ import (
 
 // The app's author and its pages.
 const (
-	author     = "Bruno Albuquerque"
-	website    = "https://github.com/brunoga/armrest"
-	issues     = "https://github.com/brunoga/armrest/issues"
-	authorPage = "https://github.com/brunoga"
-	library    = "github.com/brunoga/sofabaton"
-	iconsPage  = "https://github.com/m3tac0de/home-assistant-sofabaton-x1s"
+	author      = "Bruno Albuquerque"
+	website     = "https://github.com/brunoga/armrest"
+	issues      = "https://github.com/brunoga/armrest/issues"
+	authorPage  = "https://github.com/brunoga"
+	library     = "github.com/brunoga/sofabaton"
+	iconsPage   = "https://github.com/m3tac0de/home-assistant-sofabaton-x1s"
+	irdbPage    = "https://github.com/probonopd/irdb"
+	flipperPage = "https://github.com/Lucaslhm/Flipper-IRDB"
 )
 
 // appIcon is the app's icon; tests set it, as their app has none.
@@ -61,15 +63,21 @@ func (a *App) aboutContent(resized func()) fyne.CanvasObject {
 	built := container.NewVBox(
 		wrapped(fmt.Sprintf("The Sofabaton library %s (%s), and Fyne %s.", depVersion(library), library, depVersion("fyne.io/fyne/v2"))),
 		wrapped("The X2's icon drawings come from the home-assistant-sofabaton-x1s project, under the MIT license; the logos among them are their owners'."),
-		link("home-assistant-sofabaton-x1s", iconsPage),
+		link("home-assistant-sofabaton-x1s", iconsPage))
+
+	codes := container.NewVBox(
+		wrapped("Adding a device can search two online collections of IR codes, and fetches a device's file from them when you pick it. Thank you to both, and to their contributors."),
+		wrapped(irsource.Credit(irsource.IRDB)),
+		link("irdb", irdbPage),
 		wrapped(irsource.Credit(irsource.Flipper)),
-		wrapped(irsource.Credit(irsource.IRDB)))
+		link("Flipper-IRDB", flipperPage))
 
 	return scrolled(container.NewVBox(
 		top,
 		card("Text size", container.NewVBox(wrapped("How large the app's text is."), size)),
 		card("Author", made),
 		card("Built with", built),
+		card("IR codes", codes),
 		card("License", wrapped("Armrest is free software, under the Apache License 2.0. It is not affiliated with or endorsed by Sofabaton.")),
 	))
 }

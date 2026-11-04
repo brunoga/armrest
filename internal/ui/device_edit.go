@@ -30,7 +30,7 @@ type deviceEditor struct {
 	app *App
 	e   workspace.DeviceEdit
 
-	name, brand *widget.Entry
+	name, brand           *widget.Entry
 	icon, color, category *widget.Select
 
 	cmds    []*cmdRow
@@ -503,8 +503,8 @@ func (ed *deviceEditor) edit() workspace.DeviceEdit {
 		Original: ed.e.Original, Name: ed.name.Text, Brand: ed.brand.Text,
 		Icon: parseIcon(ed.icon.Selected), Color: parseColor(ed.color.Selected),
 		Category: parseCategory(ed.category.Selected),
-		Keys:    profile.Buttons{},
-		PowerOn: pick(ed.powerOn), PowerOff: pick(ed.powerOff),
+		Keys:     profile.Buttons{},
+		PowerOn:  pick(ed.powerOn), PowerOff: pick(ed.powerOff),
 		NoInputs: ed.e.NoInputs && len(ed.inputs) == 0,
 	}
 	for _, r := range ed.cmds {

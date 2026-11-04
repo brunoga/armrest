@@ -44,8 +44,6 @@ func (a *App) showHome(h backend.Hub) {
 		}
 	}
 
-	title := widget.NewLabelWithStyle(i18n.T("Reading %s", info.Name), fyne.TextAlignLeading, fyne.TextStyle{Bold: true})
-	title.SizeName = theme.SizeNameHeadingText
 	// The hub's first answers take a few seconds before the bar moves:
 	// the line under it shows the read is alive meanwhile, and while each
 	// device takes its time.
@@ -65,8 +63,8 @@ func (a *App) showHome(h backend.Hub) {
 	retry.Importance = widget.HighImportance
 	retry.Hide()
 	intro := wrapped(i18n.T("This takes a few seconds for each device and activity. Keep the app open until it is done."))
-	a.show(column(container.NewPadded(container.NewVBox(
-		title, intro, bar, alive, step, container.NewHBox(retry, cancelBtn)))), backTo(cancelBtn.OnTapped))
+	title := a.page(i18n.T("Reading the hub"), nil, nil, column(container.NewPadded(container.NewVBox(
+		intro, bar, alive, step, container.NewHBox(retry, cancelBtn)))), backTo(cancelBtn.OnTapped))
 	a.awake(true)
 
 	c := a.client
@@ -94,7 +92,7 @@ func (a *App) showHome(h backend.Hub) {
 			case errors.Is(err, context.Canceled):
 				// Cancel went back to the hubs already.
 			case err != nil:
-				title.SetText(i18n.T("Could not read %s", info.Name))
+				title.SetText(i18n.T("Could not read the hub"))
 				intro.Hide()
 				bar.Hide()
 				step.SetText(readFailure(err))

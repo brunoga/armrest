@@ -23,8 +23,7 @@ import (
 
 // screen is a full-window page with a title, Back, and content.
 func (a *App) screen(title string, back func(), content fyne.CanvasObject) {
-	top := bar(widget.NewButtonWithIcon(i18n.T("Back"), theme.NavigateBackIcon(), back), title, nil)
-	a.show(container.NewBorder(top, nil, nil, nil, content), backTo(back))
+	a.page(title, back, nil, content, backTo(back))
 	// Wrapped text learns its height from its width: lay out again now
 	// that the widths are known.
 	content.Refresh()
@@ -399,15 +398,13 @@ func (a *App) showPlan(body *fyne.Container, status *widget.Label, p *workspace.
 
 // applyPlan writes the edits to the hub, then reads it back.
 func (a *App) applyPlan(p *workspace.Plan) {
-	title := widget.NewLabelWithStyle(i18n.T("Writing to %s", a.client.Info().Name), fyne.TextAlignLeading, fyne.TextStyle{Bold: true})
-	title.SizeName = theme.SizeNameHeadingText
 	bar := widget.NewProgressBar()
 	alive := newPulse()
 	step := wrapped(i18n.T("Starting…"))
 	note := wrapped(i18n.T("Keep the app open until it is done. The hub takes about a quarter of a second for each command or key, and up to 15 seconds to delete a device."))
 	ctx, cancel := context.WithCancel(context.Background())
 	stop := widget.NewButtonWithIcon(i18n.T("Stop"), theme.MediaStopIcon(), cancel)
-	a.show(column(container.NewPadded(container.NewVBox(title, note, bar, alive, step, container.NewHBox(stop)))), stay)
+	title := a.page(i18n.T("Writing to the hub"), nil, nil, column(container.NewPadded(container.NewVBox(note, bar, alive, step, container.NewHBox(stop)))), stay)
 	a.awake(true)
 	alive.Start()
 
@@ -465,7 +462,7 @@ func (a *App) readBack(h backend.Hub, old *workspace.Workspace, writeErr error, 
 				return
 			}
 			if err != nil {
-				a.show(column(container.NewPadded(container.NewVBox(
+				a.page(i18n.T("Could not read the hub"), nil, nil, column(container.NewPadded(container.NewVBox(
 					wrapped(i18n.T("Reading the hub back failed: %s", readFailure(err))),
 					container.NewHBox(widget.NewButtonWithIcon(i18n.T("Reconnect"), theme.ViewRefreshIcon(), func() {
 						a.Close()

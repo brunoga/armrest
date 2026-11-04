@@ -6,12 +6,11 @@ import (
 	"fyne.io/fyne/v2/container"
 	"fyne.io/fyne/v2/theme"
 	"fyne.io/fyne/v2/widget"
-
-	"github.com/brunoga/armrest/internal/i18n"
 )
 
 // SplitWidth is the narrowest window that shows a list beside its detail;
-// narrower ones show one at a time, the detail with a Back button.
+// narrower ones show one at a time, the app's bar showing the detail's
+// title and Back (onChange).
 const SplitWidth = 760
 
 // ListWidth is the list's width beside a detail.
@@ -21,12 +20,11 @@ const ListWidth = 300
 // by side on wide windows, one at a time on narrow ones.
 type listDetail struct {
 	widget.BaseWidget
-	list   fyne.CanvasObject
-	detail *fyne.Container // the detail's bar and content
-	bar    *fyne.Container // Back and the detail's title, on narrow windows
-	title  *widget.Label
-	body   *fyne.Container
-	rule   *canvas.Rectangle
+	list fyne.CanvasObject
+	// title is the detail's, which the app's bar shows on narrow windows.
+	title string
+	body  *fyne.Container
+	rule  *canvas.Rectangle
 
 	// placeholder fills the detail when nothing is picked, on wide
 	// windows.
@@ -34,18 +32,29 @@ type listDetail struct {
 
 	showing bool // a detail is shown
 	narrow  bool
-	// onBack is called when Back leaves the detail, on narrow windows.
-	onBack func()
+	// onBack is called when Back leaves the detail, on narrow windows;
+	// onChange when the detail comes or goes alone (detailAlone).
+	onBack, onChange func()
+	alone            bool
+}
+
+// detailAlone reports whether the detail is shown alone: on a narrow
+// window, in the list's place.
+func (s *listDetail) detailAlone() bool { return s.narrow && s.showing }
+
+// changed calls onChange if the detail came or went alone.
+func (s *listDetail) changed() {
+	if a := s.detailAlone(); a != s.alone {
+		s.alone = a
+		if s.onChange != nil {
+			s.onChange()
+		}
+	}
 }
 
 func newListDetail(list fyne.CanvasObject) *listDetail {
 	s := &listDetail{list: list}
-	s.title = widget.NewLabelWithStyle("", fyne.TextAlignLeading, fyne.TextStyle{Bold: true})
-	s.title.Truncation = fyne.TextTruncateEllipsis
-	s.bar = container.NewBorder(nil, nil,
-		widget.NewButtonWithIcon(i18n.T("Back"), theme.NavigateBackIcon(), s.back), nil, s.title)
 	s.body = container.NewStack()
-	s.detail = container.NewBorder(s.bar, nil, nil, nil, s.body)
 	s.rule = canvas.NewRectangle(theme.Color(theme.ColorNameSeparator))
 	s.ExtendBaseWidget(s)
 	return s
@@ -53,11 +62,13 @@ func newListDetail(list fyne.CanvasObject) *listDetail {
 
 // show shows o as the detail, titled title on narrow windows.
 func (s *listDetail) show(title string, o fyne.CanvasObject) {
-	s.title.SetText(title)
+	s.title = title
 	s.body.Objects = []fyne.CanvasObject{o}
 	s.body.Refresh()
 	s.showing = true
+	s.alone = false // the title may be new: told again
 	s.Refresh()
+	s.changed()
 }
 
 // clear shows the placeholder: nothing is picked.
@@ -69,12 +80,14 @@ func (s *listDetail) clear() {
 	s.body.Refresh()
 	s.showing = false
 	s.Refresh()
+	s.changed()
 }
 
 // back leaves the detail, on narrow windows.
 func (s *listDetail) back() {
 	s.showing = false
 	s.Refresh()
+	s.changed()
 	if s.onBack != nil {
 		s.onBack()
 	}
@@ -89,25 +102,24 @@ type listDetailRenderer struct{ s *listDetail }
 func (r *listDetailRenderer) Layout(size fyne.Size) {
 	s := r.s
 	s.narrow = size.Width < SplitWidth
+	defer s.changed()
 	if s.narrow {
 		s.rule.Hide()
-		s.bar.Show()
 		if s.showing {
 			s.list.Hide()
-			s.detail.Show()
+			s.body.Show()
 		} else {
 			s.list.Show()
-			s.detail.Hide()
+			s.body.Hide()
 		}
 		s.list.Resize(size)
 		s.list.Move(fyne.NewPos(0, 0))
-		s.detail.Resize(size)
-		s.detail.Move(fyne.NewPos(0, 0))
+		s.body.Resize(size)
+		s.body.Move(fyne.NewPos(0, 0))
 		return
 	}
-	s.bar.Hide()
 	s.list.Show()
-	s.detail.Show()
+	s.body.Show()
 	s.rule.Show()
 	pad := theme.Padding()
 	lw := ListWidth * Scale()
@@ -116,13 +128,13 @@ func (r *listDetailRenderer) Layout(size fyne.Size) {
 	s.rule.Resize(fyne.NewSize(1, size.Height))
 	s.rule.Move(fyne.NewPos(lw+pad, 0))
 	x := lw + 2*pad + 1
-	s.detail.Resize(fyne.NewSize(size.Width-x, size.Height))
-	s.detail.Move(fyne.NewPos(x, 0))
+	s.body.Resize(fyne.NewSize(size.Width-x, size.Height))
+	s.body.Move(fyne.NewPos(x, 0))
 }
 
 func (r *listDetailRenderer) MinSize() fyne.Size {
 	// Narrow is the smallest it gets: one at a time.
-	return r.s.list.MinSize().Max(r.s.detail.MinSize())
+	return r.s.list.MinSize().Max(r.s.body.MinSize())
 }
 
 func (r *listDetailRenderer) Refresh() {
@@ -132,7 +144,7 @@ func (r *listDetailRenderer) Refresh() {
 }
 
 func (r *listDetailRenderer) Objects() []fyne.CanvasObject {
-	return []fyne.CanvasObject{r.s.list, r.s.rule, r.s.detail}
+	return []fyne.CanvasObject{r.s.list, r.s.rule, r.s.body}
 }
 
 func (r *listDetailRenderer) Destroy() {}

@@ -11,6 +11,7 @@ import (
 	"fyne.io/fyne/v2/dialog"
 	"fyne.io/fyne/v2/driver/desktop"
 	"fyne.io/fyne/v2/driver/mobile"
+	"fyne.io/fyne/v2/theme"
 	"fyne.io/fyne/v2/widget"
 
 	"github.com/brunoga/armrest/internal/backend"
@@ -172,6 +173,36 @@ func (a *App) shortcuts() {
 func (a *App) show(content fyne.CanvasObject, back func() bool) {
 	a.goBack, a.shown = back, content
 	a.win.SetContent(container.NewStack(newFill(colorPage), content))
+}
+
+// where is what the app shows, under every bar's title: the hub, or the
+// file open without it; "" on the hubs screen.
+func (a *App) where() string {
+	switch {
+	case a.work != nil:
+		return a.work.Dump.Info.Name
+	case a.client != nil:
+		if n := a.client.Info().Name; n != "" {
+			return n
+		}
+		return hubName(a.hub)
+	case a.file != nil:
+		return a.file.name
+	}
+	return ""
+}
+
+// page shows content under the app's bar, titled title, with Back going
+// to back when it is set, and right's actions; goBack is what the system's
+// Back does. The title is returned, for pages whose title changes.
+func (a *App) page(title string, back func(), right, content fyne.CanvasObject, goBack func() bool) *widget.Label {
+	var left fyne.CanvasObject
+	if back != nil {
+		left = container.NewCenter(widget.NewButtonWithIcon(i18n.T("Back"), theme.NavigateBackIcon(), back))
+	}
+	top, t := bar(left, title, a.where(), right)
+	a.show(container.NewBorder(top, nil, nil, nil, content), goBack)
+	return t
 }
 
 // backTo is a Back that always goes to f.

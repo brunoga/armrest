@@ -68,7 +68,8 @@ func (s *hubsScreen) content() fyne.CanvasObject {
 		widget.ShowPopUpMenuAtRelativePosition(s.app.hubsMenu, s.app.win.Canvas(), fyne.NewPos(0, more.Size().Height), more)
 	}
 	// The app's name is under its icon.
-	return container.NewBorder(bar(nil, "", more), nil, nil, nil, s.root)
+	top, _ := bar(nil, i18n.T("Hubs"), "", container.NewCenter(more))
+	return container.NewBorder(top, nil, nil, nil, s.root)
 }
 
 // askAddress asks for the address of a hub that is not found, and

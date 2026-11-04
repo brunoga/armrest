@@ -61,6 +61,7 @@ func (s *hubsScreen) content() fyne.CanvasObject {
 	s.app.hubsMenu = fyne.NewMenu("",
 		fyne.NewMenuItem(i18n.T("Open a saved file…"), s.app.openFile),
 		fyne.NewMenuItem(i18n.T("Try the demo hub"), func() { s.app.connect(backend.DemoHub) }),
+		fyne.NewMenuItem(i18n.T("Settings"), s.app.showSettings),
 		fyne.NewMenuItem(i18n.T("About Armrest"), s.app.showAbout))
 	more := newIconButton(i18n.T("More"), theme.MoreVerticalIcon(), nil)
 	more.OnTapped = func() {

@@ -941,7 +941,10 @@ func TestAbout(t *testing.T) {
 		}
 	}
 	assertScreens(t, w, "about")
+	u.pressBack()
 
+	// The text size is in the settings, and changing it stays there.
+	menuItem(t, u, "Settings")
 	var size *widget.Select
 	walk(w, func(o fyne.CanvasObject) {
 		if s, ok := o.(*widget.Select); ok {
@@ -953,8 +956,8 @@ func TestAbout(t *testing.T) {
 	if Scale() <= normal || textSize() != 2 {
 		t.Errorf("text size %d, scale %v after Larger, from %v", textSize(), Scale(), normal)
 	}
-	if !strings.Contains(texts(w), "Bruno Albuquerque") {
-		t.Error("left the About page")
+	if !strings.Contains(texts(w), "IR code sources") {
+		t.Error("left the settings")
 	}
 	u.pressBack()
 	if !strings.Contains(texts(w), "[Hub not listed?]") {
@@ -962,17 +965,17 @@ func TestAbout(t *testing.T) {
 	}
 }
 
-func TestAboutTab(t *testing.T) {
+func TestSettingsTab(t *testing.T) {
 	u, w := newApp(t, backend.Hub{Name: "Lounge", Model: "X2", Firmware: 9, Addr: lounge})
 	test.Tap(button(t, w, "Lounge (X2, 192.168.1.20)"))
-	u.browse.tabs.SelectIndex(aboutTab)
+	u.browse.tabs.SelectIndex(settingsTab)
 	if !strings.Contains(texts(w), "Bruno Albuquerque") {
-		t.Error("no About tab")
+		t.Error("no About in the settings tab")
 	}
 	// The tabs' names show where they fit, else only their icons.
 	for _, sz := range sizes {
 		w.Resize(sz.size)
-		named := u.browse.tabs.Items[aboutTab].Text == "About"
+		named := u.browse.tabs.Items[settingsTab].Text == "Settings"
 		if want := sz.name == "wide"; named != want {
 			t.Errorf("at %s size, tabs named: %v", sz.name, named)
 		}

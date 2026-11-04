@@ -6,7 +6,6 @@ import (
 
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/canvas"
-	"fyne.io/fyne/v2/theme"
 	"fyne.io/fyne/v2/widget"
 )
 
@@ -70,12 +69,10 @@ func (r *pulseRenderer) Layout(size fyne.Size) { r.p.place(size) }
 
 func (r *pulseRenderer) MinSize() fyne.Size { return fyne.NewSize(0, 2) }
 
-// Refresh takes the theme's text color, faint: white on dark, dark on
-// light.
+// Refresh takes the app's orange, the one accent it rarely uses
+// elsewhere: it shows in both themes, on the pages and on the bar.
 func (r *pulseRenderer) Refresh() {
-	c := color.NRGBAModel.Convert(theme.Color(theme.ColorNameForeground)).(color.NRGBA)
-	c.A = 0x70
-	r.p.line.FillColor = c
+	r.p.line.FillColor = orange
 	r.p.line.Refresh()
 }
 

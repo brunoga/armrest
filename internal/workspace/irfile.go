@@ -65,3 +65,25 @@ func FromIRFile(file string, r io.Reader) (*Imported, error) {
 	}
 	return &Imported{Device: d, Skipped: skipped}, nil
 }
+
+// HasIRCodes reports whether d has a command ExportIR writes: an IR code.
+func HasIRCodes(d *profile.Device) bool {
+	for _, s := range irfile.Signals(d) {
+		if s.Skip == "" {
+			return true
+		}
+	}
+	return false
+}
+
+// ExportIR writes d's IR codes as a file of the format f, for other
+// remotes and apps, and says how many it wrote and which it left out
+// (commands that are not IR, codes the format cannot hold).
+func ExportIR(d *profile.Device, f irfile.Format, w io.Writer) (int, []irfile.Skipped, error) {
+	sigs := irfile.Signals(d)
+	skipped, err := f.Write(w, d.Name, sigs)
+	if err != nil {
+		return 0, nil, err
+	}
+	return len(sigs) - len(skipped), skipped, nil
+}

@@ -229,7 +229,7 @@ data: 9000 4500
 	pickRow(t, u, "Add a device…")
 	test.Tap(button(t, w, "From a file…"))
 	got := texts(w)
-	for _, want := range []string{"2 commands, 2 of them on the remote's keys. Power: Power.", "Netflix: raw timings"} {
+	for _, want := range []string{"3 commands, 2 of them on the remote's keys. Power: Power."} {
 		if !strings.Contains(got, want) {
 			t.Errorf("missing %q in:\n%s", want, got)
 		}

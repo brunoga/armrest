@@ -447,7 +447,8 @@ drag-reorder lists.
       the user gives (checked with the catalog; the app does not carry
       it). Its search fetches a maker's models when the search names the
       maker, finds them by model number, and adds the device with its
-      kind.
+      kind, its power the keys the code set names (and its learned codes
+      as raw IR).
 - [x] One app bar on every screen: Back where there is somewhere to go
       back to, the screen's title with the hub (or file) under it, and the
       screen's actions. The browse screen's title is its tab's, or, on a

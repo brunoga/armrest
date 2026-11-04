@@ -392,8 +392,17 @@ drag-reorder lists.
 - [x] Writing reads only what was edited: the library's apply used to
       read every device and activity first (86 s on the X2, whatever the
       edit). The hub's own pace stays: about a quarter second a write,
-      up to 15 s to delete a device, 14 s to read the hub back. The
-      result says how long writing and reading back took.
+      up to 15 s to delete a device. The result says how long writing
+      took.
+- [x] No reading back after writing when the hub answered the writes as
+      a simulated copy of it does (the copy is then the hub); otherwise,
+      or after a failure, only the devices and activities the edits
+      touched are read back (1.4-4 s on the X2, from 14-17). On the X2:
+      adding a device 9 s, an activity 11 s, deleting either under 6 s
+      (each about 2 min before). Checking the hub on connecting keeps the
+      cached signals of commands whose record is as cached (14 s, from
+      32): a signal another app rewrote under the same record shows once
+      the device is edited, as an apply reads what it edits from the hub.
 - [ ] Later: the profile library server (section 10).
 
 ## 10. The profile library server (later; not built yet)

@@ -165,7 +165,7 @@ func (a *App) showAddDevice() {
 	scratch := widget.NewButtonWithIcon(i18n.T("From scratch"), theme.DocumentCreateIcon(), a.showScratch)
 	fromFile := widget.NewButtonWithIcon(i18n.T("From a file…"), theme.FolderOpenIcon(), a.importIRFile)
 	notListed := container.NewVBox(
-		wrapped(i18n.T("Not listed? Make it from its IR codes, or from a file of them (Flipper Zero's .ir, irdb's .csv, Pronto codes in a .txt).")),
+		wrapped(i18n.T("Not listed? Make it from its IR codes, or from a file of them: Flipper Zero, irdb, SmartIR, LIRC or Girr files, or Pronto, Broadlink and other codes in a .txt.")),
 		container.NewThemeOverride(container.NewGridWithColumns(2, scratch, fromFile), tightKeys{}))
 	credit := wrapped(i18n.T("Online results come from Flipper-IRDB and irdb: untested, and the About page says whose they are."))
 	credit.TextStyle.Italic = true

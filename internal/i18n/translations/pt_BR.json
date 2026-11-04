@@ -198,7 +198,7 @@
   "None": "Nenhum",
   "Normal": "Normal",
   "Not connected to the hub: reconnect first.": "Sem conexão com o hub: conecte de novo primeiro.",
-  "Not listed? Make it from its IR codes, or from a file of them (Flipper Zero's .ir, irdb's .csv, Pronto codes in a .txt).": "Não está na lista? Crie-o a partir dos seus códigos IR, ou de um arquivo deles (.ir do Flipper Zero, .csv do irdb, códigos Pronto em um .txt).",
+  "Not listed? Make it from its IR codes, or from a file of them: Flipper Zero, irdb, SmartIR, LIRC or Girr files, or Pronto, Broadlink and other codes in a .txt.": "Não está na lista? Crie-o a partir dos seus códigos IR, ou de um arquivo deles: arquivos do Flipper Zero, irdb, SmartIR, LIRC ou Girr, ou códigos Pronto, Broadlink e outros em um .txt.",
   "Not set.": "Não definido.",
   "Not set: activities turn it on and off with its own power macros.": "Não definido: as atividades o ligam e desligam com as próprias macros de energia dele.",
   "Nothing": "Nada",

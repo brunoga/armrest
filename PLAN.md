@@ -428,8 +428,11 @@ drag-reorder lists.
       codes (.txt) import, and RC5, RCA, Pioneer, NEC42, 16-bit NEC and
       other vendors' Kaseikyo become timings, in files and in the online
       search's; "From scratch" makes RC5, RCA and Pioneer devices; devices
-      of learned codes restore. Next formats: Broadlink (SmartIR), LIRC,
-      Global Caché, Unfolded Circle.
+      of learned codes restore.
+- [x] More files of IR codes in "Add a device" (the library's irfile):
+      SmartIR's .json (Broadlink codes), LIRC's .conf, Girr, and codes one
+      a line in a .txt (Pronto, Global Caché's sendir, Broadlink's,
+      Unfolded Circle's). Next: exporting a device's codes in them.
 - [ ] Later: the profile library server (section 10).
 
 ## 10. The profile library server (later; not built yet)

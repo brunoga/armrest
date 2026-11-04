@@ -56,8 +56,16 @@ type App struct {
 	hub backend.Hub
 	// work is the connected hub's configuration, once read.
 	work *workspace.Workspace
-	// checking is set while the hub is checked against the cache.
+	// checking is set while the hub's lists are checked against the
+	// cache, on connecting.
 	checking bool
+	// checked is the devices and activities, by id, read from the hub on
+	// this connection: nobody else can change the hub while it lasts, so
+	// once is enough. toCheck is those waiting to be read, in turn, the
+	// device or activity opened first; checkRunning is set while one is.
+	checked      map[byte]bool
+	toCheck      []byte
+	checkRunning bool
 	// browse is the browse screen last shown.
 	browse *browseScreen
 	// file is the workspace file opened, until it is applied to its hub.
@@ -122,6 +130,7 @@ func (a *App) Close() {
 	}
 	a.work = nil
 	a.checking = false
+	a.forgetChecks()
 	a.readAt, a.saved = time.Time{}, nil
 	a.tab = hubTab
 }
@@ -306,6 +315,8 @@ func (a *App) reconnect() {
 			}
 			a.client = c
 			a.watch(c)
+			// Another app may have changed the hub while it was away.
+			a.forgetChecks()
 			a.checkForChanges(h, a.browse, a.readAt)
 		})
 	})

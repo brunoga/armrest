@@ -416,6 +416,13 @@ drag-reorder lists.
       support is behind the `accessibility` build tag and only sees
       widgets in plain containers, not inside scrolls, tabs or cards,
       which is most of the app; we turn it on once it does.
+- [x] Connecting reads what the official app does: the hub's lists
+      (1.2 s on the X2, from 14 s), and the devices and activities whose
+      row changed; the rest shows from the cache and is read when it is
+      opened, once a connection (nobody else can change the hub while we
+      are connected): an activity in about 1 s, a device in 1-6 s, in the
+      background. Captures showed the app reads only the device list on
+      connecting, and each screen's records each time it opens.
 - [ ] Later: the profile library server (section 10).
 
 ## 10. The profile library server (later; not built yet)

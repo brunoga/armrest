@@ -483,10 +483,12 @@ func (s *browseScreen) newList(hint string, build func() []browseRow) *browseLis
 		case r.activity != nil:
 			b.shown = &r
 			act := r.activity
+			s.app.check(act.Name)
 			b.split.show(act.Name, activityView(act, s.app.work.Dump.Info.Model, s.controls(act.Name, s.app.work.ActivityState(act) == workspace.New), func() { s.app.showEditActivity(act.Name) }))
 		case r.device != nil:
 			b.shown = &r
 			d := r.device
+			s.app.check(d.Name)
 			b.split.show(d.Name, deviceView(d, s.app.work.Dump.Info.Model, s.controls(d.Name, s.app.work.DeviceState(d) == workspace.New), func() { s.app.showEditDevice(d.Name) }))
 		}
 	}

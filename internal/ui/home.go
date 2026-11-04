@@ -144,9 +144,13 @@ func (a *App) checkForChanges(h backend.Hub, s *browseScreen, since time.Time) {
 	s.setStatus(true, fmt.Sprintf("Showing the hub as it was %s. Checking for changes…", ago(since, a.now())))
 	c := a.client
 	a.async(func() {
-		// Every signal is read again: the hub keeps a command's record when
-		// its signal is rewritten, so the cache cannot tell which changed.
-		w, err := workspace.Read(context.Background(), c, nil)
+		// The signals of commands whose record is as cached are kept: the
+		// hub keeps a command's record when another app rewrites its
+		// signal, so such a change shows only once the device is edited.
+		// Writing is safe whatever the cache: an apply reads the devices
+		// it edits from the hub, and reads the hub back if it answered
+		// otherwise than the cached copy.
+		w, err := workspace.Refresh(context.Background(), c, a.work.Dump, nil)
 		fyne.Do(func() {
 			if a.client != c {
 				return // disconnected meanwhile

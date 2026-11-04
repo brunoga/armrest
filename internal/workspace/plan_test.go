@@ -79,6 +79,14 @@ func applied(t *testing.T, w *Workspace, c *hub.Client, total int, progress func
 		t.Fatal(err)
 	}
 	t.Logf("applied in %v, read back in %v", applied.Round(time.Millisecond), time.Since(start).Round(time.Millisecond))
+	// What was read back, partly, is the hub as a full read has it.
+	if full, err := Read(ctx, c, nil); err != nil {
+		t.Fatal(err)
+	} else if !full.Same(back) {
+		a, _ := yaml.Marshal(back.Config)
+		b, _ := yaml.Marshal(full.Config)
+		t.Errorf("read back:\n%s\nfull read:\n%s", a, b)
+	}
 	switch {
 	case next == nil && sure:
 		t.Error("no prediction: the hub answered otherwise than its simulated copy")

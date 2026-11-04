@@ -158,8 +158,8 @@ func Refresh(ctx context.Context, c *hub.Client, old *dump.File, progress func(d
 const Again = "(again)"
 
 // ReadBack reads the hub after the workspace's edits were applied to it:
-// the signals of the devices the edits changed are read again, the others'
-// kept.
+// the devices and activities the edits touched (see touched), with the
+// signals of the devices edited; the others are kept as read.
 func (w *Workspace) ReadBack(ctx context.Context, c *hub.Client, progress func(done, total int, name string)) (*Workspace, error) {
 	stale := map[byte]bool{}
 	for _, d := range w.Config.Devices {
@@ -177,7 +177,72 @@ func (w *Workspace) ReadBack(ctx context.Context, c *hub.Client, progress func(d
 		}
 		old.Entities = append(old.Entities, e)
 	}
-	return Refresh(ctx, c, &old, progress)
+	touched := w.touched()
+	var err error
+	for try := 0; try < Attempts; try++ {
+		if try > 0 && progress != nil {
+			progress(0, 1, Again)
+		}
+		var d *dump.File
+		if d, err = dump.RefreshSome(ctx, c, &old, func(id byte) bool { return touched[id] }, Tool, nil, progress); err != nil {
+			return nil, err
+		}
+		var next *Workspace
+		if next, err = FromDump(ctx, d); err == nil {
+			return next, nil
+		}
+	}
+	return nil, err
+}
+
+// touched is the ids of the devices and activities the edits may have
+// changed on the hub: those edited, the activities with an edited
+// device (its macros' copies are in them), and the devices of the
+// activities edited, added or removed. New ones have no id yet: they are
+// read as new.
+func (w *Workspace) touched() map[byte]bool {
+	ids := map[string]byte{}
+	for _, cfg := range []*profile.Config{w.base, w.Config} {
+		for _, d := range cfg.Devices {
+			if d.ID != 0 {
+				ids[strings.ToLower(d.Name)] = d.ID
+			}
+		}
+	}
+	out := map[byte]bool{}
+	edited := map[string]bool{}
+	for _, d := range w.Config.Devices {
+		if w.DeviceState(d) != Unchanged {
+			out[d.ID] = true
+			edited[strings.ToLower(d.Name)] = true
+		}
+	}
+	members := func(a *profile.Activity) {
+		for _, m := range a.Devices {
+			if id, ok := ids[strings.ToLower(m.Device)]; ok {
+				out[id] = true
+			}
+		}
+	}
+	for _, a := range w.Config.Activities {
+		changed := w.ActivityState(a) != Unchanged
+		for _, m := range a.Devices {
+			changed = changed || edited[strings.ToLower(m.Device)]
+		}
+		if changed {
+			out[a.ID] = true
+			members(a)
+		}
+	}
+	// The activities removed, and the base's of those changed.
+	for _, b := range w.base.Activities {
+		if a := w.Config.Activity(b.Name); a == nil || out[b.ID] {
+			out[b.ID] = true
+			members(b)
+		}
+	}
+	delete(out, 0)
+	return out
 }
 
 // Same reports whether w and o hold the same configuration. The hub

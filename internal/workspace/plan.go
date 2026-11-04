@@ -4,11 +4,16 @@ import (
 	"context"
 	"fmt"
 	"regexp"
+	"slices"
 	"strconv"
 	"strings"
+	"sync"
 
+	"github.com/brunoga/sofabaton/dump"
 	"github.com/brunoga/sofabaton/hub"
+	"github.com/brunoga/sofabaton/hubsim"
 	"github.com/brunoga/sofabaton/profile"
+	"github.com/brunoga/sofabaton/wire"
 )
 
 // Plan is what applying the workspace's edits writes to the hub.
@@ -49,7 +54,13 @@ func (w *Workspace) Plan(ctx context.Context) (*Plan, error) {
 // (if not nil) after each write with how many are done of total, the
 // count Plan gave. ctx cancels it between writes; what was written
 // stays written, so read the hub again after a failure.
-func (w *Workspace) Apply(ctx context.Context, c *hub.Client, total int, progress func(done, total int, step string)) error {
+//
+// It returns the workspace of the hub after the writes, without reading
+// it, when the hub answered them as a simulated copy of it answers the
+// same writes: no one else can change the hub while c is connected, and
+// the hub's answers carry what it decides itself (the ids it gives).
+// Otherwise it returns nil: read the hub back (ReadBack).
+func (w *Workspace) Apply(ctx context.Context, c *hub.Client, total int, progress func(done, total int, step string)) (*Workspace, error) {
 	done := 0
 	report := func(line string) {
 		if strings.HasPrefix(line, "  ") || reDeleted.MatchString(line) {
@@ -59,7 +70,90 @@ func (w *Workspace) Apply(ctx context.Context, c *hub.Client, total int, progres
 			progress(min(done, total), total, strings.TrimSpace(line))
 		}
 	}
-	return profile.ApplyConfig(ctx, c, w.Config, w.applyOptions(report))
+	var real exchanges
+	stop := c.Session().Watch(real.add)
+	err := profile.ApplyConfig(ctx, c, w.Config, w.applyOptions(report))
+	stop()
+	if err != nil {
+		return nil, err
+	}
+	return w.predict(ctx, real.frames()), nil
+}
+
+// predict is the workspace of the hub after the edits, made by applying
+// them to a simulated copy of the hub as it was read, if the copy
+// exchanged real's frames; nil if it did not.
+func (w *Workspace) predict(ctx context.Context, real []exchanged) *Workspace {
+	m, err := w.Dump.Model()
+	if err != nil {
+		return nil
+	}
+	sim, err := hub.Open(ctx, hubsim.Pipe(hubsim.FromModel(m)), hub.Options{})
+	if err != nil {
+		return nil
+	}
+	defer func() { _ = sim.Close() }()
+	var got exchanges
+	stop := sim.Session().Watch(got.add)
+	err = profile.ApplyConfig(ctx, sim, w.Config, w.applyOptions(nil))
+	stop()
+	if err != nil || !slices.Equal(real, got.frames()) {
+		if differ != nil {
+			differ(real, got.frames())
+		}
+		return nil
+	}
+	d, err := dump.ReadProgress(ctx, sim, Tool, nil, nil)
+	if err != nil {
+		return nil
+	}
+	next, err := FromDump(ctx, d)
+	if err != nil {
+		return nil
+	}
+	return next
+}
+
+// differ, if set (by tests), is told of an apply the simulated copy did
+// not exchange as the hub did.
+var differ func(real, sim []exchanged)
+
+// exchanged is a frame of an apply that a simulated hub must match: every
+// frame sent, and the hub's answers to writes, by their family and first
+// byte (the status, or the id the hub gave). Replies to reads are left
+// out: they carry what the hub changes on its own (power states).
+type exchanged struct {
+	dir     wire.Direction
+	family  wire.Family
+	payload string
+}
+
+// exchanges records an apply's frames; the session adds them from its
+// goroutines.
+type exchanges struct {
+	mu   sync.Mutex
+	list []exchanged
+}
+
+func (x *exchanges) add(d wire.Direction, f wire.Frame) {
+	e := exchanged{dir: d, family: f.Family, payload: string(f.Payload)}
+	if d == wire.FromHub {
+		switch f.Family {
+		case wire.FamStatusAck, wire.FamCreateDeviceAck, wire.FamMacroAck, wire.FamCreateActAck, wire.FamButtonAck:
+			e.payload = string(f.Payload[:min(len(f.Payload), 1)])
+		default:
+			return
+		}
+	}
+	x.mu.Lock()
+	defer x.mu.Unlock()
+	x.list = append(x.list, e)
+}
+
+func (x *exchanges) frames() []exchanged {
+	x.mu.Lock()
+	defer x.mu.Unlock()
+	return slices.Clone(x.list)
 }
 
 // applyOptions make the hub hold exactly the workspace: matched by id, as

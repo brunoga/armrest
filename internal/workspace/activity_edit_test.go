@@ -70,13 +70,7 @@ func TestSaveActivity(t *testing.T) {
 			t.Errorf("missing %q in:\n%s", want, got)
 		}
 	}
-	if err := w.Apply(ctx, c, p.Writes, nil); err != nil {
-		t.Fatal(err)
-	}
-	back, err := w.ReadBack(ctx, c, nil)
-	if err != nil {
-		t.Fatal(err)
-	}
+	back := applied(t, w, c, p.Writes, nil, true)
 	a := back.Config.Activity("Movie Night")
 	if a == nil || len(a.Devices) != 2 || a.Buttons["OK"].Short != "3D Player: OK" || len(a.PowerOn) == 0 {
 		t.Fatalf("Movie Night on the hub: %+v", a)

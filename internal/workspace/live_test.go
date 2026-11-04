@@ -101,14 +101,8 @@ func TestLiveAddDevice(t *testing.T) {
 			t.Fatalf("plan is not just %q:\n%+v", want, p.Changes)
 		}
 		start := time.Now()
-		if err := w.Apply(ctx, c, p.Writes, nil); err != nil {
-			t.Fatal(err)
-		}
-		t.Logf("%s: %d writes in %v", want, p.Writes, time.Since(start).Round(time.Second))
-		back, err := w.ReadBack(ctx, c, nil)
-		if err != nil {
-			t.Fatal(err)
-		}
+		back := applied(t, w, c, p.Writes, nil, false)
+		t.Logf("%s: %d writes, and the read back, in %v", want, p.Writes, time.Since(start).Round(time.Second))
 		if name != "" {
 			wantD, gotD := *w.Config.Device(name), back.Config.Device(name)
 			if gotD == nil {
@@ -232,14 +226,8 @@ func TestLiveActivity(t *testing.T) {
 			t.Fatalf("plan is not just %q:\n%+v", want, p.Changes)
 		}
 		start := time.Now()
-		if err := w.Apply(ctx, c, p.Writes, nil); err != nil {
-			t.Fatal(err)
-		}
-		t.Logf("%s: %d writes in %v", want, p.Writes, time.Since(start).Round(time.Second))
-		back, err := w.ReadBack(ctx, c, nil)
-		if err != nil {
-			t.Fatal(err)
-		}
+		back := applied(t, w, c, p.Writes, nil, false)
+		t.Logf("%s: %d writes, and the read back, in %v", want, p.Writes, time.Since(start).Round(time.Second))
 		if name != "" {
 			a := back.Config.Activity(name)
 			if a == nil {

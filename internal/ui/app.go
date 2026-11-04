@@ -18,6 +18,7 @@ import (
 	"github.com/brunoga/armrest/internal/cache"
 	"github.com/brunoga/armrest/internal/workspace"
 	"github.com/brunoga/sofabaton/hub"
+	"github.com/brunoga/sofabaton/irsource"
 )
 
 // ConnectTimeout bounds a connection attempt: a hub answers CALL_ME and
@@ -78,6 +79,12 @@ type App struct {
 	reconnecting bool
 	// retryWait is the wait between attempts to connect again.
 	retryWait time.Duration
+
+	// online is the online sources of IR codes' indexes; irIndex and
+	// irFetch get an index and a file (tests fake them).
+	online  online
+	irIndex func(context.Context, irsource.Source) ([]irsource.Entry, error)
+	irFetch func(context.Context, irsource.Entry) ([]byte, error)
 }
 
 // New returns the app for win.
@@ -86,6 +93,8 @@ func New(win fyne.Window, back backend.Backend) *App {
 	win.SetPadded(false)
 	a := &App{win: win, back: back, async: func(f func()) { go f() }, now: time.Now, pickers: systemPickers, retryWait: 3 * time.Second}
 	a.watch = a.watchConnection
+	a.irIndex = a.cachedIndex
+	a.irFetch = func(ctx context.Context, e irsource.Entry) ([]byte, error) { return irsource.Fetch(ctx, nil, e) }
 	return a
 }
 

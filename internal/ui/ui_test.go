@@ -21,6 +21,7 @@ import (
 	"github.com/brunoga/armrest/internal/demo"
 	"github.com/brunoga/sofabaton/hub"
 	"github.com/brunoga/sofabaton/hubsim"
+	"github.com/brunoga/sofabaton/irsource"
 	"github.com/brunoga/sofabaton/profile"
 	"github.com/brunoga/sofabaton/transport"
 	"github.com/brunoga/sofabaton/wire"
@@ -47,6 +48,7 @@ func newApp(t *testing.T, hubs ...backend.Hub) (*App, fyne.Window) {
 	}
 	u := New(w, back)
 	u.watch, u.retryWait = func(*hub.Client) {}, 0 // the tests drop connections
+	u.irIndex = func(context.Context, irsource.Source) ([]irsource.Entry, error) { return nil, nil }
 	u.async = func(f func()) { f() }
 	t.Cleanup(u.Close)
 	u.Start()
@@ -263,6 +265,7 @@ func TestReadFailure(t *testing.T) {
 	}
 	u := New(w, back)
 	u.watch, u.retryWait = func(*hub.Client) {}, 0 // the tests drop connections
+	u.irIndex = func(context.Context, irsource.Source) ([]irsource.Entry, error) { return nil, nil }
 	u.async = func(f func()) { f() }
 	t.Cleanup(u.Close)
 	u.Start()
@@ -332,6 +335,7 @@ func cachedApp(t *testing.T) (u *App, w fyne.Window, run func(), step func(), re
 	}
 	u = New(w, back)
 	u.watch, u.retryWait = func(*hub.Client) {}, 0 // the tests drop connections
+	u.irIndex = func(context.Context, irsource.Source) ([]irsource.Entry, error) { return nil, nil }
 	var queue []func()
 	u.async = func(f func()) { queue = append(queue, f) }
 	step = func() {

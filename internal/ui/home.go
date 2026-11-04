@@ -6,6 +6,7 @@ import (
 	"encoding/hex"
 	"errors"
 	"io"
+	"slices"
 	"time"
 
 	"fyne.io/fyne/v2"
@@ -86,6 +87,9 @@ func (a *App) showHome(h backend.Hub) {
 		fyne.Do(func() {
 			a.awake(false)
 			alive.Stop()
+			if err == nil {
+				a.allChecked(w)
+			}
 			switch {
 			case errors.Is(err, context.Canceled):
 				// Cancel went back to the hubs already.
@@ -136,52 +140,154 @@ func (a *App) saveEdits(h backend.Hub, w *workspace.Workspace) {
 	a.saved = append([]byte{}, edits...)
 }
 
-// checkForChanges reads the hub again in the background and updates s if
-// the hub changed since it was read, at since.
+// checkForChanges reads the hub's lists in the background and updates s
+// if they changed since the hub was read, at since: the devices and
+// activities whose row changed are read again, the others are checked as
+// they are opened (see check).
 func (a *App) checkForChanges(h backend.Hub, s *browseScreen, since time.Time) {
 	a.checking = true
 	s.showChanges()
 	s.setStatus(true, i18n.T("Showing the hub as it was %s. Checking for changes…", ago(since, a.now())))
-	c := a.client
+	c, old := a.client, a.work
 	a.async(func() {
-		// The signals of commands whose record is as cached are kept: the
-		// hub keeps a command's record when another app rewrites its
-		// signal, so such a change shows only once the device is edited.
 		// Writing is safe whatever the cache: an apply reads the devices
 		// it edits from the hub, and reads the hub back if it answered
 		// otherwise than the cached copy.
-		w, err := workspace.Refresh(context.Background(), c, a.work.Dump, nil)
+		w, err := workspace.RefreshRows(context.Background(), c, old.Dump)
 		fyne.Do(func() {
 			if a.client != c {
 				return // disconnected meanwhile
 			}
 			a.checking = false
 			s := a.browse
-			switch {
-			case err != nil:
+			if err != nil {
 				s.setStatus(false, i18n.T("Showing the hub as it was %s: checking it for changes failed. %s", ago(since, a.now()), readFailure(err)))
 				s.showChanges()
 				return
-			case a.work.Same(w) || (a.work.Changed() && a.work.SameBase(w)):
-				// Nothing changed on the hub: keep the edits, if any, on
-				// the fresh read.
-				w.KeepEdits(a.work)
-				a.work = w
-				a.remember(h, w)
+			}
+			switch a.adopt(h, w) {
+			case adoptedSame:
 				s.setStatus(false, i18n.T("Up to date."))
-			case !a.work.Changed():
-				a.work = w
-				a.remember(h, w)
-				s.reload()
+			case adoptedChanged:
 				s.setStatus(false, i18n.T("Updated with the hub's changes."))
-			default:
-				// Remembered once the user chose: the edits are cached
-				// until then.
-				a.hubChangedUnderEdits(w)
 			}
 			s.showChanges()
+			a.nextCheck()
 		})
 	})
+}
+
+// How adopt took a fresh read of the hub.
+const (
+	adoptedSame    = iota // as the workspace had it
+	adoptedChanged        // the hub changed: shown as it is
+	adoptedAsking         // the hub changed under edits: the user is asked
+)
+
+// adopt makes w, the hub read again, the workspace: keeping the edits if
+// the hub did not change under them, asking otherwise.
+func (a *App) adopt(h backend.Hub, w *workspace.Workspace) int {
+	switch {
+	case a.work.Same(w) || (a.work.Changed() && a.work.SameBase(w)):
+		// Nothing changed on the hub: keep the edits, if any, on the
+		// fresh read.
+		w.KeepEdits(a.work)
+		a.work = w
+		a.remember(h, w)
+		return adoptedSame
+	case !a.work.Changed():
+		a.work = w
+		a.remember(h, w)
+		a.browse.reload()
+		return adoptedChanged
+	}
+	// Remembered once the user chose: the edits are cached until then.
+	a.hubChangedUnderEdits(w)
+	return adoptedAsking
+}
+
+// check reads the device or activity named name from the hub in the
+// background, if it was not on this connection, and shows it again if it
+// changed: an activity first, then its devices. The cache shows it
+// meanwhile.
+func (a *App) check(name string) {
+	if a.client == nil || a.hub.Demo || a.file != nil || a.work == nil {
+		return
+	}
+	if a.checked == nil {
+		a.forgetChecks()
+	}
+	for _, id := range a.work.IDs(name) {
+		if !a.checked[id] && !slices.Contains(a.toCheck, id) {
+			a.toCheck = append(a.toCheck, id)
+		}
+	}
+	a.nextCheck()
+}
+
+// nextCheck reads the next device or activity waiting to be checked,
+// unless the hub is being checked, read or written already.
+func (a *App) nextCheck() {
+	if a.checkRunning || a.checking || a.working || a.client == nil {
+		return
+	}
+	for len(a.toCheck) > 0 && a.checked[a.toCheck[0]] {
+		a.toCheck = a.toCheck[1:]
+	}
+	if len(a.toCheck) == 0 {
+		return
+	}
+	id := a.toCheck[0]
+	a.checkRunning = true
+	c, w, h := a.client, a.work, a.hub
+	a.async(func() {
+		ctx, cancel := context.WithTimeout(context.Background(), checkTimeout)
+		defer cancel()
+		next, err := w.Check(ctx, c, map[byte]bool{id: true})
+		fyne.Do(func() {
+			if a.client != c {
+				return // disconnected meanwhile: the checks start over
+			}
+			a.checkRunning = false
+			switch {
+			case err != nil:
+				// Shown from the cache still; opening it again tries again.
+				fyne.LogError("checking the hub", err)
+				a.toCheck = nil
+				return
+			case a.work == nil || a.work.Dump != w.Dump:
+				// Written or read meanwhile: read again what was read.
+				a.nextCheck()
+				return
+			}
+			a.checked[id] = true
+			a.toCheck = a.toCheck[1:]
+			if a.adopt(h, next) == adoptedChanged {
+				a.browse.setStatus(false, i18n.T("Updated with the hub's changes."))
+			}
+			a.nextCheck()
+		})
+	})
+}
+
+// checkTimeout bounds reading one device or activity: one with many
+// commands takes a few seconds.
+const checkTimeout = time.Minute
+
+// forgetChecks starts the checks over, for a new connection.
+func (a *App) forgetChecks() {
+	a.checked, a.toCheck, a.checkRunning = map[byte]bool{}, nil, false
+}
+
+// allChecked marks w's devices and activities checked: read whole on this
+// connection.
+func (a *App) allChecked(w *workspace.Workspace) {
+	if a.checked == nil {
+		a.forgetChecks()
+	}
+	for _, e := range w.Dump.Entities {
+		a.checked[e.ID] = true
+	}
 }
 
 // hubChangedUnderEdits asks what to do when the hub changed since it was

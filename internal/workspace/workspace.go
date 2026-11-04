@@ -12,6 +12,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"slices"
 	"strings"
 
 	"go.yaml.in/yaml/v3"
@@ -179,13 +180,20 @@ func (w *Workspace) ReadBack(ctx context.Context, c *hub.Client, progress func(d
 		old.Entities = append(old.Entities, e)
 	}
 	touched := w.touched()
+	return refreshSome(ctx, c, &old, func(id byte) bool { return touched[id] }, progress)
+}
+
+// refreshSome reads the devices and activities stale picks again into
+// a copy of old, keeping the others; as Refresh, it starts over once if
+// the hub's answers did not hold together.
+func refreshSome(ctx context.Context, c *hub.Client, old *dump.File, stale func(id byte) bool, progress func(done, total int, name string)) (*Workspace, error) {
 	var err error
 	for try := 0; try < Attempts; try++ {
 		if try > 0 && progress != nil {
 			progress(0, 1, Again)
 		}
 		var d *dump.File
-		if d, err = dump.RefreshSome(ctx, c, &old, func(id byte) bool { return touched[id] }, Tool, nil, progress); err != nil {
+		if d, err = dump.RefreshSome(ctx, c, old, stale, Tool, nil, progress); err != nil {
 			return nil, err
 		}
 		var next *Workspace
@@ -194,6 +202,77 @@ func (w *Workspace) ReadBack(ctx context.Context, c *hub.Client, progress func(d
 		}
 	}
 	return nil, err
+}
+
+// RefreshRows is Refresh for a hub connected to again since old was read,
+// as a phone does each time the app opens: the hub's lists are read, and
+// only the devices and activities whose row in them is new or changed (a
+// rename, a new icon). The others are as old has them: their commands,
+// keys and macros are read with Check before they are shown, as the
+// official app does. Nobody else can change the hub while c is
+// connected, so that is once a connection.
+func RefreshRows(ctx context.Context, c *hub.Client, old *dump.File) (*Workspace, error) {
+	var err error
+	for try := 0; try < Attempts; try++ {
+		var d *dump.File
+		if d, err = dump.RefreshRows(ctx, c, old, Tool, nil, nil); err != nil {
+			return nil, err
+		}
+		var w *Workspace
+		if w, err = FromDump(ctx, d); err == nil {
+			return w, nil
+		}
+	}
+	return nil, err
+}
+
+// Check reads the devices and activities of ids again from the hub,
+// keeping the others and the lists as read: before showing them, after
+// RefreshRows on the same connection.
+func (w *Workspace) Check(ctx context.Context, c *hub.Client, ids map[byte]bool) (*Workspace, error) {
+	var err error
+	for try := 0; try < Attempts; try++ {
+		var d *dump.File
+		if d, err = dump.RefreshOnly(ctx, c, w.Dump, func(id byte) bool { return ids[id] }, Tool, nil, nil); err != nil {
+			return nil, err
+		}
+		var next *Workspace
+		if next, err = FromDump(ctx, d); err == nil {
+			return next, nil
+		}
+	}
+	return nil, err
+}
+
+// IDs is the hub's id of the device or activity named name, first, and,
+// for an activity, its devices': what to Check to show it as the hub has
+// it. One not on the hub yet has none of its own.
+func (w *Workspace) IDs(name string) []byte {
+	ids := map[string]byte{}
+	for _, d := range w.base.Devices {
+		ids[strings.ToLower(d.Name)] = d.ID
+	}
+	var out []byte
+	add := func(id byte) {
+		if id != 0 && !slices.Contains(out, id) {
+			out = append(out, id)
+		}
+	}
+	if d := w.base.Device(name); d != nil {
+		add(d.ID)
+	}
+	for _, a := range []*profile.Activity{w.base.Activity(name), w.Config.Activity(name)} {
+		if a == nil {
+			continue
+		}
+		if b := w.base.Activity(a.Name); b != nil {
+			add(b.ID)
+		}
+		for _, m := range a.Devices {
+			add(ids[strings.ToLower(m.Device)])
+		}
+	}
+	return out
 }
 
 // touched is the ids of the devices and activities the edits may have

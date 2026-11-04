@@ -36,14 +36,49 @@ func TestLive(t *testing.T) {
 		t.Logf("%v: %d devices, %d activities, in %v", h, len(w.Config.Devices), len(w.Config.Activities), time.Since(start).Round(time.Second))
 		start = time.Now()
 		again, err := Refresh(ctx, c, w.Dump, nil)
-		_ = c.Close()
 		if err != nil {
+			_ = c.Close()
 			t.Fatalf("%v: refresh: %v", h, err)
 		}
 		if !again.Same(w) {
 			t.Errorf("%v: the refresh differs", h)
 		}
 		t.Logf("%v: refreshed in %v", h, time.Since(start).Round(time.Second))
+		// Connecting with a cached copy: the lists, then each device and
+		// activity as it is shown.
+		start = time.Now()
+		rows, err := RefreshRows(ctx, c, w.Dump)
+		if err != nil {
+			_ = c.Close()
+			t.Fatalf("%v: rows: %v", h, err)
+		}
+		if !rows.Same(w) {
+			t.Errorf("%v: the rows' refresh differs", h)
+		}
+		t.Logf("%v: lists checked in %v", h, time.Since(start).Round(100*time.Millisecond))
+		var names []string
+		for _, d := range w.Config.Devices {
+			names = append(names, d.Name)
+		}
+		for _, a := range w.Config.Activities {
+			names = append(names, a.Name)
+		}
+		// Each is read alone, as the app does: an activity's devices
+		// after it.
+		for _, n := range names {
+			id := rows.IDs(n)[0]
+			start = time.Now()
+			checked, err := rows.Check(ctx, c, map[byte]bool{id: true})
+			if err != nil {
+				_ = c.Close()
+				t.Fatalf("%v: checking %s: %v", h, n, err)
+			}
+			if !checked.Same(w) {
+				t.Errorf("%v: checking %s differs", h, n)
+			}
+			t.Logf("%v: %s checked in %v", h, n, time.Since(start).Round(100*time.Millisecond))
+		}
+		_ = c.Close()
 	}
 }
 

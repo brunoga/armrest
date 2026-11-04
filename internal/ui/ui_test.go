@@ -330,6 +330,9 @@ func cachedApp(t *testing.T) (u *App, w fyne.Window, run func(), step func(), re
 			if *renamed {
 				m.Activities[0].Name = "Movie Night"
 			}
+			if hubChange != nil {
+				hubChange(m)
+			}
 			return hub.Open(ctx, hubsim.Pipe(hubsim.FromModel(m)), hub.Options{})
 		},
 	}
@@ -365,6 +368,40 @@ func cachedApp(t *testing.T) (u *App, w fyne.Window, run func(), step func(), re
 	hubAction(t, u, "Disconnect")
 	run()
 	return u, w, run, step, renamed, now
+}
+
+// hubChange, when set, changes the hub cachedApp's backend connects to.
+var hubChange func(m *hubsim.Model)
+
+// A device changed on the hub, but not in its row of the hub's list, is
+// seen once it is opened: it is read again then, once a connection.
+func TestCachedHubDeviceChanged(t *testing.T) {
+	u, w, run, _, _, _ := cachedApp(t)
+	hubChange = func(m *hubsim.Model) {
+		for _, d := range m.Devices {
+			if d.Name == "3D Player" {
+				m.Commands[d.ID][0].Label = "Changed"
+			}
+		}
+	}
+	t.Cleanup(func() { hubChange = nil })
+	command := func() string { return u.work.Config.Device("3D Player").Commands[0].Name }
+	test.Tap(button(t, w, "Lounge (X2, 192.168.1.20)"))
+	run()
+	if got := texts(w); !strings.Contains(got, "Up to date.") || command() == "Changed" {
+		t.Fatalf("after connecting, the lists as cached: %q\n%s", command(), got)
+	}
+	pickRow(t, u, "3D Player")
+	run()
+	if got := texts(w); !strings.Contains(got, "Updated with the hub's changes.") || command() != "Changed" {
+		t.Fatalf("once opened: %q\n%s", command(), got)
+	}
+	// Opened again on the same connection, it is not read again.
+	u.browse.devices.split.clear()
+	u.browse.devices.list.UnselectAll()
+	if pickRow(t, u, "3D Player"); u.checkRunning || len(u.toCheck) > 0 {
+		t.Errorf("read again: running %v, waiting %v", u.checkRunning, u.toCheck)
+	}
 }
 
 // A hub seen before shows at once from the cache, then is checked for

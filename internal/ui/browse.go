@@ -22,7 +22,7 @@ const (
 	hubTab = iota
 	devicesTab
 	activitiesTab
-	aboutTab
+	settingsTab
 )
 
 // browseScreen shows the hub in tabs: the hub itself (what it is, saving
@@ -365,7 +365,7 @@ func (s *browseScreen) content(h backend.Hub) fyne.CanvasObject {
 	hub := container.NewTabItemWithIcon(i18n.T("Hub"), theme.HomeIcon(), slot(s.hubContent(h)))
 	s.devices.tab = container.NewTabItemWithIcon(i18n.T("Devices"), theme.ComputerIcon(), slot(s.devices.split))
 	s.activities.tab = container.NewTabItemWithIcon(i18n.T("Activities"), theme.MediaPlayIcon(), slot(s.activities.split))
-	about := container.NewTabItemWithIcon(i18n.T("About"), theme.InfoIcon(), slot(s.app.aboutContent(s.app.backToBrowse)))
+	about := container.NewTabItemWithIcon(i18n.T("Settings"), theme.SettingsIcon(), slot(s.app.settingsAndAbout(s.app.backToBrowse)))
 	s.tabs = container.NewAppTabs(hub, s.devices.tab, s.activities.tab, about)
 	if fyne.CurrentDevice().IsMobile() {
 		s.tabs.SetTabLocation(container.TabLocationBottom)

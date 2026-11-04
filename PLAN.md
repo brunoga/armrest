@@ -440,6 +440,14 @@ drag-reorder lists.
 - [x] A device's kind (the library's category: TV, Blu-ray, Projector,
       Receiver) in the device editor, and on its page when the icon does
       not say it; the Denon receiver's Zone 2 and Zone 3 templates.
+- [x] Settings, a screen of their own (the hubs menu, and the browse
+      screen's last tab, the About page under them): text size, connecting
+      to the last hub on start, and the IR code sources: Flipper-IRDB and
+      irdb on, Sofabaton's catalog off until turned on with its key, which
+      the user gives (checked with the catalog; the app does not carry
+      it). Its search fetches a maker's models when the search names the
+      maker, finds them by model number, and adds the device with its
+      kind.
 - [ ] Later: the profile library server (section 10).
 
 ## 10. The profile library server (later; not built yet)

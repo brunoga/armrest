@@ -36,6 +36,7 @@ func (a *App) showAddDevice() {
 	all := workspace.Templates()
 	shown := all
 	var found []irsource.Entry // online, after the templates
+	var sofabatonFetched func(irsource.SofabatonBrand, error)
 	search := widget.NewEntry()
 	search.SetPlaceHolder(i18n.T("Search by brand or model"))
 	list := widget.NewList(
@@ -91,7 +92,16 @@ func (a *App) showAddDevice() {
 	more := wrapped("")
 	more.TextStyle.Italic = true
 	more.Hide()
-	update := func() {
+	var update func()
+	// sofabatonFetched shows a Sofabaton maker's models once fetched.
+	sofabatonFetched = func(b irsource.SofabatonBrand, err error) {
+		if err != nil {
+			say(false, i18n.T("Getting %s's models from Sofabaton failed: %s", b.Name, err.Error()))
+			return
+		}
+		update()
+	}
+	update = func() {
 		q, typ, mk := search.Text, pick(kind), pick(maker)
 		if typ == anyType {
 			typ = ""
@@ -110,7 +120,11 @@ func (a *App) showAddDevice() {
 		found = nil
 		n := 0
 		if (len(strings.TrimSpace(q)) >= 2 || typ != "" || mk != "") && a.online.loaded {
-			found, n = irsource.Browse(a.online.entries, typ, mk, q, onlineMax)
+			pool := a.online.entries
+			if models := a.sofabatonModels(q, mk, sofabatonFetched); len(models) > 0 {
+				pool = append(append([]irsource.Entry(nil), models...), pool...)
+			}
+			found, n = irsource.Browse(pool, typ, mk, q, onlineMax)
 		}
 		more.SetText(i18n.T("The first %d of %d: pick a maker, or search, to narrow them.", len(found), n))
 		more.Hidden = n <= len(found)
@@ -147,7 +161,7 @@ func (a *App) showAddDevice() {
 			}
 		})
 	}
-	say(true, i18n.T("Getting the lists of irdb and Flipper-IRDB…"))
+	say(true, i18n.T("Getting the online lists of models…"))
 	a.loadOnline(func() {
 		switch {
 		case len(a.online.entries) == 0 && a.online.err != nil:
@@ -167,7 +181,20 @@ func (a *App) showAddDevice() {
 	notListed := container.NewVBox(
 		wrapped(i18n.T("Not listed? Make it from its IR codes, or from a file of them: Flipper Zero, irdb, SmartIR, LIRC or Girr files, or Pronto, Broadlink and other codes in a .txt.")),
 		container.NewThemeOverride(container.NewGridWithColumns(2, scratch, fromFile), tightKeys{}))
-	credit := wrapped(i18n.T("Online results come from Flipper-IRDB and irdb: untested, and the About page says whose they are."))
+	var on []string
+	for _, s := range sources {
+		if sourceOn(s) {
+			on = append(on, string(s))
+		}
+	}
+	names := strings.Join(on, ", ")
+	if n := len(on); n > 1 {
+		names = i18n.T("%s and %s", strings.Join(on[:n-1], ", "), on[n-1])
+	}
+	credit := wrapped(i18n.T("Online results come from %s: untested, and the About page says whose they are.", names))
+	if len(on) == 0 {
+		credit.SetText(i18n.T("No online source is on: the settings turn them on."))
+	}
 	credit.TextStyle.Italic = true
 	narrow := container.NewGridWithColumns(2, kind, maker)
 	top := container.NewVBox(intro, notListed, search, narrow, alive, status, more, none)

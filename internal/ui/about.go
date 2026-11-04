@@ -33,10 +33,9 @@ var appIcon = func() fyne.Resource { return fyne.CurrentApp().Icon() }
 // iconSize is the app icon's size on the About page, before Scale.
 const iconSize = 96
 
-// aboutContent is the About page: what the app is, who made it, how to
-// reach them, what it is built on, and the text size. resized shows the
-// page again once the text size changed.
-func (a *App) aboutContent(resized func()) fyne.CanvasObject {
+// aboutCards are the About page's: what the app is, who made it, how to
+// reach them, and what it is built on.
+func (a *App) aboutCards() []fyne.CanvasObject {
 	top := brand()
 
 	made := container.NewVBox(
@@ -44,21 +43,6 @@ func (a *App) aboutContent(resized func()) fyne.CanvasObject {
 		link(i18n.T("Questions, problems and ideas: open an issue"), issues),
 		link(i18n.T("The app's page, with its source"), website),
 		link(i18n.T("%s on GitHub", author), authorPage))
-
-	sizes := make([]string, len(textSizes))
-	for i, s := range textSizes {
-		sizes[i] = i18n.T(s.name)
-	}
-	size := widget.NewSelect(sizes, nil)
-	size.SetSelectedIndex(textSize())
-	size.OnChanged = func(string) {
-		if size.SelectedIndex() == textSize() {
-			return
-		}
-		fyne.CurrentApp().Preferences().SetInt(textSizePref, size.SelectedIndex())
-		fyne.CurrentApp().Settings().SetTheme(Theme())
-		resized()
-	}
 
 	built := container.NewVBox(
 		wrapped(i18n.T("The Sofabaton library %s (%s), and Fyne %s.", depVersion(library), library, depVersion("fyne.io/fyne/v2"))),
@@ -71,15 +55,23 @@ func (a *App) aboutContent(resized func()) fyne.CanvasObject {
 		link("irdb", irdbPage),
 		wrapped(irsource.Credit(irsource.Flipper)),
 		link("Flipper-IRDB", flipperPage))
+	if sourceOn(irsource.Sofabaton) {
+		codes.Add(wrapped(irsource.Credit(irsource.Sofabaton)))
+	}
 
-	return scrolled(container.NewVBox(
+	return []fyne.CanvasObject{
 		top,
-		card(i18n.T("Text size"), container.NewVBox(wrapped(i18n.T("How large the app's text is.")), size)),
 		card(i18n.T("Author"), made),
 		card(i18n.T("Built with"), built),
 		card(i18n.T("IR codes"), codes),
 		card(i18n.T("License"), wrapped(i18n.T("Armrest is free software, under the Apache License 2.0. It is not affiliated with or endorsed by Sofabaton."))),
-	))
+	}
+}
+
+// settingsAndAbout is the browse screen's last tab: the settings, then
+// the About page. resized shows it again once the text size changed.
+func (a *App) settingsAndAbout(resized func()) fyne.CanvasObject {
+	return scrolled(container.NewVBox(append(a.settingsContent(resized), a.aboutCards()...)...))
 }
 
 // brand is the app's icon, name, version and what it does.
@@ -100,9 +92,7 @@ func brand() fyne.CanvasObject {
 
 // showAbout shows the About page on its own, from the hubs screen.
 func (a *App) showAbout() {
-	var show func()
-	show = func() { a.screen(i18n.T("About"), a.showHubs, a.aboutContent(show)) }
-	show()
+	a.screen(i18n.T("About"), a.showHubs, scrolled(container.NewVBox(a.aboutCards()...)))
 }
 
 // link is a hyperlink to u, which is well formed.

@@ -93,6 +93,8 @@ type App struct {
 	online  online
 	irIndex func(context.Context, irsource.Source) ([]irsource.Entry, error)
 	irFetch func(context.Context, irsource.Entry) ([]byte, error)
+	// sofabaton is Sofabaton's catalog with a key (tests fake it).
+	sofabaton func(key string) sofabatonCatalog
 }
 
 // New returns the app for win.
@@ -102,7 +104,13 @@ func New(win fyne.Window, back backend.Backend) *App {
 	a := &App{win: win, back: back, async: func(f func()) { go f() }, now: time.Now, pickers: systemPickers, retryWait: 3 * time.Second}
 	a.watch = a.watchConnection
 	a.irIndex = a.cachedIndex
-	a.irFetch = func(ctx context.Context, e irsource.Entry) ([]byte, error) { return irsource.Fetch(ctx, nil, e) }
+	a.sofabaton = realSofabaton
+	a.irFetch = func(ctx context.Context, e irsource.Entry) ([]byte, error) {
+		if e.Source == irsource.Sofabaton {
+			return a.sofabaton(sofabatonKey()).Fetch(ctx, e)
+		}
+		return irsource.Fetch(ctx, nil, e)
+	}
 	return a
 }
 
@@ -120,6 +128,9 @@ func (a *App) Start() {
 		a.resume()
 	})
 	a.showHubs()
+	if h, ok := lastHub(); ok && prefs().Bool(autoConnectPref) {
+		a.connect(h)
+	}
 }
 
 // Close ends the hub connection, if any. A file opened stays.
@@ -216,6 +227,7 @@ func (a *App) connect(h backend.Hub) {
 			}
 			a.Close()
 			a.client, a.hub = c, h
+			rememberHub(h)
 			a.watch(c)
 			a.showHome(h)
 		})

@@ -245,6 +245,55 @@ data: 9000 4500
 	}
 }
 
+// A device's codes are saved to a file in the format picked: those the
+// format cannot hold are left out, and said.
+func TestExportCodes(t *testing.T) {
+	u, w := newApp(t, backend.Hub{Name: "Lounge", Model: "X2", Firmware: 9, Addr: lounge})
+	var f memFile
+	name := "Living_Room_TV.ir"
+	filePickers(u, &f, &name)
+	f.WriteString(`Filetype: IR signals file
+Version: 1
+#
+name: Power
+type: parsed
+protocol: NEC
+address: 04 00 00 00
+command: 08 00 00 00
+#
+name: Netflix
+type: raw
+frequency: 38000
+duty_cycle: 0.330000
+data: 9000 4500 560
+`)
+	test.Tap(button(t, w, "Lounge (X2, 192.168.1.20)"))
+	pickRow(t, u, "Add a device…")
+	test.Tap(button(t, w, "From a file…"))
+	test.Tap(button(t, w, "Add"))
+	pickRow(t, u, "Living Room TV")
+	test.Tap(button(t, w, "Details"))
+	test.Tap(button(t, w, "Save codes to a file…"))
+	walk(w, func(o fyne.CanvasObject) {
+		if s, ok := o.(*widget.Select); ok {
+			s.SetSelected("irdb (.csv)")
+		}
+	})
+	test.Tap(button(t, w, "Save…"))
+	if name != "Living Room TV.csv" {
+		t.Errorf("offered %q", name)
+	}
+	if got := f.String(); got != "functionname,protocol,device,subdevice,function\nPower,NEC1,4,251,8\n" {
+		t.Errorf("file:\n%s", got)
+	}
+	got := texts(w)
+	for _, want := range []string{"Saved 1 code of Living Room TV to a file (irdb).", "Netflix: irdb files hold protocols' codes, not timings"} {
+		if !strings.Contains(got, want) {
+			t.Errorf("missing %q in:\n%s", want, got)
+		}
+	}
+}
+
 // Searching adds online results after the templates; picking one gets
 // its file and adds the device once confirmed.
 func TestOnlineSearch(t *testing.T) {

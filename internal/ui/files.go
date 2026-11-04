@@ -10,11 +10,15 @@ import (
 
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/dialog"
+	"fyne.io/fyne/v2/container"
 	"fyne.io/fyne/v2/storage"
+	"fyne.io/fyne/v2/widget"
 
 	"github.com/brunoga/armrest/internal/backend"
 	"github.com/brunoga/armrest/internal/i18n"
 	"github.com/brunoga/armrest/internal/workspace"
+	"github.com/brunoga/sofabaton/irfile"
+	"github.com/brunoga/sofabaton/profile"
 )
 
 // openedFile is a workspace opened from a file: the app shows it without
@@ -69,13 +73,62 @@ func (a *App) fileName() string {
 	if a.file != nil && strings.HasSuffix(a.file.name, workspace.Ext) {
 		return a.file.name
 	}
-	name := strings.Map(func(r rune) rune {
+	return fmt.Sprintf("%s %s%s", safeName(a.work.Dump.Info.Name), a.now().Format("2006-01-02"), workspace.Ext)
+}
+
+// safeName is a name made fit for a file's: the characters systems
+// refuse made dashes.
+func safeName(name string) string {
+	return strings.Map(func(r rune) rune {
 		if strings.ContainsRune(`/\:*?"<>|`, r) {
 			return '-'
 		}
 		return r
-	}, a.work.Dump.Info.Name)
-	return fmt.Sprintf("%s %s%s", name, a.now().Format("2006-01-02"), workspace.Ext)
+	}, name)
+}
+
+// exportCodes saves a device's IR codes to a file for another remote or
+// app, in the format the user picks, and says what it left out.
+func (a *App) exportCodes(d *profile.Device) {
+	names := make([]string, len(irfile.Formats))
+	for i, f := range irfile.Formats {
+		names[i] = fmt.Sprintf("%s (%s)", f.Name, f.Ext)
+	}
+	pick := widget.NewSelect(names, nil)
+	pick.SetSelectedIndex(0)
+	about := wrapped(i18n.T("Other remotes and apps read these files: Flipper Zero, Home Assistant (SmartIR), LIRC, IrScrutinizer, Global Caché and Broadlink devices, Unfolded Circle remotes. Codes the format cannot hold, and commands that are not IR, are left out."))
+	dialog.NewCustomConfirm(i18n.T("Save the codes of %s", d.Name), i18n.T("Save…"), i18n.T("Cancel"), container.NewVBox(about, pick), func(ok bool) {
+		if !ok {
+			return
+		}
+		f := irfile.Formats[pick.SelectedIndex()]
+		s := a.browse
+		a.pickers.save(a.win, safeName(d.Name)+f.Ext, func(out io.WriteCloser, err error) {
+			var n int
+			var skipped []irfile.Skipped
+			if err == nil {
+				n, skipped, err = workspace.ExportIR(d, f, out)
+				if cerr := out.Close(); err == nil {
+					err = cerr
+				}
+			}
+			if err != nil {
+				dialog.ShowError(fmt.Errorf("%s: %w", i18n.T("saving failed"), err), a.win)
+				return
+			}
+			msg := i18n.N("Saved %d code of %s to a file (%s).", "Saved %d codes of %s to a file (%s).", n, n, d.Name, f.Name)
+			if len(skipped) > 0 {
+				var left []string
+				for _, sk := range skipped {
+					left = append(left, sk.Name+": "+sk.Why)
+				}
+				dialog.ShowCustom(i18n.T("Codes saved"), i18n.T("OK"), wrapped(msg+"\n\n"+i18n.T("Left out:")+"\n"+strings.Join(left, "\n")), a.win)
+			}
+			if s != nil && a.browse == s {
+				s.setStatus(false, msg)
+			}
+		})
+	}, a.win).Show()
 }
 
 // saveToFile saves the workspace, edits included, to a file the user

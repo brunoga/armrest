@@ -489,7 +489,11 @@ func (s *browseScreen) newList(hint string, build func() []browseRow) *browseLis
 			b.shown = &r
 			d := r.device
 			s.app.check(d.Name)
-			b.split.show(d.Name, deviceView(d, s.app.work.Dump.Info.Model, s.controls(d.Name, s.app.work.DeviceState(d) == workspace.New), func() { s.app.showEditDevice(d.Name) }))
+			var export func()
+			if workspace.HasIRCodes(d) {
+				export = func() { s.app.exportCodes(d) }
+			}
+			b.split.show(d.Name, deviceView(d, s.app.work.Dump.Info.Model, s.controls(d.Name, s.app.work.DeviceState(d) == workspace.New), func() { s.app.showEditDevice(d.Name) }, export))
 		}
 	}
 	// Inset from the window's edges, as the pages are.

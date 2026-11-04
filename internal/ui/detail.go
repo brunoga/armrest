@@ -87,8 +87,9 @@ func activityView(a *profile.Activity, model string, ctl *controls, edit func())
 // deviceView shows a device: a remote to drive it with, its macros, and
 // its details (commands, each with a Test button, keys, power, inputs).
 // ctl is nil while the device is not on the hub; with edit, an Edit
-// button calls it.
-func deviceView(d *profile.Device, model string, ctl *controls, edit func()) fyne.CanvasObject {
+// button calls it, and with export, a button under its commands saves
+// their codes to a file.
+func deviceView(d *profile.Device, model string, ctl *controls, edit, export func()) fyne.CanvasObject {
 	sub := d.Brand
 	if look := describeLook(d.Icon, d.Color); look != "" {
 		if sub != "" {
@@ -133,10 +134,15 @@ func deviceView(d *profile.Device, model string, ctl *controls, edit func()) fyn
 	}
 	details := []fyne.CanvasObject{
 		section(i18n.T("Commands (%d)", len(d.Commands)), i18n.T("No commands."), cmds),
+	}
+	if export != nil {
+		details = append(details, container.NewHBox(widget.NewButtonWithIcon(i18n.T("Save codes to a file…"), theme.DocumentSaveIcon(), export)))
+	}
+	details = append(details,
 		keysSection(d.Buttons),
 		section(i18n.T("Power"), i18n.T("Not set: activities turn it on and off with its own power macros."), power),
 		section(i18n.T("Inputs"), inputs, numbered(d.Inputs)),
-	}
+	)
 	return views(head, edit, remote(model, d.Buttons, ctl), lists, details)
 }
 

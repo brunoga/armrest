@@ -432,7 +432,11 @@ drag-reorder lists.
 - [x] More files of IR codes in "Add a device" (the library's irfile):
       SmartIR's .json (Broadlink codes), LIRC's .conf, Girr, and codes one
       a line in a .txt (Pronto, Global Caché's sendir, Broadlink's,
-      Unfolded Circle's). Next: exporting a device's codes in them.
+      Unfolded Circle's).
+- [x] A device's codes saved to a file for other remotes and apps
+      (Details, "Save codes to a file…"), in any of those formats; codes
+      a format cannot hold, and commands that are not IR, are left out
+      and listed.
 - [ ] Later: the profile library server (section 10).
 
 ## 10. The profile library server (later; not built yet)

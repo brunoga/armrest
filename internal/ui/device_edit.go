@@ -75,7 +75,10 @@ type cmdRow struct {
 	edit workspace.CommandEdit
 	name *widget.Entry
 	code *widget.Entry
-	box  fyne.CanvasObject
+	// url is a network command's address, in place of code; edit.HTTP
+	// holds the rest of its request.
+	url *widget.Entry
+	box fyne.CanvasObject
 	// last is the name last seen, to follow renames in the pickers.
 	last string
 }
@@ -119,8 +122,13 @@ func (ed *deviceEditor) content() fyne.CanvasObject {
 	for _, c := range e.Commands {
 		ed.addCmd(c)
 	}
+	network := ed.app.work.IsNetwork(e.Original)
 	add := widget.NewButtonWithIcon(i18n.T("Add a command"), theme.ContentAddIcon(), func() {
-		ed.addCmd(workspace.CommandEdit{})
+		c := workspace.CommandEdit{}
+		if network {
+			c.HTTP = &profile.HTTP{}
+		}
+		ed.addCmd(c)
 		ed.refreshPickers()
 	})
 	var addNote fyne.CanvasObject = container.NewHBox(add)
@@ -266,16 +274,27 @@ func (ed *deviceEditor) addCmd(c workspace.CommandEdit) {
 	}
 	more := newIconButton(i18n.T("More"), theme.MoreVerticalIcon(), nil)
 	more.OnTapped = func() {
-		menu := fyne.NewMenu("",
+		var items []*fyne.MenuItem
+		if r.edit.HTTP != nil {
+			items = append(items, fyne.NewMenuItem(i18n.T("Request…"), func() { ed.app.editRequest(r.name.Text, r.edit.HTTP) }))
+		}
+		items = append(items,
 			fyne.NewMenuItem(i18n.T("Move up"), func() { ed.moveCmd(r, -1) }),
 			fyne.NewMenuItem(i18n.T("Move down"), func() { ed.moveCmd(r, 1) }),
 			fyne.NewMenuItem(i18n.T("Delete"), func() { ed.removeCmd(r) }))
-		widget.ShowPopUpMenuAtRelativePosition(menu, ed.app.win.Canvas(), fyne.NewPos(0, more.Size().Height), more)
+		widget.ShowPopUpMenuAtRelativePosition(fyne.NewMenu("", items...), ed.app.win.Canvas(), fyne.NewPos(0, more.Size().Height), more)
 	}
 	grip := newDragHandle(ed.cmdList, func(i, j int) { ed.cmds[i], ed.cmds[j] = ed.cmds[j], ed.cmds[i] }, nil)
-	r.box = container.NewBorder(nil, nil, grip,
-		container.NewHBox(container.New(layout.NewGridWrapLayout(fyne.NewSize(CodeWidth*Scale(), r.code.MinSize().Height)), r.code), more),
-		r.name)
+	if c.HTTP != nil {
+		h := *c.HTTP
+		r.edit.HTTP = &h
+		r.url = newURLEntry(r.edit.HTTP)
+		r.box = container.NewBorder(nil, nil, grip, more, container.NewVBox(r.name, r.url))
+	} else {
+		r.box = container.NewBorder(nil, nil, grip,
+			container.NewHBox(container.New(layout.NewGridWrapLayout(fyne.NewSize(CodeWidth*Scale(), r.code.MinSize().Height)), r.code), more),
+			r.name)
+	}
 	grip.row = r.box
 	ed.cmds = append(ed.cmds, r)
 	ed.cmdList.Add(r.box)
@@ -510,7 +529,7 @@ func (ed *deviceEditor) edit() workspace.DeviceEdit {
 	for _, r := range ed.cmds {
 		c := r.edit
 		c.Name = r.name.Text
-		if !c.Fixed {
+		if !c.Fixed && c.HTTP == nil {
 			c.Code = r.code.Text
 		}
 		e.Commands = append(e.Commands, c)

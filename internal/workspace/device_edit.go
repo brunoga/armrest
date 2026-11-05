@@ -57,6 +57,9 @@ type CommandEdit struct {
 	Code string
 	// Fixed says the signal is not a code, and cannot be edited.
 	Fixed bool
+	// HTTP, when set, is the request a network command sends, which is
+	// edited instead of a code.
+	HTTP *profile.HTTP
 }
 
 // EditDevice is the editor's start for the device named name.
@@ -67,9 +70,14 @@ func (w *Workspace) EditDevice(name string) (DeviceEdit, error) {
 	}
 	e := DeviceEdit{Original: d.Name, Name: d.Name, Brand: d.Brand, Icon: d.Icon, Color: d.Color, Category: d.Category, Keys: profile.Buttons{}}
 	for _, c := range d.Commands {
-		ce := CommandEdit{Original: c.Name, Name: c.Name, Fixed: c.Code == nil}
+		ce := CommandEdit{Original: c.Name, Name: c.Name, Fixed: c.Code == nil && c.HTTP == nil}
 		if c.Code != nil {
 			ce.Code = codeText(*c.Code)
+		}
+		if c.HTTP != nil {
+			h := *c.HTTP
+			h.Headers = append([]string(nil), h.Headers...)
+			ce.HTTP = &h
 		}
 		e.Commands = append(e.Commands, ce)
 	}
@@ -94,11 +102,12 @@ func codeText(c profile.Code) string {
 	return fmt.Sprintf("0x%02X", c.Value)
 }
 
-// CanAddCommands reports whether new commands can be given as codes: the
-// device has an IR protocol.
+// CanAddCommands reports whether new commands can be added: given as
+// codes, the device having an IR protocol, or as requests, on a network
+// device (IsNetwork).
 func (w *Workspace) CanAddCommands(device string) bool {
 	d := w.Config.Device(device)
-	return d != nil && d.IR != nil
+	return d != nil && (d.IR != nil || w.IsNetwork(device))
 }
 
 // ActivitiesUsing names the activities that use the device.
@@ -152,6 +161,12 @@ func (w *Workspace) SaveDevice(e DeviceEdit) error {
 			kept[strings.ToLower(c.Original)] = true
 		}
 		if c.Fixed {
+			continue
+		}
+		if c.HTTP != nil {
+			if err := CheckRequest(c.Name, tidyRequest(*c.HTTP)); err != nil {
+				return &FieldError{Field: "command", Index: i, Msg: err.Error()}
+			}
 			continue
 		}
 		if d.IR == nil {
@@ -252,7 +267,12 @@ func (w *Workspace) SaveDevice(e DeviceEdit) error {
 		n := strings.TrimSpace(c.Name)
 		pc := byName[strings.ToLower(n)]
 		pc.Name = n
-		if !c.Fixed {
+		switch {
+		case c.HTTP != nil:
+			h := tidyRequest(*c.HTTP)
+			pc.HTTP, pc.Code = &h, nil
+			pc.Descriptor, pc.Data = "", ""
+		case !c.Fixed:
 			code := strings.TrimSpace(c.Code)
 			v, _ := strconv.ParseUint(code, 0, 16)
 			pc.Code = &profile.Code{Value: uint16(v), Decimal: !strings.HasPrefix(strings.ToLower(code), "0x")}

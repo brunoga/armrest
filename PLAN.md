@@ -150,7 +150,8 @@ cmd/armrest/         the app (all targets)
    - **Macros** across devices.
    - **Favorites:** an ordered list.
 5. **Add a device:** a searchable template library (by transport and
-   maker), or from scratch (protocol plus codes). Bluetooth comes later.
+   maker), or from scratch (protocol plus codes), or a network device
+   (a name and an HTTP request for each command). Bluetooth comes later.
 6. **Review and apply:** the plan as a grouped, readable list, with
    warnings (for example "removing this device removes it from 2
    activities"). Then live progress, and errors with what was already

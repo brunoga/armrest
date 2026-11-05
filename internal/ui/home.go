@@ -140,8 +140,8 @@ func (a *App) saveEdits(h backend.Hub, w *workspace.Workspace) {
 
 // checkForChanges reads the hub's lists in the background and updates s
 // if they changed since the hub was read, at since: the devices and
-// activities whose row changed are read again, the others are checked as
-// they are opened (see check).
+// activities whose row changed are read again once shown, the others are
+// checked as they are opened (see check).
 func (a *App) checkForChanges(h backend.Hub, s *browseScreen, since time.Time) {
 	a.checking = true
 	s.showChanges()
@@ -151,7 +151,7 @@ func (a *App) checkForChanges(h backend.Hub, s *browseScreen, since time.Time) {
 		// Writing is safe whatever the cache: an apply reads the devices
 		// it edits from the hub, and reads the hub back if it answered
 		// otherwise than the cached copy.
-		w, err := workspace.RefreshRows(context.Background(), c, old.Dump)
+		w, stale, err := workspace.RefreshLists(context.Background(), c, old.Dump)
 		fyne.Do(func() {
 			if a.client != c {
 				return // disconnected meanwhile
@@ -170,7 +170,7 @@ func (a *App) checkForChanges(h backend.Hub, s *browseScreen, since time.Time) {
 				s.setStatus(false, i18n.T("Updated with the hub's changes."))
 			}
 			s.showChanges()
-			a.nextCheck()
+			a.queueChecks(stale)
 		})
 	})
 }
@@ -212,10 +212,16 @@ func (a *App) check(name string) {
 	if a.client == nil || a.hub.Demo || a.file != nil || a.work == nil {
 		return
 	}
+	a.queueChecks(a.work.IDs(name))
+}
+
+// queueChecks reads the devices and activities of ids in the background,
+// after any waiting, unless read on this connection already.
+func (a *App) queueChecks(ids []byte) {
 	if a.checked == nil {
 		a.forgetChecks()
 	}
-	for _, id := range a.work.IDs(name) {
+	for _, id := range ids {
 		if !a.checked[id] && !slices.Contains(a.toCheck, id) {
 			a.toCheck = append(a.toCheck, id)
 		}

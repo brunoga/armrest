@@ -424,7 +424,9 @@ drag-reorder lists.
       row changed; the rest shows from the cache and is read when it is
       opened, once a connection (nobody else can change the hub while we
       are connected): an activity in about 1 s, a device in 1-6 s, in the
-      background. Captures showed the app reads only the device list on
+      background. New and changed ones are listed with the lists and read
+      just after, in the background: a new device of 101 commands took
+      15-20 s to show when it was read first. Captures showed the app reads only the device list on
       connecting, and each screen's records each time it opens.
 - [x] Raw IR (the library's, verified on the X2: a learned code written
       back turned the projector on): Flipper's raw signals and Pronto

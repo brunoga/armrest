@@ -404,6 +404,38 @@ func TestCachedHubDeviceChanged(t *testing.T) {
 	}
 }
 
+// A device new on the hub is listed once the lists are read, and its
+// commands follow, read in the background.
+func TestCachedHubNewDevice(t *testing.T) {
+	u, w, _, step, _, _ := cachedApp(t)
+	hubChange = func(m *hubsim.Model) {
+		for _, d := range m.Devices {
+			if d.Name == "3D Player" {
+				cp := *d
+				cp.ID, cp.Name = 9, "New Box"
+				m.Devices = append(m.Devices, &cp)
+				m.Commands[9] = m.Commands[d.ID]
+				m.Data[9] = m.Data[d.ID]
+				return
+			}
+		}
+	}
+	t.Cleanup(func() { hubChange = nil })
+	test.Tap(button(t, w, "Lounge (X2, 192.168.1.20)"))
+	step() // connect
+	step() // the lists
+	if !listed(u, "New Box") {
+		t.Fatalf("not listed once the lists are read:\n%s", texts(w))
+	}
+	if d := u.work.Config.Device("New Box"); len(d.Commands) != 0 {
+		t.Fatalf("New Box read with the lists: %d commands", len(d.Commands))
+	}
+	step() // New Box
+	if d := u.work.Config.Device("New Box"); len(d.Commands) == 0 {
+		t.Errorf("New Box not read after the lists:\n%s", texts(w))
+	}
+}
+
 // A hub seen before shows at once from the cache, then is checked for
 // changes in the background.
 func TestCachedHub(t *testing.T) {

@@ -68,8 +68,13 @@ func (a *App) loadOnline(done func()) {
 				errs = append(errs, fmt.Errorf("%s: %w", s, err))
 			}
 			if s == irsource.Sofabaton {
-				// Its index is its makers: their models come when named.
+				// Its index is its makers, whose models come when named,
+				// and its Bluetooth profiles.
 				for _, b := range e {
+					if b.Kind == irsource.BluetoothKind {
+						all = append(all, b)
+						continue
+					}
 					brands = append(brands, irsource.SofabatonBrand{ID: b.Path, Name: b.Brand})
 				}
 				continue
@@ -89,16 +94,30 @@ func (a *App) loadOnline(done func()) {
 
 // cachedIndex is a source's index: the cached one while fresh, else
 // fetched (and cached), else the cached one however old. Sofabaton's is
-// its makers, as entries of no model, their ids as paths.
+// its makers, as entries of no model, their ids as paths, and its
+// Bluetooth profiles.
 func (a *App) cachedIndex(ctx context.Context, s irsource.Source) ([]irsource.Entry, error) {
-	return a.cached(ctx, s, func(ctx context.Context) ([]irsource.Entry, error) {
-		if s != irsource.Sofabaton {
-			return irsource.Index(ctx, nil, s)
+	if s == irsource.Sofabaton {
+		bt, err := a.cached(ctx, s+"-bluetooth", a.sofabaton(sofabatonKey()).Bluetooth)
+		if err != nil {
+			fyne.LogError("listing Sofabaton's Bluetooth profiles", err)
 		}
+		makers, err := a.cachedMakers(ctx)
+		return append(makers, bt...), err
+	}
+	return a.cached(ctx, s, func(ctx context.Context) ([]irsource.Entry, error) {
+		return irsource.Index(ctx, nil, s)
+	})
+}
+
+// cachedMakers is the makers of Sofabaton's catalog, as entries of no
+// model, their ids as paths.
+func (a *App) cachedMakers(ctx context.Context) ([]irsource.Entry, error) {
+	return a.cached(ctx, irsource.Sofabaton, func(ctx context.Context) ([]irsource.Entry, error) {
 		brands, err := a.sofabaton(sofabatonKey()).Brands(ctx)
 		var out []irsource.Entry
 		for _, b := range brands {
-			out = append(out, irsource.Entry{Source: s, Brand: b.Name, Path: b.ID})
+			out = append(out, irsource.Entry{Source: irsource.Sofabaton, Brand: b.Name, Path: b.ID})
 		}
 		return out, err
 	})
@@ -156,6 +175,9 @@ func (a *App) importOnline(e irsource.Entry, fetching func(bool)) {
 			im.Device.Name = e.Name()
 			if c, ok := sofabatonCategories[strings.ToLower(e.Kind)]; ok && e.Source == irsource.Sofabaton {
 				im.Device.Category = c
+			}
+			if b := im.Device.Bluetooth; b != nil {
+				b.Classic = e.Classic
 			}
 			a.confirmImport(i18n.T("Add from %s", string(e.Source)), im)
 		})

@@ -14,6 +14,9 @@ import (
 	"github.com/brunoga/sofabaton/profile"
 )
 
+// bluetoothCategory is the app's category for Bluetooth devices.
+const bluetoothCategory profile.Category = 15
+
 // IRFileExts are the extensions of the files of IR codes FromIRFile reads.
 var IRFileExts = []string{".ir", ".csv", ".json", ".conf", ".lircd", ".girr", ".xml", ".txt"}
 
@@ -62,9 +65,13 @@ func FromIRFile(file string, r io.Reader) (*Imported, error) {
 	}
 	switch {
 	case strings.HasSuffix(file, irsource.SofabatonExt):
-		// Sofabaton's code sets say which keys switch the device.
+		// Sofabaton's code sets say which keys switch the device, and
+		// which are Bluetooth profiles.
 		if on, off, err := irfile.SofabatonPower(bytes.NewReader(data)); err == nil && has[on] && has[off] {
 			d.Power = &profile.Power{On: on, Off: off}
+		}
+		if b, err := irfile.SofabatonBluetooth(bytes.NewReader(data)); err == nil && b != nil {
+			d.Bluetooth, d.Category = b, bluetoothCategory
 		}
 	case has["Power On"] && has["Power Off"]:
 		d.Power = &profile.Power{On: "Power On", Off: "Power Off"}

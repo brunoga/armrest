@@ -39,7 +39,14 @@ func (c fakeCatalog) Models(_ context.Context, b irsource.SofabatonBrand) ([]irs
 	return []irsource.Entry{{Source: irsource.Sofabaton, Brand: "Acme", Kind: "Stream Box", Model: "Box 4", Path: "c1.sofabaton", Pattern: "(?i)^bx4.*"}}, nil
 }
 
-func (c fakeCatalog) Fetch(context.Context, irsource.Entry) ([]byte, error) {
+func (c fakeCatalog) Bluetooth(context.Context) ([]irsource.Entry, error) {
+	return []irsource.Entry{{Source: irsource.Sofabaton, Brand: "Zap TV", Kind: irsource.BluetoothKind, Model: "Zap TV", Path: "d272ab7af5404b549eb260d367112165.sofabaton", Classic: true}}, nil
+}
+
+func (c fakeCatalog) Fetch(_ context.Context, e irsource.Entry) ([]byte, error) {
+	if e.Kind == irsource.BluetoothKind {
+		return []byte(`{"code_type": "3", "ecode_id": "d272ab7af5404b549eb260d367112165", "keys": [{"fid": 1, "keyname": "Power", "format": "3", "pulse": "070066"}, {"fid": 146, "keyname": "Play", "format": "3", "pulse": "0C00B0"}], "power": {"type": 1, "on": [{"fid": 1}], "off": [{"fid": 1}]}}`), nil
+	}
 	return []byte(fmt.Sprintf(`{"keys": [{"keyname": "Power", "format": "1", "irCode": "%X"}]}`, "P:NEC R:38400 D:4 S:251 F:8")), nil
 }
 
@@ -131,6 +138,31 @@ func TestSettingsSources(t *testing.T) {
 	test.Tap(button(t, w, "Add"))
 	d := u.work.Config.Device("Acme Box 4")
 	if d == nil || d.Category.String() != "Media player" || len(d.Commands) != 1 {
+		t.Fatalf("added %+v", d)
+	}
+
+	// Its Bluetooth profiles are found by name, and make Bluetooth
+	// devices.
+	pickRow(t, u, "Add a device…")
+	search = nil
+	walk(w, func(o fyne.CanvasObject) {
+		if e, ok := o.(*widget.Entry); ok && search == nil {
+			search = e
+		}
+	})
+	search.SetText("zap")
+	walk(w, func(o fyne.CanvasObject) {
+		if l, ok := o.(*widget.List); ok {
+			list = l
+		}
+	})
+	if got := texts(w); !strings.Contains(got, "Zap TV") || !strings.Contains(got, "Bluetooth · Sofabaton") {
+		t.Fatalf("results:\n%s", got)
+	}
+	list.Select(0)
+	test.Tap(button(t, w, "Add"))
+	d = u.work.Config.Device("Zap TV")
+	if d == nil || d.Bluetooth == nil || !d.Bluetooth.Classic || d.Bluetooth.Profile != "d272ab7af5404b549eb260d367112165" || d.Category.String() != "Bluetooth" || d.Power == nil || len(d.Commands) != 2 {
 		t.Fatalf("added %+v", d)
 	}
 }

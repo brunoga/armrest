@@ -81,13 +81,14 @@ type browseList struct {
 	build func() []browseRow
 }
 
-// browseRow is a row of a list: an activity, a device, or the row that
-// adds one.
+// browseRow is a row of a list: an activity, a device, the row that
+// adds one, or the one that changes their order.
 type browseRow struct {
 	activity    *profile.Activity
 	device      *profile.Device
 	add         bool
 	addActivity bool
+	reorder     bool
 }
 
 func (r browseRow) text() string {
@@ -100,6 +101,8 @@ func (r browseRow) text() string {
 		return i18n.T("Add a device…")
 	case r.addActivity:
 		return i18n.T("Add an activity…")
+	case r.reorder:
+		return i18n.T("Change the order…")
 	}
 	return ""
 }
@@ -332,14 +335,22 @@ func (s *browseScreen) content(h backend.Hub) fyne.CanvasObject {
 		for _, d := range s.app.work.Config.Devices {
 			rows = append(rows, browseRow{device: d})
 		}
-		return append(rows, browseRow{add: true})
+		rows = append(rows, browseRow{add: true})
+		if len(s.app.work.Config.Devices) > 1 {
+			rows = append(rows, browseRow{reorder: true})
+		}
+		return rows
 	})
 	s.activities = s.newList(i18n.T("Pick an activity to see what it does."), func() []browseRow {
 		var rows []browseRow
 		for _, a := range s.app.work.Config.Activities {
 			rows = append(rows, browseRow{activity: a})
 		}
-		return append(rows, browseRow{addActivity: true})
+		rows = append(rows, browseRow{addActivity: true})
+		if len(s.app.work.Config.Activities) > 1 {
+			rows = append(rows, browseRow{reorder: true})
+		}
+		return rows
 	})
 
 	s.status = wrapped("")
@@ -504,6 +515,8 @@ func (s *browseScreen) newList(hint string, build func() []browseRow) *browseLis
 				icon.Resource = tile(r.activity.Icon, activityIcon, r.activity.Color)
 			case r.device != nil:
 				icon.Resource = tile(r.device.Icon, deviceIcon, r.device.Color)
+			case r.reorder:
+				icon.Resource = theme.NewPrimaryThemedResource(gripIcon)
 			default:
 				icon.Resource = theme.NewPrimaryThemedResource(theme.ContentAddIcon())
 			}
@@ -515,6 +528,9 @@ func (s *browseScreen) newList(hint string, build func() []browseRow) *browseLis
 		case r.add:
 			b.list.Unselect(i)
 			s.app.showAddDevice()
+		case r.reorder:
+			b.list.Unselect(i)
+			s.app.showOrder(b == s.activities)
 		case r.addActivity:
 			b.list.Unselect(i)
 			if len(s.app.work.Config.Devices) == 0 {

@@ -2,12 +2,14 @@ package workspace
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"regexp"
 	"slices"
 	"strconv"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/brunoga/armrest/internal/i18n"
 	"github.com/brunoga/sofabaton/dump"
@@ -45,7 +47,7 @@ func (w *Workspace) Plan(ctx context.Context) (*Plan, error) {
 	}
 	defer func() { _ = sim.Close() }()
 	var r reporter
-	if err := profile.ApplyConfig(ctx, sim, w.Config, w.applyOptions(r.line)); err != nil {
+	if err := profile.ApplyConfig(ctx, sim, w.Config, w.applyOptions(r.line, simPair)); err != nil {
 		return nil, fmt.Errorf("workspace: %w", err)
 	}
 	return r.plan(), nil
@@ -64,7 +66,7 @@ func (w *Workspace) Plan(ctx context.Context) (*Plan, error) {
 func (w *Workspace) Apply(ctx context.Context, c *hub.Client, total int, progress func(done, total int, step string)) (*Workspace, error) {
 	done := 0
 	report := func(line string) {
-		if strings.HasPrefix(line, "  ") || reDeleted.MatchString(line) {
+		if strings.HasPrefix(line, "  ") || reDeleted.MatchString(line) || reOrdered.MatchString(line) {
 			done++
 		}
 		if progress != nil {
@@ -73,7 +75,19 @@ func (w *Workspace) Apply(ctx context.Context, c *hub.Client, total int, progres
 	}
 	var real exchanges
 	stop := c.Session().Watch(real.add)
-	err := profile.ApplyConfig(ctx, c, w.Config, w.applyOptions(report))
+	pair := func(ctx context.Context, c *hub.Client, id byte, name string) error {
+		if progress != nil {
+			progress(min(done, total), total, i18n.T("Pair %s with the hub now, from its Bluetooth settings or its remote's pairing.", name))
+		}
+		ctx, cancel := context.WithTimeout(ctx, PairTimeout)
+		defer cancel()
+		err := c.Pair(ctx, id)
+		if errors.Is(err, context.DeadlineExceeded) {
+			return errors.New(i18n.T("%s did not pair in time: the hub keeps a Bluetooth device only once it has paired. Apply again to try once more.", name))
+		}
+		return err
+	}
+	err := profile.ApplyConfig(ctx, c, w.Config, w.applyOptions(report, pair))
 	stop()
 	if err != nil {
 		return nil, err
@@ -96,7 +110,7 @@ func (w *Workspace) predict(ctx context.Context, real []exchanged) *Workspace {
 	defer func() { _ = sim.Close() }()
 	var got exchanges
 	stop := sim.Session().Watch(got.add)
-	err = profile.ApplyConfig(ctx, sim, w.Config, w.applyOptions(nil))
+	err = profile.ApplyConfig(ctx, sim, w.Config, w.applyOptions(nil, simPair))
 	stop()
 	if err != nil || !slices.Equal(real, got.frames()) {
 		if differ != nil {
@@ -159,14 +173,23 @@ func (x *exchanges) frames() []exchanged {
 
 // applyOptions make the hub hold exactly the workspace: matched by id, as
 // the configuration was read from it, with what was removed deleted. What
-// was not edited is not read again.
-func (w *Workspace) applyOptions(report func(string)) profile.ApplyOptions {
-	return profile.ApplyOptions{ByID: true, Prune: true, Delete: true, Report: report, Base: w.base}
+// was not edited is not read again. pair pairs the Bluetooth devices
+// created.
+func (w *Workspace) applyOptions(report func(string), pair func(context.Context, *hub.Client, byte, string) error) profile.ApplyOptions {
+	return profile.ApplyOptions{ByID: true, Prune: true, Delete: true, Report: report, Base: w.base, Pair: pair}
 }
+
+// PairTimeout is how long applying waits for a new Bluetooth device to
+// pair.
+var PairTimeout = 2 * time.Minute
+
+// simPair pairs a device on a simulated hub, which pairs it at once.
+func simPair(ctx context.Context, c *hub.Client, id byte, _ string) error { return c.Pair(ctx, id) }
 
 var (
 	reChanges = regexp.MustCompile(`^(device|activity) "(.*)" \(\d+\): (\d+) changes$`)
-	reCreated = regexp.MustCompile(`^(device|activity) "(.*)": created as \d+$`)
+	reCreated = regexp.MustCompile(`^(device|activity) "(.*)": created as \d+( and paired)?$`)
+	reOrdered = regexp.MustCompile(`^(devices|activities): reordered$`)
 	reDeleted = regexp.MustCompile(`^(device|activity) "(.*)" \(\d+\): deleted$`)
 	reSkipped = regexp.MustCompile(`^(device|activity) "(.*)": skipped: (.*)$`)
 	reMatches = regexp.MustCompile(`: matches$`)
@@ -209,6 +232,14 @@ func (r *reporter) line(l string) {
 		m := reDeleted.FindStringSubmatch(l)
 		// One write, which takes the hub up to 15 s for a device.
 		r.changes = append(r.changes, Change{Title: changeTitle(m[1], i18n.Mark("Delete device %s"), i18n.Mark("Delete activity %s"), m[2]), Details: []string{"delete"}})
+		r.writes++
+	case reOrdered.MatchString(l):
+		m := reOrdered.FindStringSubmatch(l)
+		title := i18n.T("Change the order of the devices")
+		if m[1] == "activities" {
+			title = i18n.T("Change the order of the activities")
+		}
+		r.changes = append(r.changes, Change{Title: title, Details: []string{"order"}})
 		r.writes++
 	case reSkipped.MatchString(l):
 		m := reSkipped.FindStringSubmatch(l)

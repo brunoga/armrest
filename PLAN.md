@@ -119,10 +119,10 @@ cmd/armrest/         the app (all targets)
 | L2 | Whole-hub plan and apply: target profiles vs the hub, including creating and deleting whole devices and activities, as one ordered plan (generalising `Restore`) | Review and Apply |
 | L3 | Progress and cancellation on long operations (context and a callback per step) | the UI's progress bar |
 | L4 | A clear "hub busy: another app is connected" error from CALL_ME refusals | the most common failure users will hit |
-| L5 | Device and activity order (the hub's lists, `0x51`), and the remaining TODOs of write-flows | reordering in the UI |
+| L5 | Device and activity order (the hub's lists, `0x51` and `0x11`; done 2026-11-05), and the remaining TODOs of write-flows | reordering in the UI |
 | L6 | Transport options for mobile: choosing the listen port, a manual hub IP when mDNS is blocked | phones and guest networks |
 | L7 | Icon drawings: upstream's X2 icon paths (MIT) as SVGs, with attribution, plus names (done) | icon pickers and tiles |
-| L8 | Later: learning IR from a remote (if the hub supports it on the wire), Bluetooth devices, raw-data commands in new devices | the add-device wizard's other paths |
+| L8 | Later: learning IR from a remote (if the hub supports it on the wire), raw-data commands in new devices (Bluetooth devices done 2026-11-05) | the add-device wizard's other paths |
 
 ## 4. Screens
 
@@ -151,7 +151,9 @@ cmd/armrest/         the app (all targets)
    - **Favorites:** an ordered list.
 5. **Add a device:** a searchable template library (by transport and
    maker), or from scratch (protocol plus codes), or a network device
-   (a name and an HTTP request for each command). Bluetooth comes later.
+   (a name and an HTTP request for each command), or a Bluetooth profile
+   of Sofabaton's catalog, which applying pairs (the user pairs the
+   device while the progress says so).
 6. **Review and apply:** the plan as a grouped, readable list, with
    warnings (for example "removing this device removes it from 2
    activities"). Then live progress, and errors with what was already

@@ -54,6 +54,7 @@ type sofabatonCatalog interface {
 	Check(context.Context) error
 	Brands(context.Context) ([]irsource.SofabatonBrand, error)
 	Models(context.Context, irsource.SofabatonBrand) ([]irsource.Entry, error)
+	Bluetooth(context.Context) ([]irsource.Entry, error)
 	Fetch(context.Context, irsource.Entry) ([]byte, error)
 }
 

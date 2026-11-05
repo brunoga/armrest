@@ -226,6 +226,25 @@ func RefreshRows(ctx context.Context, c *hub.Client, old *dump.File) (*Workspace
 	return nil, err
 }
 
+// RefreshLists is RefreshRows reading only the hub's lists: the devices
+// and activities whose row is new or changed are returned, to Check once
+// shown, and show as cached meanwhile, or without commands if new.
+func RefreshLists(ctx context.Context, c *hub.Client, old *dump.File) (*Workspace, []byte, error) {
+	var err error
+	for try := 0; try < Attempts; try++ {
+		var d *dump.File
+		var stale []byte
+		if d, stale, err = dump.RefreshLists(ctx, c, old, Tool, nil); err != nil {
+			return nil, nil, err
+		}
+		var w *Workspace
+		if w, err = FromDump(ctx, d); err == nil {
+			return w, stale, nil
+		}
+	}
+	return nil, nil, err
+}
+
 // Check reads the devices and activities of ids again from the hub,
 // keeping the others and the lists as read: before showing them, after
 // RefreshRows on the same connection.

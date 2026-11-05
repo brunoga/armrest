@@ -250,7 +250,7 @@
   "Order of the activities": "Ordem das atividades",
   "Order of the devices": "Ordem dos dispositivos",
   "Other remotes and apps read these files: Flipper Zero, Home Assistant (SmartIR), LIRC, IrScrutinizer, Global Caché and Broadlink devices, Unfolded Circle remotes. Codes the format cannot hold, and commands that are not IR, are left out.": "Outros controles e apps leem estes arquivos: Flipper Zero, Home Assistant (SmartIR), LIRC, IrScrutinizer, aparelhos Global Caché e Broadlink, controles Unfolded Circle. Códigos que o formato não comporta, e comandos que não são IR, ficam de fora.",
-  "Pair %s with the hub now, from its Bluetooth settings or its remote's pairing.": "Pareie %s com o hub agora, pelas configurações de Bluetooth dele ou pelo pareamento do controle remoto dele.",
+  "Pair %s now: in its Bluetooth settings (or its remote's pairing), pick \"Sofabaton\", a name with an id after it.": "Pareie %s agora: nas configurações de Bluetooth dele (ou no pareamento do controle remoto dele), escolha \"Sofabaton\", um nome seguido de um id.",
   "Philips RC5": "Philips RC5",
   "Philips and many European TVs, amplifiers and CD players. Each device has an address (0 to 31) and each command a code from 0 to 127.": "Philips e muitas TVs, amplificadores e CD players europeus. Cada dispositivo tem um endereço (0 a 31) e cada comando um código de 0 a 127.",
   "Pick a device": "Escolha um dispositivo",

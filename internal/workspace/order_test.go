@@ -53,7 +53,7 @@ func TestOrderAndBluetooth(t *testing.T) {
 	}
 	var steps []string
 	again := applied(t, w, c, p.Writes, func(_, _ int, step string) { steps = append(steps, step) }, true)
-	if !slices.Contains(steps, "Pair Box with the hub now, from its Bluetooth settings or its remote's pairing.") {
+	if !slices.Contains(steps, "Pair Box now: in its Bluetooth settings (or its remote's pairing), pick \"Sofabaton\", a name with an id after it.") {
 		t.Errorf("steps:\n%s", strings.Join(steps, "\n"))
 	}
 	var got []string

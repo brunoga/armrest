@@ -77,7 +77,7 @@ func (w *Workspace) Apply(ctx context.Context, c *hub.Client, total int, progres
 	stop := c.Session().Watch(real.add)
 	pair := func(ctx context.Context, c *hub.Client, id byte, name string) error {
 		if progress != nil {
-			progress(min(done, total), total, i18n.T("Pair %s with the hub now, from its Bluetooth settings or its remote's pairing.", name))
+			progress(min(done, total), total, i18n.T("Pair %s now: in its Bluetooth settings (or its remote's pairing), pick \"Sofabaton\", a name with an id after it.", name))
 		}
 		ctx, cancel := context.WithTimeout(ctx, PairTimeout)
 		defer cancel()

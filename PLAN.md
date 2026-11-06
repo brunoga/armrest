@@ -162,6 +162,12 @@ cmd/armrest/         the app (all targets)
    pressed (not again for a bridge a device of the hub already has a key
    to), then rooms, zones and lights ticked, and on/off and brightness
    levels, counted against the 169 commands a bridge's device takes.
+   Hue is one of the Services (a button beside Bluetooth and Network),
+   with a Roku (found or typed, its keys and the channels ticked), a
+   Sonos speaker (found or typed, the app's commands), and Govee or LIFX
+   lights (the account's key typed, or the one a device of the hub
+   holds; lights, or LIFX's groups, ticked, and on/off and brightness),
+   as the app makes them.
 6. **Review and apply:** the plan as a grouped, readable list, with
    warnings (for example "removing this device removes it from 2
    activities"). Then live progress, and errors with what was already

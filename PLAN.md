@@ -157,7 +157,11 @@ cmd/armrest/         the app (all targets)
    catalog's "Other" profile), which applying pairs (the user pairs the
    device while the progress says so; pairing a device we made worked
    on the X2 with a phone, 2026-11-06). A Bluetooth device's editor
-   picks each command's key.
+   picks each command's key. Or a Philips Hue bridge, as the app adds one: the
+   bridge found on the network (or its address typed), its link button
+   pressed (not again for a bridge a device of the hub already has a key
+   to), then rooms, zones and lights ticked, and on/off and brightness
+   levels, counted against the 169 commands a bridge's device takes.
 6. **Review and apply:** the plan as a grouped, readable list, with
    warnings (for example "removing this device removes it from 2
    activities"). Then live progress, and errors with what was already

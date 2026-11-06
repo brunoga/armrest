@@ -177,12 +177,14 @@ func (a *App) showAddDevice() {
 	intro := wrapped(i18n.T("Pick your device's model. Its commands, keys and power settings come with it, and you can change them before anything is written to the hub."))
 	scratch := widget.NewButtonWithIcon(i18n.T("From scratch"), theme.DocumentCreateIcon(), a.showScratch)
 	fromFile := widget.NewButtonWithIcon(i18n.T("From a file…"), theme.FolderOpenIcon(), a.importIRFile)
-	network := widget.NewButtonWithIcon(i18n.T("Network"), theme.ComputerIcon(), a.showNetwork)
-	bluetooth := widget.NewButtonWithIcon(i18n.T("Bluetooth"), theme.RadioButtonCheckedIcon(), a.showBluetooth)
+	// Three kinds to a row: without icons, they fit a phone.
+	network := widget.NewButton(i18n.T("Network"), a.showNetwork)
+	bluetooth := widget.NewButton(i18n.T("Bluetooth"), a.showBluetooth)
+	hueBridge := widget.NewButton("Hue", a.showHue)
 	notListed := container.NewVBox(
-		wrapped(i18n.T("Not listed? Make it from its IR codes or a file of them, as a device the hub pairs with over Bluetooth, or as one it sends HTTP requests to.")),
+		wrapped(i18n.T("Not listed? Make it from its IR codes or a file of them, as a device the hub pairs with over Bluetooth, as one it sends HTTP requests to, or from your Philips Hue bridge's lights.")),
 		container.NewThemeOverride(container.NewGridWithColumns(2, scratch, fromFile), tightKeys{}),
-		container.NewThemeOverride(container.NewGridWithColumns(2, bluetooth, network), tightKeys{}))
+		container.NewThemeOverride(container.NewGridWithColumns(3, bluetooth, network, hueBridge), tightKeys{}))
 	var on []string
 	for _, s := range sources {
 		if sourceOn(s) {

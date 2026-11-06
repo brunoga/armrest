@@ -4,6 +4,7 @@ package ui
 
 import (
 	"context"
+	"net/http"
 	"time"
 
 	"fyne.io/fyne/v2"
@@ -19,6 +20,7 @@ import (
 	"github.com/brunoga/armrest/internal/i18n"
 	"github.com/brunoga/armrest/internal/workspace"
 	"github.com/brunoga/sofabaton/hub"
+	"github.com/brunoga/sofabaton/hue"
 	"github.com/brunoga/sofabaton/irsource"
 )
 
@@ -93,6 +95,10 @@ type App struct {
 	// irFetch get an index and a file (tests fake them).
 	online  online
 	irIndex func(context.Context, irsource.Source) ([]irsource.Entry, error)
+	// hueBridges finds the Hue bridges on the network, and hueHTTP talks
+	// to them; tests replace both.
+	hueBridges func(context.Context) ([]hue.Bridge, error)
+	hueHTTP    *http.Client
 	irFetch func(context.Context, irsource.Entry) ([]byte, error)
 	// sofabaton is Sofabaton's catalog with a key (tests fake it).
 	sofabaton func(key string) sofabatonCatalog
@@ -105,6 +111,7 @@ func New(win fyne.Window, back backend.Backend) *App {
 	a := &App{win: win, back: back, async: func(f func()) { go f() }, now: time.Now, pickers: systemPickers, retryWait: 3 * time.Second}
 	a.watch = a.watchConnection
 	a.irIndex = a.cachedIndex
+	a.hueBridges = hue.Discover
 	a.sofabaton = realSofabaton
 	a.irFetch = func(ctx context.Context, e irsource.Entry) ([]byte, error) {
 		if e.Source == irsource.Sofabaton {

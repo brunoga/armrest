@@ -48,7 +48,7 @@ type hueTarget struct {
 
 func (a *App) showHue() {
 	s := &hueScreen{app: a, body: container.NewVBox()}
-	a.screen(i18n.T("Philips Hue"), func() { s.leave(); a.showAddDevice() }, scrolled(s.body))
+	a.screen(i18n.T("Philips Hue"), func() { s.leave(); a.showServices() }, scrolled(s.body))
 	s.find()
 }
 
@@ -222,16 +222,6 @@ func (s *hueScreen) choose(c *hue.Client, targets []hue.Target) {
 		} else {
 			lights.Add(ht.check)
 		}
-	}
-	all := func(box *fyne.Container, on bool) {
-		for _, o := range box.Objects {
-			o.(*widget.Check).SetChecked(on)
-		}
-	}
-	allNone := func(box *fyne.Container) fyne.CanvasObject {
-		return container.NewHBox(
-			widget.NewButton(i18n.T("All"), func() { all(box, true) }),
-			widget.NewButton(i18n.T("None"), func() { all(box, false) }))
 	}
 	s.onOff = widget.NewCheck(i18n.T("On and off"), func(bool) { s.recount() })
 	s.onOff.Checked = true

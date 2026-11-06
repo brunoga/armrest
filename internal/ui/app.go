@@ -21,6 +21,8 @@ import (
 	"github.com/brunoga/armrest/internal/workspace"
 	"github.com/brunoga/sofabaton/hub"
 	"github.com/brunoga/sofabaton/hue"
+	"github.com/brunoga/sofabaton/roku"
+	"github.com/brunoga/sofabaton/sonos"
 	"github.com/brunoga/sofabaton/irsource"
 )
 
@@ -101,6 +103,11 @@ type App struct {
 	// to them; tests replace both.
 	hueBridges func(context.Context) ([]hue.Bridge, error)
 	hueHTTP    *http.Client
+	// findRokus and findSonos find Rokus and Sonos speakers, and wifiHTTP
+	// talks to them and to Govee's and LIFX's clouds; tests replace them.
+	findRokus func(context.Context) ([]roku.Player, error)
+	findSonos func(context.Context) ([]sonos.Speaker, error)
+	wifiHTTP  *http.Client
 	irFetch func(context.Context, irsource.Entry) ([]byte, error)
 	// sofabaton is Sofabaton's catalog with a key (tests fake it).
 	sofabaton func(key string) sofabatonCatalog
@@ -114,6 +121,8 @@ func New(win fyne.Window, back backend.Backend) *App {
 	a.watch = a.watchConnection
 	a.irIndex = a.cachedIndex
 	a.hueBridges = hue.Discover
+	a.findRokus = func(ctx context.Context) ([]roku.Player, error) { return roku.Discover(ctx, a.wifiHTTP) }
+	a.findSonos = func(ctx context.Context) ([]sonos.Speaker, error) { return sonos.Discover(ctx, a.wifiHTTP) }
 	a.sofabaton = realSofabaton
 	a.irFetch = func(ctx context.Context, e irsource.Entry) ([]byte, error) {
 		if e.Source == irsource.Sofabaton {

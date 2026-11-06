@@ -35,9 +35,11 @@ type deviceEditor struct {
 
 	cmds    []*cmdRow
 	cmdList *fyne.Container
-	// bluetooth is set for a Bluetooth device, whose commands press keys,
-	// and hue for a Hue bridge, whose commands are made from the bridge.
-	bluetooth, hue bool
+	// bluetooth is set for a Bluetooth device, whose commands press keys;
+	// service names a Hue bridge's, Roku's or Sonos's (see
+	// workspace.Service), whose commands are made from the device.
+	bluetooth bool
+	service   string
 
 	pad *keyPad
 
@@ -126,7 +128,7 @@ func (ed *deviceEditor) content() fyne.CanvasObject {
 	// Commands come first: the pickers below offer them.
 	ed.cmdList = container.NewVBox()
 	ed.bluetooth = ed.app.work.IsBluetooth(e.Original)
-	ed.hue = ed.app.work.IsHue(e.Original)
+	ed.service = ed.app.work.Service(e.Original)
 	for _, c := range e.Commands {
 		ed.addCmd(c)
 	}
@@ -143,8 +145,11 @@ func (ed *deviceEditor) content() fyne.CanvasObject {
 	if !ed.app.work.CanAddCommands(e.Original) {
 		add.Disable()
 		why := i18n.T("This device has no IR protocol (its commands were learned), so new commands cannot be given as codes.")
-		if ed.hue {
+		switch ed.service {
+		case "Hue":
 			why = i18n.T("A Hue bridge's commands are made from the bridge: add the bridge again, from Add a device, for others.")
+		case "Roku", "Sonos":
+			why = i18n.T("A %s's commands are made from it: add it again, from Add a device, for others.", ed.service)
 		}
 		n := wrapped(why)
 		n.TextStyle.Italic = true
@@ -285,8 +290,8 @@ func (ed *deviceEditor) addCmd(c workspace.CommandEdit) {
 	r.code.SetPlaceHolder(i18n.T("Code"))
 	if c.Fixed {
 		r.code.SetText(i18n.T("learned"))
-		if ed.hue {
-			r.code.SetText("Hue")
+		if ed.service != "" {
+			r.code.SetText(ed.service)
 		}
 		r.code.Disable()
 	}

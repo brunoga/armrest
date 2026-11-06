@@ -180,11 +180,11 @@ func (a *App) showAddDevice() {
 	// Three kinds to a row: without icons, they fit a phone.
 	network := widget.NewButton(i18n.T("Network"), a.showNetwork)
 	bluetooth := widget.NewButton(i18n.T("Bluetooth"), a.showBluetooth)
-	hueBridge := widget.NewButton("Hue", a.showHue)
+	services := widget.NewButton(i18n.T("Services"), a.showServices)
 	notListed := container.NewVBox(
-		wrapped(i18n.T("Not listed? Make it from its IR codes or a file of them, as a device the hub pairs with over Bluetooth, as one it sends HTTP requests to, or from your Philips Hue bridge's lights.")),
+		wrapped(i18n.T("Not listed? Make it from its IR codes or a file of them, as a Bluetooth or network device, or from a service: Philips Hue, Roku, Sonos, Govee or LIFX.")),
 		container.NewThemeOverride(container.NewGridWithColumns(2, scratch, fromFile), tightKeys{}),
-		container.NewThemeOverride(container.NewGridWithColumns(3, bluetooth, network, hueBridge), tightKeys{}))
+		container.NewThemeOverride(container.NewGridWithColumns(3, bluetooth, network, services), tightKeys{}))
 	var on []string
 	for _, s := range sources {
 		if sourceOn(s) {

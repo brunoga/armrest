@@ -83,7 +83,7 @@ func (w *Workspace) Apply(ctx context.Context, c *hub.Client, total int, progres
 		defer cancel()
 		err := c.Pair(ctx, id)
 		if errors.Is(err, context.DeadlineExceeded) {
-			return errors.New(i18n.T("%s did not pair in time: the hub keeps a Bluetooth device only once it has paired. Apply again to try once more.", name))
+			return errors.New(i18n.T("%s did not pair in time: the hub keeps a Bluetooth device only once it has paired. Apply again to try once more. If the device said the PIN or passkey was wrong, restart the hub (power it off and on) and have the device forget \"Sofabaton\" first.", name))
 		}
 		return err
 	}

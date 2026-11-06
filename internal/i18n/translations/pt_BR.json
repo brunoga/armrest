@@ -23,7 +23,7 @@
   "%s and %s.": "%s e %s.",
   "%s cannot be added: it has no codes": "%s não pode ser adicionado: ele não tem códigos",
   "%s cannot be added: none of its codes can be sent by the hub yet (%s)": "%s não pode ser adicionado: o hub ainda não sabe enviar nenhum dos seus códigos (%s)",
-  "%s did not pair in time: the hub keeps a Bluetooth device only once it has paired. Apply again to try once more.": "%s não pareou a tempo: o hub só mantém um dispositivo Bluetooth depois de pareado. Aplique de novo para tentar outra vez.",
+  "%s did not pair in time: the hub keeps a Bluetooth device only once it has paired. Apply again to try once more. If the device said the PIN or passkey was wrong, restart the hub (power it off and on) and have the device forget \"Sofabaton\" first.": "%s não pareou a tempo: o hub só mantém um dispositivo Bluetooth depois de pareado. Aplique de novo para tentar outra vez. Se ele disse que o PIN ou a senha estava errado, reinicie o hub (desligue e ligue de novo) e faça o dispositivo esquecer \"Sofabaton\" antes.",
   "%s has no input %q.": "%s não tem a entrada %q.",
   "%s icon": "ícone %s",
   "%s is in the activity twice.": "%s está duas vezes na atividade.",

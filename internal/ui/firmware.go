@@ -27,6 +27,8 @@ func (s *browseScreen) firmwareCard() fyne.CanvasObject {
 	}
 	status := wrapped("")
 	actions := container.NewHBox()
+	remotes := container.NewVBox()
+	remotes.Hide() // until it has a remote's row
 	var check func()
 	show := func(text string, buttons ...fyne.CanvasObject) {
 		status.SetText(text)
@@ -39,13 +41,28 @@ func (s *browseScreen) firmwareCard() fyne.CanvasObject {
 			show(i18n.T("Checking for updates asks Sofabaton's server, with the key the settings take for its catalog."))
 			return
 		}
-		info := a.client.Info()
+		info, c := a.client.Info(), a.client
 		show(i18n.T("Checking for an update…"))
+		remotes.RemoveAll()
 		a.async(func() {
 			ctx, cancel := context.WithTimeout(context.Background(), firmwareTimeout)
 			defer cancel()
-			f, err := a.sofabaton(key).HubFirmware(ctx, info)
+			cat := a.sofabaton(key)
+			f, err := cat.HubFirmware(ctx, info)
+			var found []remoteUpdate
+			if err == nil {
+				// The hub's answer stands without its remotes'.
+				var rerr error
+				if found, rerr = remoteUpdates(ctx, c, cat); rerr != nil {
+					fyne.LogError("checking the remotes' firmware", rerr)
+				}
+			}
 			fyne.Do(func() {
+				for _, r := range found {
+					remotes.Add(s.remoteRow(r))
+				}
+				remotes.Hidden = len(remotes.Objects) == 0
+				remotes.Refresh()
 				switch {
 				case err != nil:
 					show(i18n.T("Checking failed: %v", err), widget.NewButtonWithIcon(i18n.T("Try again"), theme.ViewRefreshIcon(), check))
@@ -60,7 +77,7 @@ func (s *browseScreen) firmwareCard() fyne.CanvasObject {
 		})
 	}
 	show(i18n.T("Sofabaton's server says whether there is a newer firmware for the hub."), widget.NewButtonWithIcon(i18n.T("Check for an update"), theme.ViewRefreshIcon(), check))
-	return card(i18n.T("Firmware"), container.NewVBox(status, actions))
+	return card(i18n.T("Firmware"), container.NewVBox(status, actions, remotes))
 }
 
 // installFirmware downloads the firmware and sends it to the hub, which

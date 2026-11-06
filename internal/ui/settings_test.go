@@ -15,6 +15,7 @@ import (
 	"github.com/brunoga/armrest/internal/backend"
 	"github.com/brunoga/sofabaton/irsource"
 	"github.com/brunoga/sofabaton/record"
+	"github.com/brunoga/sofabaton/sifli"
 )
 
 // fakeKey stands in for the catalog's key.
@@ -211,4 +212,12 @@ func (c fakeCatalog) HubFirmware(_ context.Context, info *record.HubInfo) (*irso
 
 func (c fakeCatalog) HubImage(context.Context, *irsource.Firmware) ([]byte, error) {
 	return fakeImage, nil
+}
+
+func (c fakeCatalog) RemoteFirmwares(context.Context) ([]*irsource.Firmware, error) {
+	return []*irsource.Firmware{{Product: "remote2_release", Version: 10, Notes: "Faster sync"}, {Product: "remote2_release", Version: 9}}, nil
+}
+
+func (c fakeCatalog) RemotePackage(context.Context, *irsource.Firmware) (sifli.Package, error) {
+	return sifli.Package{Ctrl: []byte("ctrl"), Images: [][]byte{[]byte("image")}}, nil
 }

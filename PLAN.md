@@ -169,7 +169,9 @@ cmd/armrest/         the app (all targets)
 7. **Backup and restore:** dump to a file, restore
    from a file with the plan first.
 8. **Firmware:** the hub tab asks Sofabaton's server, as the app does,
-   whether there is a newer hub firmware, and installs it (downloaded,
+   whether there is a newer hub firmware (on its own once a connection,
+   with the catalog's key set, the status line saying when there is),
+   and installs it (downloaded,
    sent with its MD5, then the hub restarts and is connected to again).
    No newer hub firmware has been out to install yet. The remotes the
    hub knows are checked too; on Android, Armrest sends a remote its

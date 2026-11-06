@@ -40,7 +40,11 @@ type browseScreen struct {
 	barBackBox *fyne.Container
 	barTop     fyne.CanvasObject
 	// hubInfo says what the hub is, on the hub's tab.
-	hubInfo             *widget.Label
+	hubInfo *widget.Label
+	// The firmware card: the check's words, its buttons, the remotes'.
+	fwStatus            *widget.Label
+	fwActions           *fyne.Container
+	fwRemotes           *fyne.Container
 	devices, activities *browseList
 
 	status *widget.Label

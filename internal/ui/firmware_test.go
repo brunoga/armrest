@@ -22,17 +22,20 @@ import (
 func TestFirmware(t *testing.T) {
 	u, w := newApp(t, backend.Hub{Name: "Lounge", Model: "X2", Firmware: 9, Addr: lounge})
 	u.sofabaton = func(key string) sofabatonCatalog { return fakeCatalog{key} }
+	prev := remoteUpdates
+	t.Cleanup(func() { remoteUpdates = prev })
+	remoteUpdates = func(context.Context, *hub.Client, sofabatonCatalog) ([]remoteUpdate, error) { return nil, nil }
 	test.Tap(button(t, w, "Lounge (X2, 192.168.1.20)"))
-	hubAction(t, u, "Check for an update")
-	if got := texts(w); !strings.Contains(got, "with the key the settings take") {
+	u.browse.tabs.SelectIndex(hubTab)
+	if got := texts(w); !strings.Contains(got, "with the key the settings take") || !strings.Contains(got, "[Settings…]") {
 		t.Fatalf("checked without a key:\n%s", got)
 	}
+	// With the key, the hub tab checks on its own, once a connection, and
+	// says when there is something newer.
 	prefs().SetString(sofabatonKeyPref, fakeKey)
 	t.Cleanup(func() { prefs().SetString(sofabatonKeyPref, "") })
-	u.browse.tabs.SelectIndex(hubTab)
 	u.showBrowse(u.hub).tabs.SelectIndex(hubTab)
-	test.Tap(button(t, w, "Check for an update"))
-	if got := texts(w); !strings.Contains(got, "Firmware 10 is available: Fixes bugs") {
+	if got := texts(w); !strings.Contains(got, "Firmware 10 is available: Fixes bugs") || !strings.Contains(got, "A firmware update is available") {
 		t.Fatalf("no update offered:\n%s", got)
 	}
 	test.Tap(button(t, w, "Install…"))
@@ -140,17 +143,17 @@ func TestRemoteFirmware(t *testing.T) {
 	}
 	sifli.RestartPause = 0
 
+	// Connecting checks the remotes too.
 	remoteBluetooth = false
 	test.Tap(button(t, w, "Lounge (X2, 192.168.1.20)"))
-	hubAction(t, u, "Check for an update")
+	u.browse.tabs.SelectIndex(hubTab)
 	if got := texts(w); !strings.Contains(got, "Remote 1: firmware 10 is available: Faster sync") || !strings.Contains(got, "from a phone") {
 		t.Fatalf("no remote update offered:\n%s", got)
 	}
 
 	remoteBluetooth = true
 	u.showBrowse(u.hub).tabs.SelectIndex(hubTab)
-	test.Tap(button(t, w, "Check for an update"))
-	test.Tap(button(t, w, "Install…"))
+	test.Tap(button(t, w, "Install on Remote 1…"))
 	test.Tap(button(t, w, "Yes"))
 	if got := texts(w); !strings.Contains(got, "Remote 1 has firmware 10 and is installing it") || string(fake.got) != "image" {
 		t.Fatalf("not installed (%q):\n%s", fake.got, got)
@@ -158,8 +161,8 @@ func TestRemoteFirmware(t *testing.T) {
 
 	// On the newest, it can be sent again.
 	firmware, fake.got = 10, nil
+	u.checkFirmware(false)
 	u.showBrowse(u.hub).tabs.SelectIndex(hubTab)
-	test.Tap(button(t, w, "Check for an update"))
 	if got := texts(w); !strings.Contains(got, "Remote 1: firmware 10 is the newest.") {
 		t.Fatalf("not the newest:\n%s", got)
 	}

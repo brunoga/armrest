@@ -89,7 +89,7 @@ func (s *browseScreen) remoteRow(r remoteUpdate) fyne.CanvasObject {
 		note.TextStyle.Italic = true
 		return container.NewVBox(text, note)
 	}
-	install := widget.NewButtonWithIcon(i18n.T("Install…"), theme.DownloadIcon(), func() { s.installRemote(r) })
+	install := widget.NewButtonWithIcon(i18n.T("Install on %s…", r.remote.Name), theme.DownloadIcon(), func() { s.installRemote(r) })
 	install.Importance = widget.HighImportance
 	return container.NewVBox(text, container.NewHBox(install))
 }

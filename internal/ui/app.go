@@ -83,6 +83,8 @@ type App struct {
 	// background is set while the app is not in the foreground: a phone
 	// suspends its network then, and the hub's connection drops.
 	background bool
+	// fw is the last check of the hub's firmware with Sofabaton's server.
+	fw *firmwareCheck
 	// working is set while the hub is read or written: those screens
 	// handle a dropped connection themselves.
 	working bool

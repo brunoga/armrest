@@ -168,7 +168,13 @@ cmd/armrest/         the app (all targets)
    done.
 7. **Backup and restore:** dump to a file, restore
    from a file with the plan first.
-8. **Settings and diagnostics:** the frame log (as `-v`) to attach to bug
+8. **Firmware:** the hub tab asks Sofabaton's server, as the app does,
+   whether there is a newer hub firmware, and installs it (downloaded,
+   sent with its MD5, then the hub restarts and is connected to again).
+   No newer hub firmware has been out to install yet. The remote's
+   update goes from the phone to the remote over Bluetooth (SiFli's
+   procedure): being worked out.
+9. **Settings and diagnostics:** the frame log (as `-v`) to attach to bug
    reports, the version, licenses.
 
 Shared widgets: the step editor, the remote's key layout, the icon and

@@ -11,6 +11,7 @@ import (
 	"fyne.io/fyne/v2/widget"
 
 	"github.com/brunoga/armrest/internal/i18n"
+	"github.com/brunoga/sofabaton/hub"
 	"github.com/brunoga/sofabaton/irsource"
 )
 
@@ -18,66 +19,133 @@ import (
 // image (a hub's is about 50 KB).
 const firmwareTimeout = time.Minute
 
-// firmwareCard checks the hub's firmware against Sofabaton's server and
-// installs a newer one, as the app does; nil for a file or the demo.
+// firmwareCheck is the last check of the connected hub's firmware, and
+// of its remotes', with Sofabaton's server.
+type firmwareCheck struct {
+	// client is the connection it was made on: a new one checks again.
+	client  *hub.Client
+	running bool
+	// firmware is the hub's, hub the newer one the server has, if any.
+	firmware byte
+	hub      *irsource.Firmware
+	remotes  []remoteUpdate
+	err      error
+}
+
+// checkFirmware asks Sofabaton's server for newer firmware for the hub
+// and its remotes, in the background; auto says the app checks on its
+// own, on connecting, and says so only if there is something newer.
+func (a *App) checkFirmware(auto bool) {
+	key := sofabatonKey()
+	if key == "" || a.client == nil {
+		return
+	}
+	c := a.client
+	fc := &firmwareCheck{client: c, running: true, firmware: c.Info().Firmware}
+	a.fw = fc
+	if a.browse != nil {
+		a.browse.showFirmware()
+	}
+	a.async(func() {
+		ctx, cancel := context.WithTimeout(context.Background(), firmwareTimeout)
+		defer cancel()
+		cat := a.sofabaton(key)
+		f, err := cat.HubFirmware(ctx, c.Info())
+		var found []remoteUpdate
+		if err == nil {
+			// The hub's answer stands without its remotes'.
+			var rerr error
+			if found, rerr = remoteUpdates(ctx, c, cat); rerr != nil {
+				fyne.LogError("checking the remotes' firmware", rerr)
+			}
+		}
+		fyne.Do(func() {
+			fc.running, fc.hub, fc.remotes, fc.err = false, f, found, err
+			if a.fw != fc || a.browse == nil {
+				return // checked again, or left, meanwhile
+			}
+			a.browse.showFirmware()
+			if auto && fc.newer() {
+				a.browse.setStatus(false, i18n.T("A firmware update is available: the Hub tab has it."))
+			}
+		})
+	})
+}
+
+// newer reports whether the check found newer firmware.
+func (fc *firmwareCheck) newer() bool {
+	if fc.hub != nil {
+		return true
+	}
+	for _, r := range fc.remotes {
+		if r.update != nil {
+			return true
+		}
+	}
+	return false
+}
+
+// firmwareCard shows the firmware check, and installs what it found, as
+// the app does; nil for a file or the demo. Connecting checks on its own
+// once a connection, with the catalog's key set.
 func (s *browseScreen) firmwareCard() fyne.CanvasObject {
 	a := s.app
 	if a.offline() || s.hub.Demo || a.client == nil {
 		return nil
 	}
-	status := wrapped("")
-	actions := container.NewHBox()
-	remotes := container.NewVBox()
-	remotes.Hide() // until it has a remote's row
-	var check func()
+	s.fwStatus = wrapped("")
+	s.fwActions = container.NewHBox()
+	s.fwRemotes = container.NewVBox()
+	s.showFirmware()
+	if sofabatonKey() != "" && (a.fw == nil || a.fw.client != a.client) {
+		a.checkFirmware(true)
+	}
+	return card(i18n.T("Firmware"), container.NewVBox(s.fwStatus, s.fwActions, s.fwRemotes))
+}
+
+// showFirmware shows the last check on the firmware card.
+func (s *browseScreen) showFirmware() {
+	if s.fwStatus == nil {
+		return
+	}
+	a := s.app
+	check := func() { a.checkFirmware(false) }
 	show := func(text string, buttons ...fyne.CanvasObject) {
-		status.SetText(text)
-		actions.Objects = buttons
-		actions.Refresh()
+		s.fwStatus.SetText(text)
+		s.fwActions.Objects = buttons
+		s.fwActions.Refresh()
 	}
-	check = func() {
-		key := sofabatonKey()
-		if key == "" {
-			show(i18n.T("Checking for updates asks Sofabaton's server, with the key the settings take for its catalog."))
-			return
-		}
-		info, c := a.client.Info(), a.client
+	s.fwRemotes.RemoveAll()
+	fc := a.fw
+	if fc != nil && fc.client != a.client {
+		fc = nil // of another connection
+	}
+	switch {
+	case sofabatonKey() == "" && fc == nil:
+		show(i18n.T("Checking for updates asks Sofabaton's server, with the key the settings take for its catalog."),
+			widget.NewButtonWithIcon(i18n.T("Settings…"), theme.SettingsIcon(), a.showSettings))
+	case fc == nil:
+		show(i18n.T("Sofabaton's server says whether there is a newer firmware for the hub."),
+			widget.NewButtonWithIcon(i18n.T("Check for an update"), theme.ViewRefreshIcon(), check))
+	case fc.running:
 		show(i18n.T("Checking for an update…"))
-		remotes.RemoveAll()
-		a.async(func() {
-			ctx, cancel := context.WithTimeout(context.Background(), firmwareTimeout)
-			defer cancel()
-			cat := a.sofabaton(key)
-			f, err := cat.HubFirmware(ctx, info)
-			var found []remoteUpdate
-			if err == nil {
-				// The hub's answer stands without its remotes'.
-				var rerr error
-				if found, rerr = remoteUpdates(ctx, c, cat); rerr != nil {
-					fyne.LogError("checking the remotes' firmware", rerr)
-				}
-			}
-			fyne.Do(func() {
-				for _, r := range found {
-					remotes.Add(s.remoteRow(r))
-				}
-				remotes.Hidden = len(remotes.Objects) == 0
-				remotes.Refresh()
-				switch {
-				case err != nil:
-					show(i18n.T("Checking failed: %v", err), widget.NewButtonWithIcon(i18n.T("Try again"), theme.ViewRefreshIcon(), check))
-				case f == nil:
-					show(i18n.T("Firmware %d is the newest.", info.Firmware))
-				default:
-					install := widget.NewButtonWithIcon(i18n.T("Install…"), theme.DownloadIcon(), func() { s.installFirmware(f) })
-					install.Importance = widget.HighImportance
-					show(i18n.T("Firmware %d is available: %s", f.Version, f.Notes), install)
-				}
-			})
-		})
+	case fc.err != nil:
+		show(i18n.T("Checking failed: %v", fc.err), widget.NewButtonWithIcon(i18n.T("Try again"), theme.ViewRefreshIcon(), check))
+	case fc.hub == nil:
+		show(i18n.T("Firmware %d is the newest.", fc.firmware), widget.NewButtonWithIcon(i18n.T("Check again"), theme.ViewRefreshIcon(), check))
+	default:
+		f := fc.hub
+		install := widget.NewButtonWithIcon(i18n.T("Install…"), theme.DownloadIcon(), func() { s.installFirmware(f) })
+		install.Importance = widget.HighImportance
+		show(i18n.T("Firmware %d is available: %s", f.Version, f.Notes), install)
 	}
-	show(i18n.T("Sofabaton's server says whether there is a newer firmware for the hub."), widget.NewButtonWithIcon(i18n.T("Check for an update"), theme.ViewRefreshIcon(), check))
-	return card(i18n.T("Firmware"), container.NewVBox(status, actions, remotes))
+	if fc != nil {
+		for _, r := range fc.remotes {
+			s.fwRemotes.Add(s.remoteRow(r))
+		}
+	}
+	s.fwRemotes.Hidden = len(s.fwRemotes.Objects) == 0
+	s.fwRemotes.Refresh()
 }
 
 // installFirmware downloads the firmware and sends it to the hub, which

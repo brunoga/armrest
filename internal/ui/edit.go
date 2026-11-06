@@ -177,11 +177,12 @@ func (a *App) showAddDevice() {
 	intro := wrapped(i18n.T("Pick your device's model. Its commands, keys and power settings come with it, and you can change them before anything is written to the hub."))
 	scratch := widget.NewButtonWithIcon(i18n.T("From scratch"), theme.DocumentCreateIcon(), a.showScratch)
 	fromFile := widget.NewButtonWithIcon(i18n.T("From a file…"), theme.FolderOpenIcon(), a.importIRFile)
-	network := widget.NewButtonWithIcon(i18n.T("A network device"), theme.ComputerIcon(), a.showNetwork)
+	network := widget.NewButtonWithIcon(i18n.T("Network"), theme.ComputerIcon(), a.showNetwork)
+	bluetooth := widget.NewButtonWithIcon(i18n.T("Bluetooth"), theme.RadioButtonCheckedIcon(), a.showBluetooth)
 	notListed := container.NewVBox(
-		wrapped(i18n.T("Not listed? Make it from its IR codes or a file of them, or as a device the hub sends HTTP requests to.")),
+		wrapped(i18n.T("Not listed? Make it from its IR codes or a file of them, as a device the hub pairs with over Bluetooth, or as one it sends HTTP requests to.")),
 		container.NewThemeOverride(container.NewGridWithColumns(2, scratch, fromFile), tightKeys{}),
-		container.NewThemeOverride(container.NewGridWithColumns(1, network), tightKeys{}))
+		container.NewThemeOverride(container.NewGridWithColumns(2, bluetooth, network), tightKeys{}))
 	var on []string
 	for _, s := range sources {
 		if sourceOn(s) {

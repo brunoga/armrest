@@ -152,8 +152,12 @@ cmd/armrest/         the app (all targets)
 5. **Add a device:** a searchable template library (by transport and
    maker), or from scratch (protocol plus codes), or a network device
    (a name and an HTTP request for each command), or a Bluetooth profile
-   of Sofabaton's catalog, which applying pairs (the user pairs the
-   device while the progress says so).
+   of Sofabaton's catalog, or a Bluetooth device from scratch (keys
+   picked by name, the usual ones of a TV box's remote to start, on the
+   catalog's "Other" profile), which applying pairs (the user pairs the
+   device while the progress says so; pairing a device we made worked
+   on the X2 with a phone, 2026-11-06). A Bluetooth device's editor
+   picks each command's key.
 6. **Review and apply:** the plan as a grouped, readable list, with
    warnings (for example "removing this device removes it from 2
    activities"). Then live progress, and errors with what was already

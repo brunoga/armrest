@@ -461,10 +461,12 @@ func (s *browseScreen) hubContent(h backend.Hub) fyne.CanvasObject {
 		files.Add(container.NewHBox(restore))
 		leave = widget.NewButtonWithIcon(i18n.T("Close the file"), theme.LogoutIcon(), s.app.closeFile)
 	}
-	return scrolled(container.NewVBox(
-		card(i18n.T("The hub"), s.hubInfo),
-		card(i18n.T("Files"), files),
-		container.NewHBox(leave)))
+	parts := []fyne.CanvasObject{card(i18n.T("The hub"), s.hubInfo)}
+	if fw := s.firmwareCard(); fw != nil {
+		parts = append(parts, fw)
+	}
+	parts = append(parts, card(i18n.T("Files"), files), container.NewHBox(leave))
+	return scrolled(container.NewVBox(parts...))
 }
 
 // showHub says what the hub is, on its tab.

@@ -15,6 +15,7 @@ import (
 	"github.com/brunoga/armrest/internal/backend"
 	"github.com/brunoga/armrest/internal/i18n"
 	"github.com/brunoga/sofabaton/irsource"
+	"github.com/brunoga/sofabaton/record"
 )
 
 // The settings' preferences.
@@ -56,6 +57,8 @@ type sofabatonCatalog interface {
 	Models(context.Context, irsource.SofabatonBrand) ([]irsource.Entry, error)
 	Bluetooth(context.Context) ([]irsource.Entry, error)
 	Fetch(context.Context, irsource.Entry) ([]byte, error)
+	HubFirmware(context.Context, *record.HubInfo) (*irsource.Firmware, error)
+	HubImage(context.Context, *irsource.Firmware) ([]byte, error)
 }
 
 func realSofabaton(key string) sofabatonCatalog { return irsource.SofabatonDB{Key: key} }

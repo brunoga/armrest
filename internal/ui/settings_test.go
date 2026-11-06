@@ -1,6 +1,7 @@
 package ui
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"fmt"
@@ -13,6 +14,7 @@ import (
 
 	"github.com/brunoga/armrest/internal/backend"
 	"github.com/brunoga/sofabaton/irsource"
+	"github.com/brunoga/sofabaton/record"
 )
 
 // fakeKey stands in for the catalog's key.
@@ -188,4 +190,25 @@ func TestAutoConnect(t *testing.T) {
 	if u.client == nil || u.hub.Addr != lounge {
 		t.Fatal("not connected to the last hub on starting")
 	}
+}
+
+// fakeFirmware is the firmware the fake catalog offers a hub on a
+// lower one; fakeImage its image.
+var (
+	fakeFirmware = &irsource.Firmware{Product: "x2", Version: 10, Notes: "Fixes bugs", URLs: []string{"https://x/hub.bin"}}
+	fakeImage    = bytes.Repeat([]byte("image"), 1000)
+)
+
+func (c fakeCatalog) HubFirmware(_ context.Context, info *record.HubInfo) (*irsource.Firmware, error) {
+	if c.key != fakeKey {
+		return nil, irsource.ErrSofabatonKey
+	}
+	if int(info.Firmware) >= fakeFirmware.Version {
+		return nil, nil
+	}
+	return fakeFirmware, nil
+}
+
+func (c fakeCatalog) HubImage(context.Context, *irsource.Firmware) ([]byte, error) {
+	return fakeImage, nil
 }

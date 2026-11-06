@@ -221,3 +221,30 @@ func (c fakeCatalog) RemoteFirmwares(context.Context) ([]*irsource.Firmware, err
 func (c fakeCatalog) RemotePackage(context.Context, *irsource.Firmware) (sifli.Package, error) {
 	return sifli.Package{Ctrl: []byte("ctrl"), Images: [][]byte{[]byte("image")}}, nil
 }
+
+// A build with the catalog's key turns the catalog on by default, and
+// uses the key without asking; a key the user gave comes first.
+func TestBuiltinKey(t *testing.T) {
+	u, w := newApp(t, backend.Hub{Name: "Lounge", Model: "X2", Firmware: 9, Addr: lounge})
+	prev := builtinKey
+	t.Cleanup(func() { builtinKey = prev })
+	builtinKey = irsource.ScrambleKey(fakeKey)
+	if sofabatonKey() != fakeKey || !sourceOn(irsource.Sofabaton) {
+		t.Fatalf("key %q, on %v", sofabatonKey(), sourceOn(irsource.Sofabaton))
+	}
+	u.showSettings()
+	test.Tap(check(t, w, "Sofabaton"))
+	if sourceOn(irsource.Sofabaton) {
+		t.Fatal("not turned off")
+	}
+	test.Tap(check(t, w, "Sofabaton"))
+	if !sourceOn(irsource.Sofabaton) || strings.Contains(texts(w), "16 characters") {
+		t.Fatalf("asked for the key it has:\n%s", texts(w))
+	}
+	t.Cleanup(func() { prefs().RemoveValue(sourcePref + string(irsource.Sofabaton)) })
+	prefs().SetString(sofabatonKeyPref, "mine")
+	t.Cleanup(func() { prefs().SetString(sofabatonKeyPref, "") })
+	if sofabatonKey() != "mine" {
+		t.Errorf("key %q, want the user's", sofabatonKey())
+	}
+}

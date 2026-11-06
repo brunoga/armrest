@@ -28,8 +28,8 @@ const (
 	// sourcePref, followed by a source's name, is whether adding a device
 	// searches the source.
 	sourcePref = "source."
-	// sofabatonKeyPref is the key of Sofabaton's catalog, which the user
-	// gives: the app does not carry it.
+	// sofabatonKeyPref is the key of Sofabaton's catalog the user gave,
+	// for a build without one built in (builtinKey).
 	sofabatonKeyPref = "sofabatonKey"
 )
 
@@ -43,12 +43,24 @@ func prefs() fyne.Preferences { return fyne.CurrentApp().Preferences() }
 // sourceOn reports whether adding a device searches the source.
 func sourceOn(s irsource.Source) bool {
 	if s == irsource.Sofabaton {
-		return prefs().Bool(sourcePref+string(s)) && sofabatonKey() != ""
+		// On by default when the build carries the key.
+		return prefs().BoolWithFallback(sourcePref+string(s), builtinKey != "") && sofabatonKey() != ""
 	}
 	return prefs().BoolWithFallback(sourcePref+string(s), true)
 }
 
-func sofabatonKey() string { return prefs().String(sofabatonKeyPref) }
+func sofabatonKey() string {
+	if k := prefs().String(sofabatonKeyPref); k != "" {
+		return k
+	}
+	return irsource.UnscrambleKey(builtinKey)
+}
+
+// builtinKey is the catalog's key built into the app, scrambled
+// (irsource.ScrambleKey): CI sets it from the repository's secret, and
+// make from ~/sofabaton-catalog-key.txt, with the linker's -X. It is
+// never in the repository.
+var builtinKey string
 
 // sofabatonCatalog is Sofabaton's catalog (irsource.SofabatonDB); tests
 // fake it.
@@ -139,6 +151,9 @@ func (a *App) sourceSetting(s irsource.Source) fyne.CanvasObject {
 	about := i18n.T("Public, and searched unless turned off.")
 	if s == irsource.Sofabaton {
 		about = i18n.T("The catalog Sofabaton's app searches, with most brands and models by number. It is not offered for other apps: it may change or stop answering, and its answers are encrypted with a key the Sofabaton app holds, which you give here (the app does not carry it).")
+		if builtinKey != "" {
+			about = i18n.T("The catalog Sofabaton's app searches, with most brands and models by number, and Sofabaton's firmware updates. It is not offered for other apps: it may change or stop answering. Its key, which the Sofabaton app holds, comes with this build of Armrest.")
+		}
 	}
 	note := wrapped(about)
 	note.TextStyle.Italic = true
@@ -149,6 +164,11 @@ func (a *App) sourceSetting(s irsource.Source) fyne.CanvasObject {
 		if s != irsource.Sofabaton || !on {
 			prefs().SetBool(sourcePref+string(s), on)
 			a.online = online{} // searched again with the change
+			return
+		}
+		if sofabatonKey() != "" {
+			prefs().SetBool(sourcePref+string(s), true)
+			a.online = online{}
 			return
 		}
 		check.SetChecked(false) // until the key is checked
@@ -163,7 +183,7 @@ func (a *App) sourceSetting(s irsource.Source) fyne.CanvasObject {
 // catalog, and keeps it and turns the catalog on if it works.
 func (a *App) askSofabatonKey(done func()) {
 	key := widget.NewPasswordEntry()
-	key.SetText(sofabatonKey())
+	key.SetText(prefs().String(sofabatonKeyPref))
 	key.SetPlaceHolder(i18n.T("16 characters"))
 	problem := wrapped("")
 	problem.Importance = widget.DangerImportance

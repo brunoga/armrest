@@ -184,7 +184,12 @@ cmd/armrest/         the app (all targets)
    again, and it came back on 9. Android 12 and later want the "Nearby
    devices" permission (BLUETOOTH_CONNECT) at run time, whatever API
    level the app targets: Armrest asks for it and waits for the answer.
-9. **Settings and diagnostics:** the frame log (as `-v`) to attach to bug
+9. **Sofabaton's key:** the catalog and firmware updates take the key the
+   Sofabaton app holds. CI builds it in, scrambled, from the repository's
+   SOFABATON_KEY secret, and make from ~/sofabaton-catalog-key.txt; it is
+   never in the repository, and a key given in the settings comes first.
+   With it, the catalog is on by default.
+10. **Settings and diagnostics:** the frame log (as `-v`) to attach to bug
    reports, the version, licenses.
 
 Shared widgets: the step editor, the remote's key layout, the icon and

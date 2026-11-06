@@ -35,6 +35,8 @@ type deviceEditor struct {
 
 	cmds    []*cmdRow
 	cmdList *fyne.Container
+	// bluetooth is set for a Bluetooth device, whose commands press keys.
+	bluetooth bool
 
 	pad *keyPad
 
@@ -78,6 +80,9 @@ type cmdRow struct {
 	// url is a network command's address, in place of code; edit.HTTP
 	// holds the rest of its request.
 	url *widget.Entry
+	// key is the key a Bluetooth device's command presses, in place of
+	// code.
+	key *widget.Select
 	box fyne.CanvasObject
 	// last is the name last seen, to follow renames in the pickers.
 	last string
@@ -119,6 +124,7 @@ func (ed *deviceEditor) content() fyne.CanvasObject {
 
 	// Commands come first: the pickers below offer them.
 	ed.cmdList = container.NewVBox()
+	ed.bluetooth = ed.app.work.IsBluetooth(e.Original)
 	for _, c := range e.Commands {
 		ed.addCmd(c)
 	}
@@ -184,6 +190,9 @@ func (ed *deviceEditor) content() fyne.CanvasObject {
 	note.TextStyle.Italic = true
 
 	ed.refreshPickers()
+	if ed.bluetooth {
+		inputs.Hide() // the hub keeps no inputs for a Bluetooth device
+	}
 	return container.NewVBox(device, commands, keys, power, inputs, macros, ed.problem,
 		container.NewGridWithColumns(2, save, cancel), note, widget.NewSeparator(), remove)
 }
@@ -285,12 +294,16 @@ func (ed *deviceEditor) addCmd(c workspace.CommandEdit) {
 		widget.ShowPopUpMenuAtRelativePosition(fyne.NewMenu("", items...), ed.app.win.Canvas(), fyne.NewPos(0, more.Size().Height), more)
 	}
 	grip := newDragHandle(ed.cmdList, func(i, j int) { ed.cmds[i], ed.cmds[j] = ed.cmds[j], ed.cmds[i] }, nil)
-	if c.HTTP != nil {
+	switch {
+	case c.HTTP != nil:
 		h := *c.HTTP
 		r.edit.HTTP = &h
 		r.url = newURLEntry(r.edit.HTTP)
 		r.box = container.NewBorder(nil, nil, grip, more, container.NewVBox(r.name, r.url))
-	} else {
+	case ed.bluetooth && !c.Fixed:
+		r.key = newKeySelect(c.Usage, r.name)
+		r.box = container.NewBorder(nil, nil, grip, more, container.NewGridWithColumns(2, r.key, r.name))
+	default:
 		r.box = container.NewBorder(nil, nil, grip,
 			container.NewHBox(container.New(layout.NewGridWrapLayout(fyne.NewSize(CodeWidth*Scale(), r.code.MinSize().Height)), r.code), more),
 			r.name)
@@ -529,7 +542,13 @@ func (ed *deviceEditor) edit() workspace.DeviceEdit {
 	for _, r := range ed.cmds {
 		c := r.edit
 		c.Name = r.name.Text
-		if !c.Fixed && c.HTTP == nil {
+		switch {
+		case r.key != nil:
+			c.Usage = keyUsage(r.key.Selected)
+			if strings.TrimSpace(c.Name) == "" {
+				c.Name = r.key.Selected // as a new device's (bluetoothScreen)
+			}
+		case !c.Fixed && c.HTTP == nil:
 			c.Code = r.code.Text
 		}
 		e.Commands = append(e.Commands, c)

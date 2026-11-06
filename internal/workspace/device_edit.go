@@ -60,6 +60,9 @@ type CommandEdit struct {
 	// HTTP, when set, is the request a network command sends, which is
 	// edited instead of a code.
 	HTTP *profile.HTTP
+	// Usage, when set, is the HID usage a Bluetooth device's command
+	// presses (see HIDKeys), which is edited instead of a code.
+	Usage string
 }
 
 // EditDevice is the editor's start for the device named name.
@@ -71,6 +74,9 @@ func (w *Workspace) EditDevice(name string) (DeviceEdit, error) {
 	e := DeviceEdit{Original: d.Name, Name: d.Name, Brand: d.Brand, Icon: d.Icon, Color: d.Color, Category: d.Category, Keys: profile.Buttons{}}
 	for _, c := range d.Commands {
 		ce := CommandEdit{Original: c.Name, Name: c.Name, Fixed: c.Code == nil && c.HTTP == nil}
+		if d.Bluetooth != nil && c.Code == nil && c.HTTP == nil && isUsage(c.Data) {
+			ce.Usage, ce.Fixed = strings.ToLower(c.Data), false
+		}
 		if c.Code != nil {
 			ce.Code = codeText(*c.Code)
 		}
@@ -103,11 +109,11 @@ func codeText(c profile.Code) string {
 }
 
 // CanAddCommands reports whether new commands can be added: given as
-// codes, the device having an IR protocol, or as requests, on a network
-// device (IsNetwork).
+// codes, the device having an IR protocol, as requests, on a network
+// device (IsNetwork), or as keys, on a Bluetooth one (IsBluetooth).
 func (w *Workspace) CanAddCommands(device string) bool {
 	d := w.Config.Device(device)
-	return d != nil && (d.IR != nil || w.IsNetwork(device))
+	return d != nil && (d.IR != nil || w.IsNetwork(device) || d.Bluetooth != nil)
 }
 
 // ActivitiesUsing names the activities that use the device.
@@ -150,6 +156,9 @@ func (w *Workspace) SaveDevice(e DeviceEdit) error {
 	kept := map[string]bool{}
 	for i, c := range e.Commands {
 		c.Name = strings.TrimSpace(c.Name)
+		if d.Bluetooth != nil && !c.Fixed && c.HTTP == nil && !isUsage(c.Usage) {
+			return &FieldError{Field: "command", Index: i, Msg: i18n.T("Pick the key command %d presses.", i+1)}
+		}
 		if c.Name == "" {
 			return &FieldError{Field: "command", Index: i, Msg: i18n.T("Command %d needs a name.", i+1)}
 		}
@@ -168,6 +177,9 @@ func (w *Workspace) SaveDevice(e DeviceEdit) error {
 				return &FieldError{Field: "command", Index: i, Msg: err.Error()}
 			}
 			continue
+		}
+		if d.Bluetooth != nil {
+			continue // its key, checked above
 		}
 		if d.IR == nil {
 			return &FieldError{Field: "command", Index: i, Msg: i18n.T("%s: this device has no IR protocol, so a command cannot be given as a code.", c.Name)}
@@ -272,6 +284,8 @@ func (w *Workspace) SaveDevice(e DeviceEdit) error {
 			h := tidyRequest(*c.HTTP)
 			pc.HTTP, pc.Code = &h, nil
 			pc.Descriptor, pc.Data = "", ""
+		case d.Bluetooth != nil && !c.Fixed:
+			pc.Data, pc.Code, pc.Descriptor = strings.ToLower(c.Usage), nil, ""
 		case !c.Fixed:
 			code := strings.TrimSpace(c.Code)
 			v, _ := strconv.ParseUint(code, 0, 16)

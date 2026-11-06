@@ -171,9 +171,13 @@ cmd/armrest/         the app (all targets)
 8. **Firmware:** the hub tab asks Sofabaton's server, as the app does,
    whether there is a newer hub firmware, and installs it (downloaded,
    sent with its MD5, then the hub restarts and is connected to again).
-   No newer hub firmware has been out to install yet. The remote's
-   update goes from the phone to the remote over Bluetooth (SiFli's
-   procedure): being worked out.
+   No newer hub firmware has been out to install yet. The remotes the
+   hub knows are checked too; on Android, Armrest sends a remote its
+   firmware over the phone's Bluetooth as the app does (the library's
+   sifli package; internal/androidble talks to Android's Bluetooth
+   through BleBridge, a small Java class compiled to an embedded dex,
+   make bridge-dex), and can send the one it has again. Elsewhere the
+   card says to update from a phone. Not yet run against our remote.
 9. **Settings and diagnostics:** the frame log (as `-v`) to attach to bug
    reports, the version, licenses.
 

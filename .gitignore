@@ -20,3 +20,5 @@ CLAUDE.md
 .idea/
 
 /fyne-cross/
+cmd/armrest/AndroidManifest.xml
+.bridge/

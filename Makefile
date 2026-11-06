@@ -1,7 +1,7 @@
 PKG     := ./...
 APP     := ./cmd/armrest
 
-.PHONY: build run test test-live check screens lint vet tidy android install-android ci clean
+.PHONY: build run test test-live check screens lint vet tidy android bridge-dex install-android ci clean
 
 build:
 	go build -o armrest $(APP)
@@ -47,9 +47,27 @@ ANDROID_NDK_HOME ?= $(lastword $(sort $(wildcard $(HOME)/Android/android-ndk-*))
 export ANDROID_NDK_HOME
 
 android:
-	cd cmd/armrest && fyne package --target android/arm64
+	sed -e "s/@VERSION@/$$(sed -n 's/^Version = "\(.*\)"/\1/p' cmd/armrest/FyneApp.toml)/" \
+		-e "s/@BUILD@/$$(sed -n 's/^Build = //p' cmd/armrest/FyneApp.toml)/" \
+		cmd/armrest/AndroidManifest.xml.in > cmd/armrest/AndroidManifest.xml
+	cd cmd/armrest && fyne package --target android/arm64; s=$$?; rm -f AndroidManifest.xml; exit $$s
 	mv cmd/armrest/Armrest.apk .
 	scripts/check-deps.sh Armrest.apk
+
+# The Java side of Android's Bluetooth (internal/androidble), compiled to
+# the dex the app embeds: needs a JDK and the Android SDK (ANDROID_SDK,
+# default ~/Android/sdk), which nothing else does.
+ANDROID_SDK ?= $(HOME)/Android/sdk
+JAVA_HOME ?= $(HOME)/Android/jdk
+bridge-dex:
+	rm -rf .bridge && mkdir .bridge
+	$(JAVA_HOME)/bin/javac --release 8 -cp $(ANDROID_SDK)/platforms/android-34/android.jar -d .bridge \
+		internal/androidble/java/io/github/brunoga/armrest/BleBridge.java
+	PATH=$(JAVA_HOME)/bin:$$PATH $(ANDROID_SDK)/build-tools/34.0.0/d8 --min-api 21 \
+		--lib $(ANDROID_SDK)/platforms/android-34/android.jar --output .bridge \
+		.bridge/io/github/brunoga/armrest/BleBridge.class
+	mv .bridge/classes.dex internal/androidble/bridge.dex
+	rm -rf .bridge
 
 install-android:
 	adb install -r Armrest.apk

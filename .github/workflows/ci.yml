@@ -151,8 +151,14 @@ jobs:
         # window. Linux and macOS cannot be fully static: OpenGL comes from
         # the system's driver, and macOS only links its libSystem
         # dynamically.
+        # The catalog's key, from the repository's secret, built in
+        # scrambled (tools/scramblekey); none on pull requests from forks.
+        env:
+          SOFABATON_KEY: ${{ secrets.SOFABATON_KEY }}
         run: |
-          flags="-s -w"
+          key=$(go run ./tools/scramblekey)
+          if [[ -n "$key" ]]; then echo "::add-mask::$key"; fi
+          flags="-s -w -X github.com/brunoga/armrest/internal/ui.builtinKey=$key"
           if [[ "$RUNNER_OS" == Windows ]]; then flags="$flags -H windowsgui -extldflags=-static"; fi
           go build -ldflags "$flags" -o armrest-bin ./cmd/armrest
 
@@ -196,8 +202,14 @@ jobs:
         run: go install fyne.io/tools/cmd/fyne@latest
 
       - name: Package
-        # The runner has the Android NDK installed.
-        run: ANDROID_NDK_HOME="$ANDROID_NDK_LATEST_HOME" make android
+        # The runner has the Android NDK installed; make builds the
+        # catalog's key in, from the repository's secret.
+        env:
+          SOFABATON_KEY: ${{ secrets.SOFABATON_KEY }}
+        run: |
+          key=$(go run ./tools/scramblekey)
+          if [[ -n "$key" ]]; then echo "::add-mask::$key"; fi
+          ANDROID_NDK_HOME="$ANDROID_NDK_LATEST_HOME" make android
 
       - name: Check it needs nothing Android lacks
         run: scripts/check-deps.sh Armrest.apk

@@ -3,8 +3,14 @@ APP     := ./cmd/armrest
 
 .PHONY: build run test test-live check screens lint vet tidy android bridge-dex install-android ci clean
 
+# The catalog's key, built in scrambled (tools/scramblekey): from
+# $SOFABATON_KEY or KEY_FILE, which is never committed; none if neither.
+KEY_FILE ?= $(HOME)/sofabaton-catalog-key.txt
+BUILTIN_KEY := $(shell GOWORK=off go run ./tools/scramblekey $(KEY_FILE) 2>/dev/null)
+KEY_FLAG := -X=github.com/brunoga/armrest/internal/ui.builtinKey=$(BUILTIN_KEY)
+
 build:
-	go build -o armrest $(APP)
+	go build -ldflags "$(KEY_FLAG)" -o armrest $(APP)
 
 run:
 	go run $(APP)
@@ -50,7 +56,7 @@ android:
 	sed -e "s/@VERSION@/$$(sed -n 's/^Version = "\(.*\)"/\1/p' cmd/armrest/FyneApp.toml)/" \
 		-e "s/@BUILD@/$$(sed -n 's/^Build = //p' cmd/armrest/FyneApp.toml)/" \
 		cmd/armrest/AndroidManifest.xml.in > cmd/armrest/AndroidManifest.xml
-	cd cmd/armrest && fyne package --target android/arm64; s=$$?; rm -f AndroidManifest.xml; exit $$s
+	cd cmd/armrest && GOFLAGS="$$GOFLAGS -ldflags=$(KEY_FLAG)" fyne package --target android/arm64; s=$$?; rm -f AndroidManifest.xml; exit $$s
 	mv cmd/armrest/Armrest.apk .
 	scripts/check-deps.sh Armrest.apk
 

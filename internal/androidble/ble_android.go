@@ -9,7 +9,7 @@ package androidble
 #include <stdlib.h>
 
 const char *ble_init(uintptr_t javaVM, uintptr_t activity, void *dex, int dexLen);
-int ble_permission(void);
+int ble_permission(int ask);
 uintptr_t ble_connect(jlong h, const char *mac);
 int ble_discover(uintptr_t gatt);
 void ble_tune(uintptr_t gatt);
@@ -72,6 +72,31 @@ const Supported = true
 // Bluetooth (Android 12 and later ask once).
 var ErrPermission = errors.New("bluetooth: allow Armrest to connect to nearby devices, then try again")
 
+// permissionWait is how long Dial waits for the user to answer Android's
+// question for the Nearby devices permission.
+const permissionWait = 2 * time.Minute
+
+// permission asks the user for Bluetooth, if it is not granted, and
+// waits for the answer: Android tells the activity, not us, so Dial
+// looks again until it is granted.
+func permission(ctx context.Context) error {
+	if C.ble_permission(1) != 0 {
+		return nil
+	}
+	ctx, cancel := context.WithTimeout(ctx, permissionWait)
+	defer cancel()
+	for {
+		select {
+		case <-ctx.Done():
+			return ErrPermission
+		case <-time.After(500 * time.Millisecond):
+		}
+		if C.ble_permission(0) != 0 {
+			return nil
+		}
+	}
+}
+
 // The connections, by handle, for the callbacks.
 var (
 	connsMu sync.Mutex
@@ -111,8 +136,8 @@ func Dial(addr net.HardwareAddr) sifli.Dial {
 		if err := start(); err != nil {
 			return nil, err
 		}
-		if C.ble_permission() == 0 {
-			return nil, ErrPermission
+		if err := permission(ctx); err != nil {
+			return nil, err
 		}
 		c := &conn{
 			state: make(chan int, 8), ops: make(chan int, 8), mtuSeen: make(chan int, 2),

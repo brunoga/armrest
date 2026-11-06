@@ -177,7 +177,11 @@ cmd/armrest/         the app (all targets)
    sifli package; internal/androidble talks to Android's Bluetooth
    through BleBridge, a small Java class compiled to an embedded dex,
    make bridge-dex), and can send the one it has again. Elsewhere the
-   card says to update from a phone. Not yet run against our remote.
+   card says to update from a phone. Checked on our X2's remote
+   (2026-11-06, a Pixel on Android API 37): Armrest sent it firmware 9
+   again, and it came back on 9. Android 12 and later want the "Nearby
+   devices" permission (BLUETOOTH_CONNECT) at run time, whatever API
+   level the app targets: Armrest asks for it and waits for the answer.
 9. **Settings and diagnostics:** the frame log (as `-v`) to attach to bug
    reports, the version, licenses.
 

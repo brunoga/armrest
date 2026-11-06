@@ -132,7 +132,7 @@ func (s *browseScreen) sendRemote(r remoteUpdate) {
 			wait.Hide()
 			switch {
 			case errors.Is(err, androidble.ErrPermission):
-				dialog.ShowInformation(i18n.T("Bluetooth"), i18n.T("Allow Armrest to connect to nearby devices when Android asks, then install again."), a.win)
+				dialog.ShowInformation(i18n.T("Bluetooth"), i18n.T("Armrest needs the Nearby devices permission to reach the remote: allow it when Android asks, or in the phone's settings for Armrest, then install again."), a.win)
 			case err != nil:
 				dialog.ShowError(err, a.win)
 			default:

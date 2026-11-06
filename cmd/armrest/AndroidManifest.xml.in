@@ -31,8 +31,8 @@
 	<uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" />
 	<uses-permission android:name="android.permission.INTERNET" />
 	<!-- Connecting to the remote by its address: no scanning, no location.
-	     The app targets API 29 (Fyne's), so Android grants BLUETOOTH at
-	     install, on Android 12 too; BLUETOOTH_CONNECT is for a later target. -->
+	     BLUETOOTH up to Android 11, granted at install; from Android 12,
+	     BLUETOOTH_CONNECT ("Nearby devices"), which the app asks for. -->
 	<uses-permission android:name="android.permission.BLUETOOTH" />
 	<uses-permission android:name="android.permission.BLUETOOTH_ADMIN" />
 	<uses-permission android:name="android.permission.BLUETOOTH_CONNECT" />

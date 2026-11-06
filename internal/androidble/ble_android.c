@@ -5,7 +5,10 @@
 #include <jni.h>
 #include <stdlib.h>
 #include <string.h>
+#include <android/log.h>
 #include "_cgo_export.h"
+
+#define LOG(...) __android_log_print(ANDROID_LOG_WARN, "ArmrestBLE", __VA_ARGS__)
 
 static JavaVM *vm;
 static jobject ctx;          // the activity, a global reference
@@ -36,6 +39,7 @@ static void release(int attached) {
 // failed reports, and clears, a pending Java exception.
 static int failed(JNIEnv *e) {
 	if ((*e)->ExceptionCheck(e)) {
+		LOG("Java exception:");
 		(*e)->ExceptionDescribe(e);
 		(*e)->ExceptionClear(e);
 		return 1;
@@ -132,16 +136,22 @@ const char *ble_init(uintptr_t javaVM, uintptr_t activity, void *dex, int dexLen
 		goto out;
 	}
 	bridge = (*e)->NewGlobalRef(e, c);
+	LOG("init: bridge loaded (sdk %d, target %d)", sdk, target);
 out:
+	if (err != NULL) {
+		LOG("init: %s", err);
+	}
 	release(attached);
 	return err;
 }
 
-// ble_permission is 1 if the app may connect to Bluetooth devices; else
-// it asks the user (Android 12 and later, for apps that target it), and
-// is 0.
-int ble_permission(void) {
-	if (sdk < 31 || target < 31) {
+// ble_permission is 1 if the app may connect to Bluetooth devices. From
+// Android 12 that is "Nearby devices" (BLUETOOTH_CONNECT), a run-time
+// permission Android enforces whatever API level the app targets (our
+// phone, Android API 37, did for ours, which targets 29); with ask set,
+// Android asks the user for it if it is not granted.
+int ble_permission(int ask) {
+	if (sdk < 31) {
 		return 1; // BLUETOOTH, granted at install
 	}
 	int attached;
@@ -150,7 +160,7 @@ int ble_permission(void) {
 	jstring perm = (*e)->NewStringUTF(e, "android.permission.BLUETOOTH_CONNECT");
 	jint granted = (*e)->CallIntMethod(e, ctx, (*e)->GetMethodID(e, ctxClass, "checkSelfPermission", "(Ljava/lang/String;)I"), perm);
 	int ok = !failed(e) && granted == 0;
-	if (!ok) {
+	if (!ok && ask) {
 		jobjectArray perms = (*e)->NewObjectArray(e, 1, (*e)->FindClass(e, "java/lang/String"), perm);
 		(*e)->CallVoidMethod(e, ctx, (*e)->GetMethodID(e, ctxClass, "requestPermissions", "([Ljava/lang/String;I)V"), perms, 7);
 		failed(e);
@@ -169,19 +179,26 @@ uintptr_t ble_connect(jlong h, const char *mac) {
 	jstring service = (*e)->NewStringUTF(e, "bluetooth");
 	jobject manager = (*e)->CallObjectMethod(e, ctx, (*e)->GetMethodID(e, ctxClass, "getSystemService", "(Ljava/lang/String;)Ljava/lang/Object;"), service);
 	if (failed(e) || manager == NULL) {
+		LOG("connect: no Bluetooth manager");
 		goto out;
 	}
 	jclass managerClass = (*e)->GetObjectClass(e, manager);
 	jobject adapter = (*e)->CallObjectMethod(e, manager, (*e)->GetMethodID(e, managerClass, "getAdapter", "()Landroid/bluetooth/BluetoothAdapter;"));
 	if (failed(e) || adapter == NULL) {
+		LOG("connect: no Bluetooth adapter");
 		goto out;
 	}
 	jclass adapterClass = (*e)->GetObjectClass(e, adapter);
 	jobject device = (*e)->CallObjectMethod(e, adapter, (*e)->GetMethodID(e, adapterClass, "getRemoteDevice", "(Ljava/lang/String;)Landroid/bluetooth/BluetoothDevice;"), (*e)->NewStringUTF(e, mac));
 	if (failed(e) || device == NULL) {
+		LOG("connect: no device %s", mac);
 		goto out;
 	}
 	jobject cb = (*e)->NewObject(e, bridge, (*e)->GetMethodID(e, bridge, "<init>", "(J)V"), h);
+	if (failed(e) || cb == NULL) {
+		LOG("connect: no BleBridge");
+		goto out;
+	}
 	jclass deviceClass = (*e)->GetObjectClass(e, device);
 	jobject g;
 	if (sdk >= 23) {
@@ -191,8 +208,10 @@ uintptr_t ble_connect(jlong h, const char *mac) {
 		g = (*e)->CallObjectMethod(e, device, (*e)->GetMethodID(e, deviceClass, "connectGatt", "(Landroid/content/Context;ZLandroid/bluetooth/BluetoothGattCallback;)Landroid/bluetooth/BluetoothGatt;"), ctx, JNI_FALSE, cb);
 	}
 	if (failed(e) || g == NULL) {
+		LOG("connect: connectGatt to %s gave nothing (sdk %d, target %d, bridge %p)", mac, sdk, target, (void *)bridge);
 		goto out;
 	}
+	LOG("connect: connecting to %s", mac);
 	gatt = (*e)->NewGlobalRef(e, g);
 out:
 	release(attached);

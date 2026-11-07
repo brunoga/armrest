@@ -122,7 +122,7 @@ cmd/armrest/         the app (all targets)
 | L5 | Device and activity order (the hub's lists, `0x51` and `0x11`; done 2026-11-05), and the remaining TODOs of write-flows | reordering in the UI |
 | L6 | Transport options for mobile: choosing the listen port, a manual hub IP when mDNS is blocked | phones and guest networks |
 | L7 | Icon drawings: upstream's X2 icon paths (MIT) as SVGs, with attribution, plus names (done) | icon pickers and tiles |
-| L8 | Later: learning IR from a remote (if the hub supports it on the wire), raw-data commands in new devices (Bluetooth devices done 2026-11-05) | the add-device wizard's other paths |
+| L8 | Later: raw-data commands in new devices (Bluetooth devices done 2026-11-05; learning IR into a device's editor done 2026-11-07) | the add-device wizard's other paths |
 
 ## 4. Screens
 
@@ -469,6 +469,11 @@ drag-reorder lists.
       other vendors' Kaseikyo become timings, in files and in the online
       search's; "From scratch" makes RC5, RCA and Pioneer devices; devices
       of learned codes restore.
+- [x] Learning: Learn, beside Add in a device's commands (not a network
+      device's or a service's), has the hub learn a key from the device's
+      own remote, saying to press it once, briefly, and again when the hub
+      could not read it; the code joins the editor as "Learned 1", to
+      name, and is written with the other changes (2026-11-07).
 - [x] More files of IR codes in "Add a device" (the library's irfile):
       SmartIR's .json (Broadlink codes), LIRC's .conf, Girr, and codes one
       a line in a .txt (Pronto, Global Caché's sendir, Broadlink's,

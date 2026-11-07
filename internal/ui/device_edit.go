@@ -141,10 +141,17 @@ func (ed *deviceEditor) content() fyne.CanvasObject {
 		ed.addCmd(c)
 		ed.refreshPickers()
 	})
-	var addNote fyne.CanvasObject = container.NewHBox(add)
+	var buttons fyne.CanvasObject = container.NewHBox(add)
+	if ed.app.client != nil && ed.app.work.CanLearn(e.Original) {
+		// Short, under Commands, to fit a phone side by side.
+		add.SetText(i18n.T("Add"))
+		learn := widget.NewButtonWithIcon(i18n.T("Learn"), theme.MediaRecordIcon(), ed.learn)
+		buttons = container.NewHBox(add, learn)
+	}
+	addNote := buttons
 	if !ed.app.work.CanAddCommands(e.Original) {
 		add.Disable()
-		why := i18n.T("This device has no IR protocol (its commands were learned), so new commands cannot be given as codes.")
+		why := i18n.T("This device has no IR protocol (its commands were learned), so new commands cannot be given as codes: learn them from its remote.")
 		switch ed.service {
 		case "Hue":
 			why = i18n.T("A Hue bridge's commands are made from the bridge: add the bridge again, from Add a device, for others.")
@@ -153,7 +160,7 @@ func (ed *deviceEditor) content() fyne.CanvasObject {
 		}
 		n := wrapped(why)
 		n.TextStyle.Italic = true
-		addNote = container.NewVBox(n, container.NewHBox(add))
+		addNote = container.NewVBox(n, buttons)
 	}
 	commands := widget.NewCard(i18n.T("Commands"), "", container.NewVBox(
 		wrapped(i18n.T("In the order the remote lists them. %s Renaming a command renames it in the activities too.", i18n.T(dragHint))),

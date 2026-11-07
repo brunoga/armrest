@@ -57,6 +57,10 @@ type CommandEdit struct {
 	Code string
 	// Fixed says the signal is not a code, and cannot be edited.
 	Fixed bool
+	// Data, set on a Fixed command, is a signal it gets in place of the
+	// one it has: a code learned from another remote, as the hub holds it
+	// (hex).
+	Data string
 	// HTTP, when set, is the request a network command sends, which is
 	// edited instead of a code.
 	HTTP *profile.HTTP
@@ -114,6 +118,14 @@ func codeText(c profile.Code) string {
 func (w *Workspace) CanAddCommands(device string) bool {
 	d := w.Config.Device(device)
 	return d != nil && (d.IR != nil || w.IsNetwork(device) || d.Bluetooth != nil)
+}
+
+// CanLearn reports whether the device can have commands learned from
+// another remote: any device but a network one or a service's (their
+// commands are not IR).
+func (w *Workspace) CanLearn(device string) bool {
+	d := w.Config.Device(device)
+	return d != nil && !w.IsNetwork(device) && w.Service(device) == ""
 }
 
 // ActivitiesUsing names the activities that use the device.
@@ -280,6 +292,8 @@ func (w *Workspace) SaveDevice(e DeviceEdit) error {
 		pc := byName[strings.ToLower(n)]
 		pc.Name = n
 		switch {
+		case c.Fixed && c.Data != "":
+			pc.Data, pc.Code, pc.Descriptor, pc.HTTP = c.Data, nil, "", nil
 		case c.HTTP != nil:
 			h := tidyRequest(*c.HTTP)
 			pc.HTTP, pc.Code = &h, nil

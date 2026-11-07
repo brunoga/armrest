@@ -109,6 +109,8 @@ type App struct {
 	findSonos func(context.Context) ([]sonos.Speaker, error)
 	wifiHTTP  *http.Client
 	irFetch func(context.Context, irsource.Entry) ([]byte, error)
+	// learn has the hub learn a code from another remote (tests fake it).
+	learn func(ctx context.Context, c *hub.Client, failed func()) ([]byte, error)
 	// sofabaton is Sofabaton's catalog with a key (tests fake it).
 	sofabaton func(key string) sofabatonCatalog
 }
@@ -121,6 +123,7 @@ func New(win fyne.Window, back backend.Backend) *App {
 	a.watch = a.watchConnection
 	a.irIndex = a.cachedIndex
 	a.hueBridges = hue.Discover
+	a.learn = func(ctx context.Context, c *hub.Client, failed func()) ([]byte, error) { return c.Learn(ctx, failed) }
 	a.findRokus = func(ctx context.Context) ([]roku.Player, error) { return roku.Discover(ctx, a.wifiHTTP) }
 	a.findSonos = func(ctx context.Context) ([]sonos.Speaker, error) { return sonos.Discover(ctx, a.wifiHTTP) }
 	a.sofabaton = realSofabaton

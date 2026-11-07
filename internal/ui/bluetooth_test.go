@@ -93,7 +93,7 @@ func TestBluetoothDeviceEdit(t *testing.T) {
 		}
 	})
 	got[1].SetSelected("Home")
-	test.Tap(button(t, w, "Add a command"))
+	test.Tap(button(t, w, "Add")) // with Learn, as the hub is connected
 	test.Tap(button(t, w, "Save"))
 	if !strings.Contains(texts(w), "Pick the key command 4 presses.") {
 		t.Fatalf("a command without a key saved:\n%s", texts(w))

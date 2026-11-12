@@ -499,9 +499,15 @@ drag-reorder lists.
       screen's actions. The browse screen's title is its tab's, or, on a
       phone, the device or activity shown with Back; the tabs show on the
       hub's views only, at the bottom on phones.
-- [ ] Later: the profile library server (section 10).
+- [ ] The profile library in the app (section 10): the server is built
+      (brunoga/armrest-library); browsing, downloading and uploading from
+      the app wait for it to be deployed.
 
-## 10. The profile library server (later; not built yet)
+## 10. The profile library server
+
+Built in its own repository, [armrest-library](https://github.com/brunoga/armrest-library)
+(2026-11-12): everything below but the deployment and the app's side,
+which are next (its PLAN.md).
 
 An **optional** service the app can connect to for device profiles
 (remote-control code sets), so users rarely type codes by hand. The app

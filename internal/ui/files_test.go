@@ -74,7 +74,7 @@ func TestFiles(t *testing.T) {
 
 	test.Tap(button(t, w, "Review changes"))
 	got = texts(w)
-	if !strings.Contains(got, "if it is as the file has it") || !strings.Contains(got, "Delete activity Play PC") || !strings.Contains(got, "Delete activity Play Switch 2") {
+	if !strings.Contains(got, "if it is as the file has it") || !strings.Contains(got, "Play PC\nActivity\nDeleted") || !strings.Contains(got, "Play Switch 2\nActivity\nDeleted") {
 		t.Fatalf("review without the hub:\n%s", got)
 	}
 	test.Tap(button(t, w, "Connect to the hub and apply"))
@@ -128,7 +128,7 @@ func TestFileOtherHub(t *testing.T) {
 	}
 	test.Tap(button(t, w, "Review"))
 	got := texts(w)
-	if !strings.Contains(got, "Delete activity Play PC") || u.file != nil {
+	if !strings.Contains(got, "Play PC\nActivity\nDeleted") || u.file != nil {
 		t.Fatalf("the restore's review:\n%s", got)
 	}
 	test.Tap(button(t, w, "Apply to the hub"))
@@ -188,7 +188,7 @@ func TestBackup(t *testing.T) {
 	}
 	restore()
 	test.Tap(button(t, w, "Review"))
-	if got := texts(w); !strings.Contains(got, "Add activity Play PC") {
+	if got := texts(w); !strings.Contains(got, "Play PC\nActivity · 16 steps\nAdded") {
 		t.Fatalf("the restore's review:\n%s", got)
 	}
 	test.Tap(button(t, w, "Apply to the hub"))

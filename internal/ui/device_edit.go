@@ -31,7 +31,8 @@ type deviceEditor struct {
 	e   workspace.DeviceEdit
 
 	name, brand           *widget.Entry
-	icon, color, category *widget.Select
+	look     *lookPicker
+	category *widget.Select
 
 	cmds    []*cmdRow
 	cmdList *fyne.Container
@@ -108,17 +109,13 @@ func (ed *deviceEditor) content() fyne.CanvasObject {
 	ed.brand = widget.NewEntry()
 	ed.brand.SetText(e.Brand)
 	ed.brand.SetPlaceHolder(i18n.T("Optional"))
-	ed.icon = widget.NewSelect(iconChoices(), nil)
-	ed.icon.SetSelected(lookChoice(e.Icon.String(), e.Icon.IsZero()))
-	ed.color = widget.NewSelect(colorChoices(), nil)
-	ed.color.SetSelected(lookChoice(e.Color.String(), e.Color.IsZero()))
+	ed.look = newLookPicker(ed.app.win, e.Icon, e.Color, deviceIcon)
 	ed.category = widget.NewSelect(categoryChoices(e.Category), nil)
 	ed.category.SetSelected(lookChoice(e.Category.String(), e.Category.IsZero()))
 	device := widget.NewCard(i18n.T("Device"), "", widget.NewForm(
 		widget.NewFormItem(i18n.T("Name"), ed.name),
 		widget.NewFormItem(i18n.T("Brand"), ed.brand),
-		widget.NewFormItem(i18n.T("Icon"), ed.icon),
-		widget.NewFormItem(i18n.T("Color"), ed.color),
+		widget.NewFormItem(i18n.T("Look"), ed.look),
 		widget.NewFormItem(i18n.T("Kind"), ed.category)))
 
 	ed.problem = wrapped("")
@@ -215,28 +212,7 @@ func (ed *deviceEditor) content() fyne.CanvasObject {
 		container.NewGridWithColumns(2, save, cancel), note, widget.NewSeparator(), remove)
 }
 
-// iconChoices are the icons' names, "Unchanged" first for no icon set.
-// The icons' and colors' names are the library's, untranslated.
-func iconChoices() []string {
-	return lookChoices(func(i uint8) string { return profile.Icon(i).String() })
-}
-
-func colorChoices() []string {
-	return lookChoices(func(i uint8) string { return profile.Color(i).String() })
-}
-
-func lookChoices(name func(uint8) string) []string {
-	out := []string{i18n.T("Unchanged")}
-	for i := uint8(1); i != 0; i++ {
-		n := name(i)
-		if _, err := strconv.Atoi(n); err == nil {
-			break // past the named ones
-		}
-		out = append(out, n)
-	}
-	return out
-}
-
+// lookChoice is name, or "Unchanged" for zero.
 func lookChoice(name string, zero bool) string {
 	if zero {
 		return i18n.T("Unchanged")
@@ -261,24 +237,6 @@ func parseCategory(s string) profile.Category {
 	for i := uint8(1); i != 0; i++ {
 		if profile.Category(i).String() == s {
 			return profile.Category(i)
-		}
-	}
-	return 0
-}
-
-func parseIcon(s string) profile.Icon {
-	for i := uint8(1); i != 0; i++ {
-		if profile.Icon(i).String() == s {
-			return profile.Icon(i)
-		}
-	}
-	return 0
-}
-
-func parseColor(s string) profile.Color {
-	for i := uint8(1); i != 0; i++ {
-		if profile.Color(i).String() == s {
-			return profile.Color(i)
 		}
 	}
 	return 0
@@ -554,7 +512,7 @@ func (ed *deviceEditor) addInput(selected string) {
 func (ed *deviceEditor) edit() workspace.DeviceEdit {
 	e := workspace.DeviceEdit{
 		Original: ed.e.Original, Name: ed.name.Text, Brand: ed.brand.Text,
-		Icon: parseIcon(ed.icon.Selected), Color: parseColor(ed.color.Selected),
+		Icon: ed.look.Icon, Color: ed.look.Color,
 		Category: parseCategory(ed.category.Selected),
 		Keys:     profile.Buttons{},
 		PowerOn:  pick(ed.powerOn), PowerOff: pick(ed.powerOff),

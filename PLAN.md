@@ -593,12 +593,12 @@ would be squeezed.
 | Hub tab | reworked: it was three cards of text and a loose button | The tab is the hub's home: the hub, its activities and devices as tiles to open, the firmware, the files, leaving. |
 | Device and activity views | keep: using a device (its remote, testing commands) is not configuring it | A segmented control for Remote, Macros and Details. The remote is drawn as the X2's: a graphite body, round keys with icons, the ring around OK, volume and channels as rockers, the color keys, the number keys on a panel as on the remote's screen; keys that run something bright, the others dim, a key held down lit orange. The key editor draws the same remote. Next: the details as rows. |
 | A key's dialog | keeps | — |
-| Device and activity editors | keep apart from the views: an editor's draft is saved as one edit, undone at once | Next: icons and colors picked from tiles and swatches, not lists of names. |
+| Device and activity editors | keep apart from the views: an editor's draft is saved as one edit, undone at once | The icon and color are one row, the tile as the remote shows it; tapped, it opens the X2's icons drawn in the color picked, and the colors as swatches, not two lists of names. |
 | Order | keeps: a rare task, and dragging needs the room | Next: its rows in a card. |
 | Add a device | reworked | Two panes, picked at the top: searching for a model, its results as rows saying where each comes from (built in, or the online source), and the other ways, as rows saying what each is for, the services among them. The Services screen went: it was a list of five buttons, a tap for nothing. |
 | Hue, Roku, Sonos, Govee and LIFX; from scratch, a file, Bluetooth, network | keep: each asks for different things | Next: the same rows and cards. |
 | Learning a command | keeps | — |
-| Review | reworked next | Changes as cards with their kind (added, changed, deleted) as chips, Apply in reach. |
+| Review | reworked | Each change a card: the device's or activity's tile and name, what is done to it as a chip (added, changed, deleted, reordered, not added), and what the hub is sent, folded. Apply and Discard stay in a bar at the bottom, in a row where they fit. |
 | Settings | keeps, from the hubs' menu and as the hub's last tab (the same content) | Switches instead of check boxes; the text size as "Aa" at each size, which fits a phone. |
 | About | keeps, under the settings and from the hubs' menu | — |
 

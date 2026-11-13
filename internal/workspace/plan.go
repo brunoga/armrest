@@ -30,12 +30,30 @@ type Plan struct {
 type Change struct {
 	// Title says it in words: "Add device TV".
 	Title string
+	// Kind is what it does, and Name to which device or activity
+	// (Activity set) it does it; "" for a change of the order.
+	Kind     ChangeKind
+	Name     string
+	Activity bool
 	// Details are the writes, as the library names them.
 	Details []string
 	// Warning marks a change that will not happen as asked (a device the
 	// hub cannot create, say).
 	Warning bool
 }
+
+// ChangeKind is what a change does.
+type ChangeKind int
+
+// The kinds of change.
+const (
+	Other   ChangeKind = iota // anything else the library reports
+	Added                     // a device or activity added
+	Changed                   // one changed
+	Deleted                   // one deleted
+	Ordered                   // the order of the devices or activities
+	Skipped                   // one that cannot be added (Warning)
+)
 
 // Plan works out what applying the edits writes, by applying them to a
 // simulated copy of the hub as it was read: the same writes, in the same
@@ -222,16 +240,19 @@ func (r *reporter) line(l string) {
 	case reMatches.MatchString(l):
 	case reCreated.MatchString(l):
 		m := reCreated.FindStringSubmatch(l)
-		r.changes = append(r.changes, Change{Title: changeTitle(m[1], i18n.Mark("Add device %s"), i18n.Mark("Add activity %s"), m[2]), Details: r.pending})
+		r.changes = append(r.changes, Change{Title: changeTitle(m[1], i18n.Mark("Add device %s"), i18n.Mark("Add activity %s"), m[2]), Details: r.pending,
+			Kind: Added, Name: m[2], Activity: m[1] == "activity"})
 		r.pending = nil
 	case reChanges.MatchString(l):
 		m := reChanges.FindStringSubmatch(l)
-		r.changes = append(r.changes, Change{Title: changeTitle(m[1], i18n.Mark("Change device %s"), i18n.Mark("Change activity %s"), m[2])})
+		r.changes = append(r.changes, Change{Title: changeTitle(m[1], i18n.Mark("Change device %s"), i18n.Mark("Change activity %s"), m[2]),
+			Kind: Changed, Name: m[2], Activity: m[1] == "activity"})
 		r.owed, _ = strconv.Atoi(m[3])
 	case reDeleted.MatchString(l):
 		m := reDeleted.FindStringSubmatch(l)
 		// One write, which takes the hub up to 15 s for a device.
-		r.changes = append(r.changes, Change{Title: changeTitle(m[1], i18n.Mark("Delete device %s"), i18n.Mark("Delete activity %s"), m[2]), Details: []string{"delete"}})
+		r.changes = append(r.changes, Change{Title: changeTitle(m[1], i18n.Mark("Delete device %s"), i18n.Mark("Delete activity %s"), m[2]), Details: []string{"delete"},
+			Kind: Deleted, Name: m[2], Activity: m[1] == "activity"})
 		r.writes++
 	case reOrdered.MatchString(l):
 		m := reOrdered.FindStringSubmatch(l)
@@ -239,11 +260,12 @@ func (r *reporter) line(l string) {
 		if m[1] == "activities" {
 			title = i18n.T("Change the order of the activities")
 		}
-		r.changes = append(r.changes, Change{Title: title, Details: []string{"order"}})
+		r.changes = append(r.changes, Change{Title: title, Details: []string{"order"}, Kind: Ordered, Activity: m[1] == "activities"})
 		r.writes++
 	case reSkipped.MatchString(l):
 		m := reSkipped.FindStringSubmatch(l)
-		r.changes = append(r.changes, Change{Title: changeTitle(m[1], i18n.Mark("Cannot add device %s: %s"), i18n.Mark("Cannot add activity %s: %s"), m[2], m[3]), Warning: true})
+		r.changes = append(r.changes, Change{Title: changeTitle(m[1], i18n.Mark("Cannot add device %s: %s"), i18n.Mark("Cannot add activity %s: %s"), m[2], m[3]), Warning: true,
+			Kind: Skipped, Name: m[2], Activity: m[1] == "activity"})
 	default:
 		r.changes = append(r.changes, Change{Title: l})
 	}

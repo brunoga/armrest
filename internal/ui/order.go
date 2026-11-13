@@ -6,6 +6,7 @@ import (
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/canvas"
 	"fyne.io/fyne/v2/container"
+	"fyne.io/fyne/v2/layout"
 	"fyne.io/fyne/v2/theme"
 	"fyne.io/fyne/v2/widget"
 
@@ -64,7 +65,7 @@ func (a *App) showOrder(activities bool) {
 	})
 	done.Importance = widget.HighImportance
 	a.screen(title, back, scrolled(container.NewVBox(
-		wrapped(what+" "+i18n.T(dragHint)),
-		list,
-		container.NewHBox(done))))
+		quiet(wrapped(what+" "+i18n.T(dragHint))),
+		widget.NewCard("", "", list),
+		container.NewHBox(layout.NewSpacer(), done))))
 }

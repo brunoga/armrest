@@ -16,7 +16,7 @@ run:
 	go run $(APP)
 
 test:
-	go test -race $(PKG)
+	go test -race -timeout 30m $(PKG)
 
 # Against the hubs on the network, one package at a time (they share the
 # discovery port); only reads.

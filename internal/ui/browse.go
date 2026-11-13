@@ -544,6 +544,14 @@ func (s *browseScreen) showHub() {
 	s.deviceTiles.Refresh()
 }
 
+// deviceTile is the tile of the device named name.
+func (s *browseScreen) deviceTile(name string) fyne.Resource {
+	if d := s.app.work.Config.Device(name); d != nil {
+		return tile(d.Icon, deviceIcon, d.Color)
+	}
+	return tile(0, deviceIcon, 0)
+}
+
 // addActivity adds an activity, once there is a device for it.
 func (s *browseScreen) addActivity() {
 	if len(s.app.work.Config.Devices) == 0 {
@@ -604,7 +612,7 @@ func (s *browseScreen) newList(hint string, build func() []browseRow) *browseLis
 			b.shown = &r
 			act := r.activity
 			s.app.check(act.Name)
-			b.split.show(act.Name, activityView(act, s.app.work.Dump.Info.Model, s.controls(act.Name, s.app.work.ActivityState(act) == workspace.New), func() { s.app.showEditActivity(act.Name) }))
+			b.split.show(act.Name, activityView(act, s.app.work.Dump.Info.Model, s.controls(act.Name, s.app.work.ActivityState(act) == workspace.New), func() { s.app.showEditActivity(act.Name) }, s.deviceTile))
 		case r.device != nil:
 			b.shown = &r
 			d := r.device

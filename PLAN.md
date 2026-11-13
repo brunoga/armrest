@@ -588,13 +588,13 @@ would be squeezed.
 | Screen | Verdict | What changed, or changes next |
 |---|---|---|
 | Hubs | keeps its place: the way in | Hubs as rows (tile, name, model, firmware, address). Connecting by address, opening a file and the demo hub moved out of the menu into "Other ways in": a first-time user did not find them. The version moved to About. |
-| Reading the hub, and its failure | keeps: a read takes up to a minute | — |
+| Reading the hub, and its failure | keeps: a read takes up to a minute | In a card with the hub's tile; the buttons on the right. |
 | The hub's tabs (Hub, Devices, Activities, Settings) | keeps | The status and the pending changes were two bars, a third of a phone's screen: now one, the button beside the text, or under it on phones. Statuses no longer repeat "review your changes", the button beside them says it. |
 | Hub tab | reworked: it was three cards of text and a loose button | The tab is the hub's home: the hub, its activities and devices as tiles to open, the firmware, the files, leaving. |
-| Device and activity views | keep: using a device (its remote, testing commands) is not configuring it | A segmented control for Remote, Macros and Details. The remote is drawn as the X2's: a graphite body, round keys with icons, the ring around OK, volume and channels as rockers, the color keys, the number keys on a panel as on the remote's screen; keys that run something bright, the others dim, a key held down lit orange. The key editor draws the same remote. Next: the details as rows. |
+| Device and activity views | keep: using a device (its remote, testing commands) is not configuring it | A segmented control for Remote, Macros and Details. The remote is drawn as the X2's: a graphite body, round keys with icons, the ring around OK, volume and channels as rockers, the color keys, the number keys on a panel as on the remote's screen; keys that run something bright, the others dim, a key held down lit orange. The key editor draws the same remote. The details are grouped cards: an activity's devices with their tiles and inputs, the keys, the steps numbered; a device's commands each with Test. The headers say the brand, or an activity's devices, not the icon and color the tile shows. |
 | A key's dialog | keeps | — |
 | Device and activity editors | keep apart from the views: an editor's draft is saved as one edit, undone at once | The icon and color are one row, the tile as the remote shows it; tapped, it opens the X2's icons drawn in the color picked, and the colors as swatches, not two lists of names. |
-| Order | keeps: a rare task, and dragging needs the room | Next: its rows in a card. |
+| Order | keeps: a rare task, and dragging needs the room | Its rows in a card, Done on the right. |
 | Add a device | reworked | Two panes, picked at the top: searching for a model, its results as rows saying where each comes from (built in, or the online source), and the other ways, as rows saying what each is for, the services among them. The Services screen went: it was a list of five buttons, a tap for nothing. |
 | Hue, Roku, Sonos, Govee and LIFX; from scratch, a file, Bluetooth, network | keep: each asks for different things | Next: the same rows and cards. |
 | Learning a command | keeps | — |
@@ -604,4 +604,9 @@ would be squeezed.
 
 Tiles drawn from the X2's icons were cut on their left at large sizes (a
 view box starting below zero): they are drawn from zero now.
+
+The screenshot tests take minutes under the race detector, more than
+`go test`'s default 10 in CI: the tests' timeout is 30 minutes. Shadows
+and strokes are what the software painter draws slowest; the remote has
+neither.
 

@@ -166,6 +166,33 @@ func button(t *testing.T, w fyne.Window, text string) *widget.Button {
 	return found
 }
 
+// paneButton is the button named text in root.
+func paneButton(t *testing.T, root fyne.CanvasObject, text string) *widget.Button {
+	t.Helper()
+	var found *widget.Button
+	var visit func(o fyne.CanvasObject)
+	visit = func(o fyne.CanvasObject) {
+		if b, ok := o.(*widget.Button); ok && b.Text == text {
+			found = b
+		}
+		switch o := o.(type) {
+		case *fyne.Container:
+			for _, c := range o.Objects {
+				visit(c)
+			}
+		case fyne.Widget:
+			for _, c := range test.WidgetRenderer(o).Objects() {
+				visit(c)
+			}
+		}
+	}
+	visit(root)
+	if found == nil {
+		t.Fatalf("no button %q", text)
+	}
+	return found
+}
+
 // row is the row titled title.
 func row(t *testing.T, w fyne.Window, title string) *navRow {
 	t.Helper()
@@ -221,6 +248,8 @@ func TestBrowse(t *testing.T) {
 		}
 	}
 	assertScreens(t, w, "activity")
+	test.Tap(paneButton(t, u.browse.activities.split.body, "Details"))
+	assertScreens(t, w, "activity-details")
 
 	pickRow(t, u, "Projector/Google TV")
 	if got := texts(w); !strings.Contains(got, "Test sends a command from the hub") || !strings.Contains(got, "Power") {
@@ -231,6 +260,8 @@ func TestBrowse(t *testing.T) {
 		t.Errorf("send:\n%s", got)
 	}
 	assertScreens(t, w, "device")
+	test.Tap(paneButton(t, u.browse.devices.split.body, "Details"))
+	assertScreens(t, w, "device-details")
 
 	// On a phone, the bar has the device's name and Back, which goes to
 	// the list.

@@ -52,7 +52,7 @@ func (s *scratchScreen) content() fyne.CanvasObject {
 	s.name.SetPlaceHolder(i18n.T("Living room TV"))
 	s.brand = widget.NewEntry()
 	s.brand.SetPlaceHolder(i18n.T("Optional"))
-	device := widget.NewCard(i18n.T("Device"), "", widget.NewForm(
+	device := titled(i18n.T("Device"), widget.NewForm(
 		widget.NewFormItem(i18n.T("Name"), s.name),
 		widget.NewFormItem(i18n.T("Brand"), s.brand)))
 
@@ -70,14 +70,14 @@ func (s *scratchScreen) content() fyne.CanvasObject {
 	s.fields = container.NewVBox()
 	s.protocol = widget.NewRadioGroup(titles, func(string) { s.showProtocol() })
 	s.protocol.SetSelected(i18n.T(workspace.Protocols[0].Title))
-	codes := widget.NewCard(i18n.T("Codes"), "", container.NewVBox(
+	codes := titled(i18n.T("Codes"), container.NewVBox(
 		wrapped(i18n.T("How does the device's remote send its codes? The device's manual or IR code chart says; NEC is the most common.")),
 		s.protocol, s.about, s.fields))
 
 	s.list = container.NewVBox()
 	add := widget.NewButtonWithIcon(i18n.T("Add a command"), theme.ContentAddIcon(), func() { s.addRow("", "") })
 	s.addRow("", "")
-	commands := widget.NewCard(i18n.T("Commands"), "", container.NewVBox(
+	commands := titled(i18n.T("Commands"), container.NewVBox(
 		wrapped(i18n.T("A name and a code for each. Commands named like a key of the remote (OK, Up, Volume Up…) are put on that key.")+" "+i18n.T(dragHint)),
 		s.list, container.NewHBox(add)))
 
@@ -86,7 +86,7 @@ func (s *scratchScreen) content() fyne.CanvasObject {
 	s.powerOn.PlaceHolder = i18n.T("None")
 	s.powerOf.PlaceHolder = i18n.T("None")
 	s.refreshPower()
-	power := widget.NewCard(i18n.T("Power"), "", container.NewVBox(
+	power := titled(i18n.T("Power"), container.NewVBox(
 		wrapped(i18n.T("The commands activities use to turn the device on and off. Pick the same one twice if it has a single power key.")),
 		widget.NewForm(widget.NewFormItem(i18n.T("On"), s.powerOn), widget.NewFormItem(i18n.T("Off"), s.powerOf))))
 

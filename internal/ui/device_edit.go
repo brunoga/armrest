@@ -112,7 +112,7 @@ func (ed *deviceEditor) content() fyne.CanvasObject {
 	ed.look = newLookPicker(ed.app.win, e.Icon, e.Color, deviceIcon)
 	ed.category = widget.NewSelect(categoryChoices(e.Category), nil)
 	ed.category.SetSelected(lookChoice(e.Category.String(), e.Category.IsZero()))
-	device := widget.NewCard(i18n.T("Device"), "", widget.NewForm(
+	device := titled(i18n.T("Device"), widget.NewForm(
 		widget.NewFormItem(i18n.T("Name"), ed.name),
 		widget.NewFormItem(i18n.T("Brand"), ed.brand),
 		widget.NewFormItem(i18n.T("Look"), ed.look),
@@ -159,18 +159,18 @@ func (ed *deviceEditor) content() fyne.CanvasObject {
 		n.TextStyle.Italic = true
 		addNote = container.NewVBox(n, buttons)
 	}
-	commands := widget.NewCard(i18n.T("Commands"), "", container.NewVBox(
+	commands := titled(i18n.T("Commands"), container.NewVBox(
 		wrapped(i18n.T("In the order the remote lists them. %s Renaming a command renames it in the activities too.", i18n.T(dragHint))),
 		ed.cmdList, addNote))
 
 	ed.pad = newKeyPad(ed.app.win, ed.app.work.Dump.Info.Model, e.Keys, ed.keyPicker, ed.refreshPickers)
-	keys := widget.NewCard(i18n.T("Keys"), "", container.NewVBox(
+	keys := titled(i18n.T("Keys"), container.NewVBox(
 		wrapped(i18n.T("What the remote's keys do while this device's page is shown.")),
 		ed.pad.box))
 
 	ed.powerOn = ed.picker(e.PowerOn)
 	ed.powerOff = ed.picker(e.PowerOff)
-	power := widget.NewCard(i18n.T("Power"), "", container.NewVBox(
+	power := titled(i18n.T("Power"), container.NewVBox(
 		wrapped(i18n.T("The commands activities use to turn the device on and off; the same one twice for a single power key.")),
 		widget.NewForm(widget.NewFormItem(i18n.T("On"), ed.powerOn), widget.NewFormItem(i18n.T("Off"), ed.powerOff))))
 
@@ -181,7 +181,7 @@ func (ed *deviceEditor) content() fyne.CanvasObject {
 	addInput := widget.NewButtonWithIcon(i18n.T("Add an input"), theme.ContentAddIcon(), func() {
 		ed.addInput("")
 	})
-	inputs := widget.NewCard(i18n.T("Inputs"), "", container.NewVBox(
+	inputs := titled(i18n.T("Inputs"), container.NewVBox(
 		wrapped(i18n.T("The commands that switch the device to each of its inputs, in order. Activities pick one.")),
 		ed.inputList, container.NewHBox(addInput)))
 
@@ -192,7 +192,7 @@ func (ed *deviceEditor) content() fyne.CanvasObject {
 	addMacro := widget.NewButtonWithIcon(i18n.T("Add a macro"), theme.ContentAddIcon(), func() {
 		ed.addMacro(workspace.MacroEdit{})
 	})
-	macros := widget.NewCard(i18n.T("Macros"), "", container.NewVBox(
+	macros := titled(i18n.T("Macros"), container.NewVBox(
 		wrapped(i18n.T("Sequences of this device's commands. Activities with the device can run them from their keys.")),
 		ed.macroList, container.NewHBox(addMacro)))
 

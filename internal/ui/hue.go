@@ -114,7 +114,7 @@ func (s *hueScreen) pick(found []hue.Bridge, err error) {
 		s.link(addr)
 	})
 	again := widget.NewButtonWithIcon(i18n.T("Look again"), theme.ViewRefreshIcon(), s.find)
-	objs = append(objs, widget.NewCard(i18n.T("Another bridge"), "", container.NewVBox(
+	objs = append(objs, titled(i18n.T("Another bridge"), container.NewVBox(
 		container.NewBorder(nil, nil, nil, use, ip), problem)), container.NewHBox(again))
 	s.show(objs...)
 }
@@ -239,9 +239,9 @@ func (s *hueScreen) choose(c *hue.Client, targets []hue.Target) {
 	note := wrapped(i18n.T("Nothing is written to the hub until you review and apply your changes. The device holds a key to your bridge, which the hub needs to send it commands."))
 	note.TextStyle.Italic = true
 	s.show(
-		widget.NewCard(i18n.T("Rooms and zones"), "", container.NewVBox(rooms, allNone(rooms))),
-		widget.NewCard(i18n.T("Lights"), "", container.NewVBox(lights, allNone(lights))),
-		widget.NewCard(i18n.T("Commands for each"), "", kinds),
+		titled(i18n.T("Rooms and zones"), container.NewVBox(rooms, allNone(rooms))),
+		titled(i18n.T("Lights"), container.NewVBox(lights, allNone(lights))),
+		titled(i18n.T("Commands for each"), kinds),
 		s.count, s.add, note)
 	s.recount()
 }

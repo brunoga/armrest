@@ -596,7 +596,7 @@ would be squeezed.
 | Device and activity editors | keep apart from the views: an editor's draft is saved as one edit, undone at once | The icon and color are one row, the tile as the remote shows it; tapped, it opens the X2's icons drawn in the color picked, and the colors as swatches, not two lists of names. |
 | Order | keeps: a rare task, and dragging needs the room | Its rows in a card, Done on the right. |
 | Add a device | reworked | Two panes, picked at the top: searching for a model, its results as rows saying where each comes from (built in, or the online source), and the other ways, as rows saying what each is for, the services among them. The Services screen went: it was a list of five buttons, a tap for nothing. |
-| Hue, Roku, Sonos, Govee and LIFX; from scratch, a file, Bluetooth, network | keep: each asks for different things | Next: the same rows and cards. |
+| Hue, Roku, Sonos, Govee and LIFX; from scratch, a file, Bluetooth, network | keep: each asks for different things | Their sections, as the editors' and About's, are cards under small muted titles, as everywhere else. |
 | Learning a command | keeps | — |
 | Review | reworked | Each change a card: the device's or activity's tile and name, what is done to it as a chip (added, changed, deleted, reordered, not added), and what the hub is sent, folded. Apply and Discard stay in a bar at the bottom, in a row where they fit. |
 | Settings | keeps, from the hubs' menu and as the hub's last tab (the same content) | Switches instead of check boxes; the text size as "Aa" at each size, which fits a phone. |

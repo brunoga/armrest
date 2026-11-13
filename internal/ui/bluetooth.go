@@ -87,7 +87,7 @@ func (s *bluetoothScreen) content() fyne.CanvasObject {
 	s.classic = widget.NewCheck(i18n.T("Classic Bluetooth"), nil)
 	classicNote := wrapped(i18n.T("Most devices pair over Bluetooth Low Energy; a few, as older Apple TVs and the PS4, over classic Bluetooth."))
 	classicNote.TextStyle.Italic = true
-	device := widget.NewCard(i18n.T("Device"), "", container.NewVBox(
+	device := titled(i18n.T("Device"), container.NewVBox(
 		wrapped(i18n.T("A device the hub pairs with over Bluetooth, as a keyboard and remote: a TV box, a streaming stick, a projector or a console. Search for its model first: the catalog may have it.")),
 		widget.NewForm(
 			widget.NewFormItem(i18n.T("Name"), s.name),
@@ -99,7 +99,7 @@ func (s *bluetoothScreen) content() fyne.CanvasObject {
 		s.addRow(k)
 	}
 	add := widget.NewButtonWithIcon(i18n.T("Add a command"), theme.ContentAddIcon(), func() { s.addRow("") })
-	commands := widget.NewCard(i18n.T("Commands"), "", container.NewVBox(
+	commands := titled(i18n.T("Commands"), container.NewVBox(
 		wrapped(i18n.T("The key each command presses, and its name: the key's, unless you give another. Commands named like a key of the remote (OK, Up, Volume Up…) are put on that key.")+" "+i18n.T(dragHint)),
 		s.list, container.NewHBox(add)))
 
@@ -108,7 +108,7 @@ func (s *bluetoothScreen) content() fyne.CanvasObject {
 	s.powerOn.PlaceHolder = i18n.T("None")
 	s.powerOf.PlaceHolder = i18n.T("None")
 	s.refreshPower()
-	power := widget.NewCard(i18n.T("Power"), "", container.NewVBox(
+	power := titled(i18n.T("Power"), container.NewVBox(
 		wrapped(i18n.T("The commands activities use to turn the device on and off. Pick the same one twice if it has a single power key. Many devices do not wake over Bluetooth: leave them as None for those.")),
 		widget.NewForm(widget.NewFormItem(i18n.T("On"), s.powerOn), widget.NewFormItem(i18n.T("Off"), s.powerOf))))
 

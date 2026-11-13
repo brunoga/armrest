@@ -99,7 +99,7 @@ func (s *networkScreen) content() fyne.CanvasObject {
 	s.name.SetPlaceHolder(i18n.T("Living room lights"))
 	s.brand = widget.NewEntry()
 	s.brand.SetPlaceHolder(i18n.T("Optional"))
-	device := widget.NewCard(i18n.T("Device"), "", container.NewVBox(
+	device := titled(i18n.T("Device"), container.NewVBox(
 		wrapped(i18n.T("A device the hub controls over your network: for each command, the hub sends an HTTP request, as to a smart plug, a home automation webhook or a media server.")),
 		widget.NewForm(
 			widget.NewFormItem(i18n.T("Name"), s.name),
@@ -108,7 +108,7 @@ func (s *networkScreen) content() fyne.CanvasObject {
 	s.list = container.NewVBox()
 	add := widget.NewButtonWithIcon(i18n.T("Add a command"), theme.ContentAddIcon(), func() { s.addRow() })
 	s.addRow()
-	commands := widget.NewCard(i18n.T("Commands"), "", container.NewVBox(
+	commands := titled(i18n.T("Commands"), container.NewVBox(
 		wrapped(i18n.T("A name and an address for each; More sets the rest of the request. The hub sends plain http:// requests to IPv4 addresses only. Commands named like a key of the remote (OK, Up, Volume Up…) are put on that key.")+" "+i18n.T(dragHint)),
 		s.list, container.NewHBox(add)))
 
@@ -117,7 +117,7 @@ func (s *networkScreen) content() fyne.CanvasObject {
 	s.powerOn.PlaceHolder = i18n.T("None")
 	s.powerOf.PlaceHolder = i18n.T("None")
 	s.refreshPower()
-	power := widget.NewCard(i18n.T("Power"), "", container.NewVBox(
+	power := titled(i18n.T("Power"), container.NewVBox(
 		wrapped(i18n.T("The commands activities use to turn the device on and off. Pick the same one twice if it has a single power key.")),
 		widget.NewForm(widget.NewFormItem(i18n.T("On"), s.powerOn), widget.NewFormItem(i18n.T("Off"), s.powerOf))))
 

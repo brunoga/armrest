@@ -394,12 +394,15 @@ func section(title, empty string, objs []fyne.CanvasObject) fyne.CanvasObject {
 	return group(title, objs...)
 }
 
-// card is a card whose title wraps, for titles that hold names.
+// card is a card under a title that wraps, for titles that hold names.
 func card(title string, content fyne.CanvasObject) fyne.CanvasObject {
-	t := widget.NewLabelWithStyle(title, fyne.TextAlignLeading, fyne.TextStyle{Bold: true})
-	t.SizeName = theme.SizeNameSubHeadingText
-	t.Wrapping = fyne.TextWrapWord
-	return widget.NewCard("", "", container.NewVBox(t, content))
+	return titled(title, content)
+}
+
+// titled is a card of content under a small, muted title: the app's
+// sections, as group's.
+func titled(title string, content fyne.CanvasObject) fyne.CanvasObject {
+	return container.NewVBox(groupTitle(title), widget.NewCard("", "", content))
 }
 
 func lines(texts []string) []fyne.CanvasObject {

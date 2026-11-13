@@ -118,7 +118,7 @@ func (s *wifiScreen) find(looking, intro, none, example string, look func(contex
 				use(addr)
 			})
 			again := widget.NewButtonWithIcon(i18n.T("Look again"), theme.ViewRefreshIcon(), func() { s.find(looking, intro, none, example, look, use) })
-			objs = append(objs, widget.NewCard(i18n.T("By its address"), "", container.NewVBox(
+			objs = append(objs, titled(i18n.T("By its address"), container.NewVBox(
 				container.NewBorder(nil, nil, nil, useIt, ip), problem)), container.NewHBox(again))
 			s.show(objs...)
 		})
@@ -229,7 +229,7 @@ func (s *wifiScreen) rokuChoose(addr netip.Addr, name string, apps []roku.App) {
 		wrapped(i18n.T("It gets the Roku remote's keys, bound to the remote's, and power on and off.")),
 	}
 	if len(apps) > 0 {
-		objs = append(objs, widget.NewCard(i18n.T("Channels"), "", container.NewVBox(checks, allNone(checks))))
+		objs = append(objs, titled(i18n.T("Channels"), container.NewVBox(checks, allNone(checks))))
 	}
 	s.show(append(objs, problem, add, reviewNote(false))...)
 }
@@ -341,7 +341,7 @@ func (p *lightPicker) kinds() fyne.CanvasObject {
 	for _, l := range p.levels {
 		box.Add(l)
 	}
-	return widget.NewCard(i18n.T("Commands for each"), "", box)
+	return titled(i18n.T("Commands for each"), box)
 }
 
 func (p *lightPicker) brightness() []int {
@@ -459,7 +459,7 @@ func (s *wifiScreen) govee(key string, back func()) {
 			}
 			p.commands = func() int { return len(device().Commands) }
 			s.show(widget.NewForm(widget.NewFormItem(i18n.T("Name"), n)),
-				widget.NewCard(i18n.T("Lights"), "", container.NewVBox(box, allNone(box))),
+				titled(i18n.T("Lights"), container.NewVBox(box, allNone(box))),
 				p.kinds(), p.count, problem, p.add, reviewNote(true))
 			p.recount()
 		})
@@ -530,10 +530,10 @@ func (s *wifiScreen) lifx(token string, back func()) {
 			p.commands = func() int { return len(device().Commands) }
 			objs := []fyne.CanvasObject{widget.NewForm(widget.NewFormItem(i18n.T("Name"), n)), allBox}
 			if len(groups) > 0 {
-				objs = append(objs, widget.NewCard(i18n.T("Groups"), "", container.NewVBox(groupBox, allNone(groupBox))))
+				objs = append(objs, titled(i18n.T("Groups"), container.NewVBox(groupBox, allNone(groupBox))))
 			}
 			if len(lights) > 0 {
-				objs = append(objs, widget.NewCard(i18n.T("Lights"), "", container.NewVBox(lightBox, allNone(lightBox))))
+				objs = append(objs, titled(i18n.T("Lights"), container.NewVBox(lightBox, allNone(lightBox))))
 			}
 			s.show(append(objs, p.kinds(), p.count, problem, p.add, reviewNote(true))...)
 			p.recount()

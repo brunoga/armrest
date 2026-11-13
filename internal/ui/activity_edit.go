@@ -137,7 +137,7 @@ func (ed *activityEditor) content() fyne.CanvasObject {
 	ed.name.SetText(e.Name)
 	ed.name.SetPlaceHolder(i18n.T("Watch TV"))
 	ed.look = newLookPicker(ed.app.win, e.Icon, e.Color, activityIcon)
-	activity := widget.NewCard(i18n.T("Activity"), "", widget.NewForm(
+	activity := titled(i18n.T("Activity"), widget.NewForm(
 		widget.NewFormItem(i18n.T("Name"), ed.name),
 		widget.NewFormItem(i18n.T("Look"), ed.look)))
 
@@ -149,21 +149,21 @@ func (ed *activityEditor) content() fyne.CanvasObject {
 		ed.addMember(profile.Member{})
 		ed.refresh()
 	})
-	devices := widget.NewCard(i18n.T("Devices"), "", container.NewVBox(
+	devices := titled(i18n.T("Devices"), container.NewVBox(
 		wrapped(i18n.T("The devices the activity uses, and the input each is switched to.")),
 		ed.memberList, container.NewHBox(addDevice)))
 
 	ed.pad = newKeyPad(ed.app.win, ed.app.work.Dump.Info.Model, e.Keys, func(selected string) *widget.Select {
 		return ed.picker(&ed.keyPickers, selected)
 	}, ed.refresh)
-	keys := widget.NewCard(i18n.T("Keys"), "", container.NewVBox(
+	keys := titled(i18n.T("Keys"), container.NewVBox(
 		wrapped(i18n.T("What the remote's keys do during the activity.")),
 		ed.pad.box))
 
 	ed.powerOn = ed.newSteps(e.PowerOn, true, true)
 	ed.powerOff = ed.newSteps(e.PowerOff, true, false)
-	starts := widget.NewCard(i18n.T("When it starts"), "", ed.powerOn.box)
-	ends := widget.NewCard(i18n.T("When it ends"), "", ed.powerOff.box)
+	starts := titled(i18n.T("When it starts"), ed.powerOn.box)
+	ends := titled(i18n.T("When it ends"), ed.powerOff.box)
 
 	ed.macroList = container.NewVBox()
 	for _, m := range e.Macros {
@@ -173,7 +173,7 @@ func (ed *activityEditor) content() fyne.CanvasObject {
 		ed.addMacro(workspace.ActivityMacroEdit{})
 		ed.refresh()
 	})
-	macros := widget.NewCard(i18n.T("Macros"), "", container.NewVBox(
+	macros := titled(i18n.T("Macros"), container.NewVBox(
 		wrapped(i18n.T("Sequences of the devices' commands, run from a key or the remote's list.")+" "+i18n.T(dragHint)),
 		ed.macroList, container.NewHBox(addMacro)))
 
@@ -185,7 +185,7 @@ func (ed *activityEditor) content() fyne.CanvasObject {
 		ed.addFavorite("")
 		ed.refresh()
 	})
-	favorites := widget.NewCard(i18n.T("Favorites"), "", container.NewVBox(
+	favorites := titled(i18n.T("Favorites"), container.NewVBox(
 		wrapped(i18n.T("Commands on the remote's list for the activity, after its macros.")+" "+i18n.T(dragHint)),
 		ed.favoriteList, container.NewHBox(addFav)))
 

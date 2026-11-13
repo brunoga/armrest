@@ -591,7 +591,7 @@ would be squeezed.
 | Reading the hub, and its failure | keeps: a read takes up to a minute | — |
 | The hub's tabs (Hub, Devices, Activities, Settings) | keeps | The status and the pending changes were two bars, a third of a phone's screen: now one, the button beside the text, or under it on phones. Statuses no longer repeat "review your changes", the button beside them says it. |
 | Hub tab | reworked: it was three cards of text and a loose button | The tab is the hub's home: the hub, its activities and devices as tiles to open, the firmware, the files, leaving. |
-| Device and activity views | keep: using a device (its remote, testing commands) is not configuring it | A segmented control for Remote, Macros and Details. Next: the remote drawn as the X2's (round keys, the ring around OK, icons), and the details as rows. |
+| Device and activity views | keep: using a device (its remote, testing commands) is not configuring it | A segmented control for Remote, Macros and Details. The remote is drawn as the X2's: a graphite body, round keys with icons, the ring around OK, volume and channels as rockers, the color keys, the number keys on a panel as on the remote's screen; keys that run something bright, the others dim, a key held down lit orange. The key editor draws the same remote. Next: the details as rows. |
 | A key's dialog | keeps | — |
 | Device and activity editors | keep apart from the views: an editor's draft is saved as one edit, undone at once | Next: icons and colors picked from tiles and swatches, not lists of names. |
 | Order | keeps: a rare task, and dragging needs the room | Next: its rows in a card. |

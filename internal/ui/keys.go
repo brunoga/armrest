@@ -2,19 +2,16 @@ package ui
 
 import (
 	"image/color"
-	"strings"
 
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/container"
 	"fyne.io/fyne/v2/dialog"
-	"fyne.io/fyne/v2/layout"
 	"fyne.io/fyne/v2/theme"
 	"fyne.io/fyne/v2/widget"
 
 	"github.com/brunoga/armrest/internal/i18n"
 
 	"github.com/brunoga/sofabaton/profile"
-	"github.com/brunoga/sofabaton/record"
 )
 
 // remoteRows are the remote's keys as on the X2, top to bottom ("" is
@@ -58,7 +55,7 @@ type keyPad struct {
 	changed func()
 	// keys are the keys set.
 	keys    []*keyRow
-	buttons map[string]*widget.Button
+	buttons map[string]*padKey
 	list    *fyne.Container
 	box     fyne.CanvasObject
 }
@@ -71,14 +68,14 @@ type keyRow struct {
 // newKeyPad is the pad for keys, on a remote of the hub model (the X1
 // remotes lack some keys).
 func newKeyPad(win fyne.Window, model string, keys profile.Buttons, picker func(string) *widget.Select, changed func()) *keyPad {
-	p := &keyPad{win: win, picker: picker, changed: changed, buttons: map[string]*widget.Button{}, list: container.NewVBox()}
+	p := &keyPad{win: win, picker: picker, changed: changed, buttons: map[string]*padKey{}, list: container.NewVBox()}
 	for _, k := range keyNames(keys) {
 		if isRemoteKey(k) {
 			p.keys = append(p.keys, &keyRow{key: k, short: picker(keys[k].Short), long: picker(keys[k].Long)})
 		}
 	}
 	drawing := drawRemote(model, func(k string) bool { return p.row(k) != nil }, func(k, label string) fyne.CanvasObject {
-		p.buttons[k] = widget.NewButton(label, func() {
+		p.buttons[k] = newPadKey(k, label, func() {
 			tapFeedback()
 			p.open(k)
 		})
@@ -92,41 +89,7 @@ func newKeyPad(win fyne.Window, model string, keys profile.Buttons, picker func(
 // drawRemote draws the remote of the hub model with the keys key makes,
 // labelled label (the X1 remotes lack some keys, drawn only when set).
 func drawRemote(model string, set func(string) bool, key func(k, label string) fyne.CanvasObject) fyne.CanvasObject {
-	x1 := strings.HasPrefix(strings.ToUpper(model), "X1")
-	grids := func(rows [][]string) *fyne.Container {
-		out := container.NewVBox()
-		for _, row := range rows {
-			grid := container.NewGridWithColumns(len(row))
-			shown := false
-			for _, k := range row {
-				b, _ := record.ParseButton(k)
-				if k == "" || x1 && b.X2Only() && !set(k) {
-					grid.Add(layout.NewSpacer())
-					continue
-				}
-				if c, ok := keyColors[k]; ok {
-					// Their color names them, as on the remote: four
-					// names across do not fit a phone.
-					grid.Add(container.NewThemeOverride(key(k, ""), colorKey{c}))
-				} else {
-					grid.Add(key(k, k))
-				}
-				shown = true
-			}
-			if shown {
-				out.Add(grid)
-			}
-		}
-		return out
-	}
-	rows := grids(remoteRows)
-	if numbers := grids(numberRows); len(numbers.Objects) > 0 {
-		note := wrapped(i18n.T("Number keys, on the remote's screen"))
-		note.Alignment, note.TextStyle.Italic = fyne.TextAlignCenter, true
-		rows.Add(note)
-		rows.Add(numbers)
-	}
-	return container.NewThemeOverride(rows, tightKeys{})
+	return newRemoteDrawing(model, set, key)
 }
 
 // row is the key's row, or nil when it is not set.
@@ -258,30 +221,6 @@ var keyColors = map[string]color.NRGBA{
 	"Yellow": {0xE8, 0xB9, 0x2E, 0xFF},
 	"Blue":   {0x3B, 0x7D, 0xD8, 0xFF},
 }
-
-// colorKey is a color key's look: tinted with its color, filled with it
-// once set.
-type colorKey struct{ c color.NRGBA }
-
-func (k colorKey) current() fyne.Theme { return fyne.CurrentApp().Settings().Theme() }
-
-func (k colorKey) Color(n fyne.ThemeColorName, v fyne.ThemeVariant) color.Color {
-	switch n {
-	case theme.ColorNameButton:
-		c := k.c
-		c.A = 0x40
-		return c
-	case theme.ColorNamePrimary:
-		return k.c
-	case theme.ColorNameForegroundOnPrimary:
-		return color.White
-	}
-	return k.current().Color(n, v)
-}
-
-func (k colorKey) Font(s fyne.TextStyle) fyne.Resource     { return k.current().Font(s) }
-func (k colorKey) Icon(n fyne.ThemeIconName) fyne.Resource { return k.current().Icon(n) }
-func (k colorKey) Size(n fyne.ThemeSizeName) float32       { return k.current().Size(n) }
 
 // tightKeys is the keys' look: less room around their names, so three
 // keys across fit a phone.

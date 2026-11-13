@@ -148,8 +148,16 @@ func button(t *testing.T, w fyne.Window, text string) *widget.Button {
 	t.Helper()
 	var found *widget.Button
 	walk(w, func(o fyne.CanvasObject) {
-		if b, ok := o.(*widget.Button); ok && b.Text == text {
-			found = b
+		switch b := o.(type) {
+		case *widget.Button:
+			if b.Text == text {
+				found = b
+			}
+		case *padKey:
+			// A key of the drawn remote.
+			if b.Text == text {
+				found = &b.Button
+			}
 		}
 	})
 	if found == nil {

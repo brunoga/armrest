@@ -54,7 +54,9 @@ jobs:
       - name: Test
         # The UI tests render the screens with Fyne's software driver and
         # compare them with the screenshots in testdata: no display needed.
-        run: go test -race ./...
+        # The screenshots take minutes under the race detector: more than
+        # go test's default 10.
+        run: go test -race -timeout 30m ./...
 
       - name: Upload screenshots that differ
         if: failure()

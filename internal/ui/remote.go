@@ -25,7 +25,6 @@ import (
 // The remote's colors: the same in light and dark, as the remote is.
 var (
 	remoteBody   = color.NRGBA{0x26, 0x30, 0x33, 0xFF}
-	remoteEdge   = color.NRGBA{0x3A, 0x46, 0x49, 0xFF}
 	remoteRing   = color.NRGBA{0x31, 0x3C, 0x3F, 0xFF}
 	keySet       = color.NRGBA{0x42, 0x50, 0x53, 0xFF}
 	keyUnset     = color.NRGBA{0x2E, 0x38, 0x3B, 0xFF}
@@ -342,12 +341,10 @@ type remoteDrawing struct {
 
 func (d *remoteDrawing) CreateRenderer() fyne.WidgetRenderer {
 	body := canvas.NewRectangle(remoteBody)
-	body.StrokeColor, body.StrokeWidth = remoteEdge, 1
-	body.Shadow = canvas.Shadow{Color: color.NRGBA{0, 0, 0, 0x55}, BlurRadius: 12, Offset: fyne.NewPos(0, 4)}
+	// No shadow or stroke: the software painter (tests, screenshots) blurs
+	// and strokes slowly, and the body stands out from the page anyway.
 	ring := canvas.NewCircle(remoteRing)
-	ring.StrokeColor, ring.StrokeWidth = remoteEdge, 1
 	screen := canvas.NewRectangle(remoteScreen)
-	screen.StrokeColor, screen.StrokeWidth = remoteEdge, 1
 	r := &remoteRenderer{d: d, body: body, ring: ring, screen: screen}
 	for _, l := range rockerLabels {
 		t := canvas.NewText(l.text, inkUnset)

@@ -691,3 +691,61 @@ func (l *besideOrUnder) MinSize(objs []fyne.CanvasObject) fyne.Size {
 	}
 	return fyne.NewSize(max(main.Width, side.Width), h)
 }
+
+// rowOrStack lays its objects out in a row, the first on the left and
+// the others on the right, where they fit; else one under the other,
+// full width, in reverse order (the main action, last, on top).
+type rowOrStack struct {
+	// width is the last laid out at: the height depends on it.
+	width float32
+}
+
+func (l *rowOrStack) fits(objs []fyne.CanvasObject, width float32) bool {
+	var need float32
+	for _, o := range objs {
+		need += o.MinSize().Width + theme.Padding()
+	}
+	return need <= width
+}
+
+func (l *rowOrStack) Layout(objs []fyne.CanvasObject, size fyne.Size) {
+	l.width = size.Width
+	p := theme.Padding()
+	if l.fits(objs, size.Width) {
+		x := size.Width
+		for i := len(objs) - 1; i >= 1; i-- {
+			m := objs[i].MinSize()
+			x -= m.Width
+			objs[i].Resize(fyne.NewSize(m.Width, size.Height))
+			objs[i].Move(fyne.NewPos(x, 0))
+			x -= p
+		}
+		if len(objs) > 0 {
+			objs[0].Resize(fyne.NewSize(objs[0].MinSize().Width, size.Height))
+			objs[0].Move(fyne.Position{})
+		}
+		return
+	}
+	y := float32(0)
+	for i := len(objs) - 1; i >= 0; i-- {
+		h := objs[i].MinSize().Height
+		objs[i].Resize(fyne.NewSize(size.Width, h))
+		objs[i].Move(fyne.NewPos(0, y))
+		y += h + p
+	}
+}
+
+func (l *rowOrStack) MinSize(objs []fyne.CanvasObject) fyne.Size {
+	var s fyne.Size
+	var sum float32
+	for _, o := range objs {
+		m := o.MinSize()
+		s.Width = max(s.Width, m.Width)
+		s.Height = max(s.Height, m.Height)
+		sum += m.Height + theme.Padding()
+	}
+	if l.width == 0 || !l.fits(objs, l.width) {
+		s.Height = sum - theme.Padding()
+	}
+	return s
+}

@@ -56,7 +56,7 @@ type activityEditor struct {
 	e   workspace.ActivityEdit
 
 	name         *widget.Entry
-	icon, color  *widget.Select
+	look         *lookPicker
 	members      []*memberRow
 	memberList   *fyne.Container
 	pad          *keyPad
@@ -136,14 +136,10 @@ func (ed *activityEditor) content() fyne.CanvasObject {
 	ed.name = widget.NewEntry()
 	ed.name.SetText(e.Name)
 	ed.name.SetPlaceHolder(i18n.T("Watch TV"))
-	ed.icon = widget.NewSelect(iconChoices(), nil)
-	ed.icon.SetSelected(lookChoice(e.Icon.String(), e.Icon.IsZero()))
-	ed.color = widget.NewSelect(colorChoices(), nil)
-	ed.color.SetSelected(lookChoice(e.Color.String(), e.Color.IsZero()))
+	ed.look = newLookPicker(ed.app.win, e.Icon, e.Color, activityIcon)
 	activity := widget.NewCard(i18n.T("Activity"), "", widget.NewForm(
 		widget.NewFormItem(i18n.T("Name"), ed.name),
-		widget.NewFormItem(i18n.T("Icon"), ed.icon),
-		widget.NewFormItem(i18n.T("Color"), ed.color)))
+		widget.NewFormItem(i18n.T("Look"), ed.look)))
 
 	ed.memberList = container.NewVBox()
 	for _, m := range e.Devices {
@@ -541,7 +537,7 @@ func (ed *activityEditor) addFavorite(cmd string) {
 func (ed *activityEditor) edit() workspace.ActivityEdit {
 	e := workspace.ActivityEdit{
 		Original: ed.e.Original, Name: ed.name.Text,
-		Icon: parseIcon(ed.icon.Selected), Color: parseColor(ed.color.Selected),
+		Icon: ed.look.Icon, Color: ed.look.Color,
 		Keys:    profile.Buttons{},
 		PowerOn: ed.powerOn.steps(), PowerOff: ed.powerOff.steps(),
 	}

@@ -166,6 +166,33 @@ func button(t *testing.T, w fyne.Window, text string) *widget.Button {
 	return found
 }
 
+// paneButton is the button named text in root.
+func paneButton(t *testing.T, root fyne.CanvasObject, text string) *widget.Button {
+	t.Helper()
+	var found *widget.Button
+	var visit func(o fyne.CanvasObject)
+	visit = func(o fyne.CanvasObject) {
+		if b, ok := o.(*widget.Button); ok && b.Text == text {
+			found = b
+		}
+		switch o := o.(type) {
+		case *fyne.Container:
+			for _, c := range o.Objects {
+				visit(c)
+			}
+		case fyne.Widget:
+			for _, c := range test.WidgetRenderer(o).Objects() {
+				visit(c)
+			}
+		}
+	}
+	visit(root)
+	if found == nil {
+		t.Fatalf("no button %q", text)
+	}
+	return found
+}
+
 // row is the row titled title.
 func row(t *testing.T, w fyne.Window, title string) *navRow {
 	t.Helper()
@@ -221,6 +248,8 @@ func TestBrowse(t *testing.T) {
 		}
 	}
 	assertScreens(t, w, "activity")
+	test.Tap(paneButton(t, u.browse.activities.split.body, "Details"))
+	assertScreens(t, w, "activity-details")
 
 	pickRow(t, u, "Projector/Google TV")
 	if got := texts(w); !strings.Contains(got, "Test sends a command from the hub") || !strings.Contains(got, "Power") {
@@ -231,6 +260,8 @@ func TestBrowse(t *testing.T) {
 		t.Errorf("send:\n%s", got)
 	}
 	assertScreens(t, w, "device")
+	test.Tap(paneButton(t, u.browse.devices.split.body, "Details"))
+	assertScreens(t, w, "device-details")
 
 	// On a phone, the bar has the device's name and Back, which goes to
 	// the list.
@@ -635,7 +666,7 @@ func TestAddDevice(t *testing.T) {
 	assertScreens(t, w, "device-added")
 
 	test.Tap(button(t, w, "Review changes"))
-	if got := texts(w); !strings.Contains(got, "Add device Ugoos AM6B Plus") || !strings.Contains(got, "Nothing has been written yet") {
+	if got := texts(w); !strings.Contains(got, "Ugoos AM6B Plus\nDevice · 31 steps\nAdded") || !strings.Contains(got, "Nothing has been written yet") {
 		t.Fatalf("review:\n%s", got)
 	}
 	assertScreens(t, w, "review")
@@ -1300,4 +1331,57 @@ func menuItem(t *testing.T, u *App, label string) {
 		}
 	}
 	t.Fatalf("no %q in the menu", label)
+}
+
+// An activity's icon and color are picked from tiles and swatches.
+func TestLookPicker(t *testing.T) {
+	u, w := newApp(t, backend.Hub{Name: "Lounge", Model: "X2", Firmware: 9, Addr: lounge})
+	test.Tap(row(t, w, "Lounge"))
+	pickRow(t, u, "Play PC")
+	test.Tap(editButton(t, w))
+	var p *lookPicker
+	walk(w, func(o fyne.CanvasObject) {
+		if x, ok := o.(*lookPicker); ok {
+			p = x
+		}
+	})
+	if p == nil {
+		t.Fatalf("no look picker:\n%s", texts(w))
+	}
+	test.Tap(p)
+	var blue *swatch
+	var tv *pickTile
+	walk(w, func(o fyne.CanvasObject) {
+		switch x := o.(type) {
+		case *swatch:
+			if x.name == "blue" {
+				blue = x
+			}
+		case *pickTile:
+			if x.name == "TV" {
+				tv = x
+			}
+		}
+	})
+	if blue == nil || tv == nil {
+		t.Fatalf("no blue swatch or TV icon:\n%s", texts(w))
+	}
+	test.Tap(blue)
+	// The icons are drawn again in the color picked.
+	walk(w, func(o fyne.CanvasObject) {
+		if x, ok := o.(*pickTile); ok && x.name == "TV" {
+			tv = x
+		}
+	})
+	test.Tap(tv)
+	assertScreens(t, w, "look")
+	test.Tap(button(t, w, "Done"))
+	if !strings.Contains(texts(w), "TV icon, blue") {
+		t.Fatalf("not shown:\n%s", texts(w))
+	}
+	test.Tap(button(t, w, "Save"))
+	a := u.work.Config.Activity("Play PC")
+	if a.Icon.String() != "TV" || a.Color.String() != "blue" {
+		t.Errorf("Play PC: %v, %v", a.Icon, a.Color)
+	}
 }

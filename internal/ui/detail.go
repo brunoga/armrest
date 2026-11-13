@@ -42,9 +42,13 @@ var paneNames = []string{i18n.Mark("Remote"), i18n.Mark("Macros"), i18n.Mark("De
 // and favorites, and its details (devices, keys, start and end). ctl is
 // nil while the activity is not on the hub; with edit, an Edit button
 // calls it.
-func activityView(a *profile.Activity, model string, ctl *controls, edit func()) fyne.CanvasObject {
+func activityView(a *profile.Activity, model string, ctl *controls, edit func(), deviceTile func(string) fyne.Resource) fyne.CanvasObject {
+	var names []string
+	for _, m := range a.Devices {
+		names = append(names, m.Device)
+	}
 	head := func() fyne.CanvasObject {
-		return withTile(tile(a.Icon, activityIcon, a.Color), heading(a.Name, describeLook(a.Icon, a.Color)))
+		return withTile(tile(a.Icon, activityIcon, a.Color), heading(a.Name, strings.Join(names, " · ")))
 	}
 
 	steps := func(ss []profile.Step) []string {
@@ -67,16 +71,16 @@ func activityView(a *profile.Activity, model string, ctl *controls, edit func())
 		section(i18n.T("Favorites"), i18n.T("No favorites."), favorites),
 	}
 
-	var devs []string
+	var devs []fyne.CanvasObject
 	for _, m := range a.Devices {
+		sub := ""
 		if m.Input != "" {
-			devs = append(devs, i18n.T("%s, on %s", m.Device, m.Input))
-		} else {
-			devs = append(devs, m.Device)
+			sub = i18n.T("On %s", m.Input)
 		}
+		devs = append(devs, newNavRow(deviceTile(m.Device), m.Device, sub, nil))
 	}
 	details := []fyne.CanvasObject{
-		section(i18n.T("Devices"), i18n.T("No devices."), lines(devs)),
+		section(i18n.T("Devices"), i18n.T("No devices."), devs),
 		keysSection(a.Buttons),
 		section(i18n.T("When it starts"), i18n.T("Nothing."), numbered(steps(a.PowerOn))),
 		section(i18n.T("When it ends"), i18n.T("Nothing."), numbered(steps(a.PowerOff))),
@@ -97,12 +101,6 @@ func deviceView(d *profile.Device, model string, ctl *controls, edit, export fun
 			sub += " · "
 		}
 		sub += d.Category.String()
-	}
-	if look := describeLook(d.Icon, d.Color); look != "" {
-		if sub != "" {
-			sub += " · "
-		}
-		sub += look
 	}
 	head := func() fyne.CanvasObject { return withTile(tile(d.Icon, deviceIcon, d.Color), heading(d.Name, sub)) }
 
@@ -129,7 +127,7 @@ func deviceView(d *profile.Device, model string, ctl *controls, edit, export fun
 	if ctl != nil && len(cmds) > 0 {
 		hint := wrapped(i18n.T("Test sends a command from the hub, to check that the device responds."))
 		hint.TextStyle.Italic = true
-		cmds = append([]fyne.CanvasObject{hint}, cmds...)
+		cmds = append([]fyne.CanvasObject{quiet(hint)}, cmds...)
 	}
 	var power []fyne.CanvasObject
 	if d.Power != nil {
@@ -385,15 +383,15 @@ func heading(title, sub string) fyne.CanvasObject {
 	return container.NewVBox(t, wrapped(sub))
 }
 
-// section is a titled card of objs, or of the empty text if there are
-// none.
+// section is a card of objs, a rule between each, under a small title;
+// of the empty text if there are none.
 func section(title, empty string, objs []fyne.CanvasObject) fyne.CanvasObject {
 	if len(objs) == 0 {
 		l := wrapped(empty)
 		l.TextStyle.Italic = true
-		objs = []fyne.CanvasObject{l}
+		objs = []fyne.CanvasObject{quiet(l)}
 	}
-	return widget.NewCard(title, "", container.NewVBox(objs...))
+	return group(title, objs...)
 }
 
 // card is a card whose title wraps, for titles that hold names.
@@ -412,10 +410,12 @@ func lines(texts []string) []fyne.CanvasObject {
 	return out
 }
 
+// numbered are texts, each beside its number, muted.
 func numbered(texts []string) []fyne.CanvasObject {
 	var out []fyne.CanvasObject
 	for i, t := range texts {
-		out = append(out, wrapped(fmt.Sprintf("%d.  %s", i+1, t)))
+		n := widget.NewLabelWithStyle(fmt.Sprint(i+1), fyne.TextAlignTrailing, fyne.TextStyle{Bold: true})
+		out = append(out, container.NewBorder(nil, nil, quiet(n), nil, wrapped(t)))
 	}
 	return out
 }

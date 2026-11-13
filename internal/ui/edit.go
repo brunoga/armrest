@@ -22,6 +22,7 @@ import (
 	"github.com/brunoga/armrest/internal/i18n"
 	"github.com/brunoga/armrest/internal/workspace"
 	"github.com/brunoga/sofabaton/irsource"
+	"github.com/brunoga/sofabaton/profile"
 )
 
 // screen is a full-window page with a title, Back, and content.
@@ -380,8 +381,9 @@ func (a *App) showReview() {
 	status := wrapped(i18n.T("Working out the changes…"))
 	alive := newPulse()
 	body := container.NewVBox(alive, status)
+	actions := container.NewVBox()
 	alive.Start()
-	a.screen(i18n.T("Review changes"), a.backToBrowse, scrolled(body))
+	a.screen(i18n.T("Review changes"), a.backToBrowse, container.NewBorder(nil, actions, nil, nil, scrolled(body)))
 	w := a.work
 	a.async(func() {
 		p, err := w.Plan(context.Background())
@@ -394,12 +396,14 @@ func (a *App) showReview() {
 				status.SetText(i18n.T("These changes cannot be written: %s", err.Error()))
 				return
 			}
-			a.showPlan(body, status, p)
+			a.showPlan(body, actions, status, p)
 		})
 	})
 }
 
-func (a *App) showPlan(body *fyne.Container, status *widget.Label, p *workspace.Plan) {
+// showPlan shows the plan's changes, each with what it does as a chip,
+// and Apply and Discard in a bar that stays at the bottom.
+func (a *App) showPlan(body, actions *fyne.Container, status *widget.Label, p *workspace.Plan) {
 	if len(p.Changes) == 0 {
 		status.SetText(i18n.T("Nothing to write: the hub already has all of this."))
 		return
@@ -411,17 +415,7 @@ func (a *App) showPlan(body *fyne.Container, status *widget.Label, p *workspace.
 		status.SetText(i18n.N("Applying makes these changes on %s, in %d step. Nothing has been written yet.", "Applying makes these changes on %s, in %d steps. Nothing has been written yet.", p.Writes, name, p.Writes))
 	}
 	for _, ch := range p.Changes {
-		title := ch.Title
-		if ch.Warning {
-			title = "⚠ " + title
-		}
-		var detail fyne.CanvasObject = widget.NewLabel("")
-		if len(ch.Details) > 0 {
-			acc := widget.NewAccordion(widget.NewAccordionItem(
-				i18n.N("%d step", "%d steps", len(ch.Details), len(ch.Details)), container.NewVBox(lines(ch.Details)...)))
-			detail = acc
-		}
-		body.Add(card(title, detail))
+		body.Add(a.changeCard(ch))
 	}
 	apply := widget.NewButtonWithIcon(i18n.T("Apply to the hub"), theme.ConfirmIcon(), func() { a.applyPlan(p) })
 	if a.offline() {
@@ -440,8 +434,68 @@ func (a *App) showPlan(body *fyne.Container, status *widget.Label, p *workspace.
 			a.backToBrowse()
 		}, a.win)
 	})
-	body.Add(container.NewVBox(apply, discard))
+	discard.Importance = widget.LowImportance
+	p2, g := theme.Padding(), gutter()
+	actions.Objects = []fyne.CanvasObject{widget.NewSeparator(), column(container.New(layout.NewCustomPaddedLayout(p2, p2, g, g),
+		container.New(&rowOrStack{}, discard, apply)))}
+	actions.Refresh()
 	body.Refresh()
+}
+
+// changeCard is a change: the device's or activity's tile and name, what
+// is done to it as a chip, and the hub's writes, folded.
+func (a *App) changeCard(ch workspace.Change) fyne.CanvasObject {
+	var lead fyne.Resource
+	sub := i18n.T("Device")
+	if ch.Activity {
+		sub = i18n.T("Activity")
+	}
+	switch {
+	case ch.Kind == workspace.Ordered:
+		lead = theme.NewPrimaryThemedResource(gripIcon)
+		sub = i18n.T("The order the remote lists them in")
+	case ch.Activity:
+		lead = glyphTile("deleted-activity.svg", slate, profile.Icon(activityIcon).Path())
+		if act := a.work.Config.Activity(ch.Name); act != nil {
+			lead = tile(act.Icon, activityIcon, act.Color)
+		}
+	case ch.Name != "":
+		lead = glyphTile("deleted-device.svg", slate, profile.Icon(deviceIcon).Path())
+		if d := a.work.Config.Device(ch.Name); d != nil {
+			lead = tile(d.Icon, deviceIcon, d.Color)
+		}
+	}
+	title := ch.Name
+	if title == "" || ch.Kind == workspace.Other {
+		title = ch.Title
+	}
+	var kind *chip
+	switch ch.Kind {
+	case workspace.Added:
+		kind = newChip(i18n.T("Added"), chipNew)
+	case workspace.Changed:
+		kind = newChip(i18n.T("Changed"), chipEdited)
+	case workspace.Deleted:
+		kind = newChip(i18n.T("Deleted"), chipRemoved)
+	case workspace.Ordered:
+		kind = newChip(i18n.T("Reordered"), chipEdited)
+	case workspace.Skipped:
+		kind = newChip(i18n.T("Not added"), chipRemoved)
+		sub = ch.Title
+	}
+	if len(ch.Details) > 1 {
+		sub += " · " + i18n.N("%d step", "%d steps", len(ch.Details), len(ch.Details))
+	}
+	row := newNavRow(lead, title, sub, nil)
+	if kind != nil {
+		row.trailing = kind
+	}
+	parts := []fyne.CanvasObject{row}
+	if len(ch.Details) > 1 {
+		parts = append(parts, widget.NewAccordion(widget.NewAccordionItem(i18n.T("What the hub is sent"),
+			quiet(container.NewVBox(lines(ch.Details)...)))))
+	}
+	return widget.NewCard("", "", container.NewVBox(parts...))
 }
 
 // applyPlan writes the edits to the hub, then reads it back.

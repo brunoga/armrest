@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="240" height="150" viewBox="0 0 240 150">
+  <!-- Armrest's own drawing of a hub, from above at an angle: a thin,
+       rounded slab, a disc on its top, its light at the front. -->
+  <ellipse cx="120" cy="128" rx="104" ry="12" fill="#000000" fill-opacity="0.16"/>
+  <path d="M18 92 C18 104 28 118 48 120 L192 120 C212 118 222 104 222 92 L222 86 L18 86 Z" fill="#1C2326"/>
+  <path d="M52 30 L188 30 C206 30 212 34 216 46 L224 76 C228 90 220 98 200 98 L40 98 C20 98 12 90 16 76 L24 46 C28 34 34 30 52 30 Z" fill="#323D41"/>
+  <path d="M52 30 L188 30 C206 30 212 34 216 46 L217 50 C213 38 206 34 188 34 L52 34 C34 34 27 38 23 50 L24 46 C28 34 34 30 52 30 Z" fill="#4A585E"/>
+  <ellipse cx="120" cy="64" rx="70" ry="24" fill="#2B3538"/>
+  <ellipse cx="120" cy="62.5" rx="69" ry="22.5" fill="#3A464B"/>
+  <circle cx="146" cy="72" r="1.8" fill="#1F2629"/>
+  <rect x="106" y="108" width="28" height="4" rx="2" fill="#7FD3F0"/>
+</svg>

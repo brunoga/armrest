@@ -10,7 +10,6 @@ import (
 	"time"
 
 	"fyne.io/fyne/v2"
-	"fyne.io/fyne/v2/canvas"
 	"fyne.io/fyne/v2/container"
 	"fyne.io/fyne/v2/dialog"
 	"fyne.io/fyne/v2/layout"
@@ -65,9 +64,7 @@ func (a *App) showHome(h backend.Hub) {
 	retry.Importance = widget.HighImportance
 	retry.Hide()
 	intro := wrapped(i18n.T("This takes a few seconds for each device and activity. Keep the app open until it is done."))
-	img := canvas.NewImageFromResource(hubTile)
-	img.FillMode = canvas.ImageFillContain
-	img.SetMinSize(fyne.NewSquareSize(headingTile * Scale()))
+	img := hubImage(headingTile * 1.5 * Scale())
 	title := a.page(i18n.T("Reading the hub"), nil, nil, scrolled(container.NewVBox(
 		widget.NewCard("", "", container.NewVBox(container.NewCenter(img), intro, bar, alive, step)),
 		container.NewHBox(layout.NewSpacer(), cancelBtn, retry))), backTo(cancelBtn.OnTapped))

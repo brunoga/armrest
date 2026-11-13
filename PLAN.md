@@ -605,6 +605,16 @@ would be squeezed.
 Tiles drawn from the X2's icons were cut on their left at large sizes (a
 view box starting below zero): they are drawn from zero now.
 
+The remote follows the X2's own (its pictures in Sofabaton's app): the
+ring around OK, volume and channels as rockers each side of Guide and
+Mute, Play over Pause in one key, the color keys in one bar, A to C as
+flat keys. A device's or activity's remote also opens alone, filling the
+screen, with nothing else on it (the phone as the remote): the number
+keys take its place on "123", Back or the cross leave, and the screen
+stays on meanwhile. The hub is the app's own drawing (`internal/ui/art`),
+after the X2's: on the hubs found, the hub's tab, while reading it, and
+when none is found.
+
 The screenshot tests take minutes under the race detector, more than
 `go test`'s default 10 in CI: the tests' timeout is 30 minutes. Shadows
 and strokes are what the software painter draws slowest; the remote has

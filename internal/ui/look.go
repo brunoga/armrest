@@ -1,6 +1,7 @@
 package ui
 
 import (
+	_ "embed"
 	"fmt"
 	"image/color"
 	"sync"
@@ -314,17 +315,27 @@ const (
 	speakerGlyph   = "M17 2H7c-1.1 0-2 .9-2 2v16c0 1.1.9 1.99 2 1.99L17 22c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm-5 2c1.1 0 2 .9 2 2s-.9 2-2 2c-1.11 0-2-.9-2-2s.89-2 2-2zm0 16c-2.76 0-5-2.24-5-5s2.24-5 5-5 5 2.24 5 5-2.24 5-5 5zm0-8c-1.66 0-3 1.34-3 3s1.34 3 3 3 3-1.34 3-3-1.34-3-3-3z"
 )
 
-// hubGlyph is a hub, drawn as the X2's is: a low puck, its light on the
-// front.
-const hubGlyph = "M5 8h14a3 3 0 0 1 3 3v3a3 3 0 0 1-3 3H5a3 3 0 0 1-3-3v-3a3 3 0 0 1 3-3z" +
-	"M16.5 12.5a1.5 1.5 0 1 0 3 0a1.5 1.5 0 1 0-3 0z"
-
-// addTile is the tile that adds a device or activity: a plus, on the
-// app's teal (Material's add, Apache 2.0).
+// addTile is the tile that adds a device or activity: a plus, on grey
+// (Material's add, Apache 2.0).
 var addTile = glyphTile("add-tile.svg", color.NRGBA{0x8A, 0x96, 0x98, 0xFF}, "M11 5h2v6h6v2h-6v6h-2v-6H5v-2h6z")
 
-// hubTile is a hub's tile, in the app's teal.
-var hubTile = glyphTile("hub-tile.svg", teal, hubGlyph)
+// hubArt is the app's own drawing of a hub, as the X2's looks: wider
+// than tall, by hubArtRatio.
+//
+//go:embed art/hub.svg
+var hubArtSVG []byte
+
+var hubArt = fyne.NewStaticResource("hub.svg", hubArtSVG)
+
+const hubArtRatio = 240.0 / 150
+
+// hubImage is the hub's drawing, height tall.
+func hubImage(height float32) *canvas.Image {
+	img := canvas.NewImageFromResource(hubArt)
+	img.FillMode = canvas.ImageFillContain
+	img.SetMinSize(fyne.NewSize(height*hubArtRatio, height))
+	return img
+}
 
 // Fallback icons, for devices and activities with none the X2 draws.
 const (

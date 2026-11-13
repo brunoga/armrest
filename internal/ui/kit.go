@@ -48,8 +48,10 @@ type navRow struct {
 	OnTapped func()
 
 	hovered bool
-	// tileSize is the lead's size, before Scale.
-	tileSize float32
+	// tileSize is the lead's height, before Scale, and leadRatio its
+	// width to that (1, square, if unset).
+	tileSize  float32
+	leadRatio float32
 }
 
 // newNavRow is a row titled title, with sub under it ("" for none),
@@ -115,7 +117,11 @@ func (r *navRow) CreateRenderer() fyne.WidgetRenderer {
 	if r.lead != nil {
 		img := canvas.NewImageFromResource(r.lead)
 		img.FillMode = canvas.ImageFillContain
-		img.SetMinSize(fyne.NewSquareSize(r.tileSize * Scale()))
+		ratio := r.leadRatio
+		if ratio == 0 {
+			ratio = 1
+		}
+		img.SetMinSize(fyne.NewSize(r.tileSize*ratio*Scale(), r.tileSize*Scale()))
 		left = container.NewCenter(img)
 	}
 	trailing := r.trailing

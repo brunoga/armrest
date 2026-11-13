@@ -124,12 +124,16 @@ func (s *hubsScreen) show(hubs []backend.Hub, err error) {
 			s.found.Add(widget.NewSeparator())
 		}
 		sub := i18n.T("%s, firmware %d · %v", h.Model, h.Firmware, h.Addr)
-		s.found.Add(newNavRow(hubTile, h.Name, sub, func() { s.app.connect(h) }))
+		r := newNavRow(hubArt, h.Name, sub, func() { s.app.connect(h) })
+		r.leadRatio = hubArtRatio
+		s.found.Add(r)
 	}
 	switch {
 	case err != nil:
 		s.status.SetText(i18n.T("Searching failed: %s", err.Error()))
 	case len(hubs) == 0:
+		// Something to look at besides the words: the hub not found.
+		s.found.Add(container.NewCenter(hubImage(headingTile * Scale())))
 		s.status.SetText(i18n.T("No hub answered. A hub connected to another app (Sofabaton's, or sbx) does not answer: close it. Or, if it is on another part of the network, connect to it by address."))
 	default:
 		s.status.SetText(i18n.T("A hub connected to another app does not show up: close that app first."))

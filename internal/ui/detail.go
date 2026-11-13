@@ -26,6 +26,8 @@ type controls struct {
 	run func(macro string)
 	// send sends a device's command.
 	send func(device, command string)
+	// full shows the remote with keys alone, filling the screen.
+	full func(model string, keys profile.Buttons)
 }
 
 // The panes of a device's or activity's view, in order.
@@ -85,7 +87,7 @@ func activityView(a *profile.Activity, model string, ctl *controls, edit func(),
 		section(i18n.T("When it starts"), i18n.T("Nothing."), numbered(steps(a.PowerOn))),
 		section(i18n.T("When it ends"), i18n.T("Nothing."), numbered(steps(a.PowerOff))),
 	}
-	return views(head, edit, remote(model, a.Buttons, ctl), lists, details)
+	return views(head, edit, fullScreen(ctl, model, a.Buttons), remote(model, a.Buttons, ctl), lists, details)
 }
 
 // deviceView shows a device: a remote to drive it with, its macros, and
@@ -148,7 +150,7 @@ func deviceView(d *profile.Device, model string, ctl *controls, edit, export fun
 		section(i18n.T("Power"), i18n.T("Not set: activities turn it on and off with its own power macros."), power),
 		section(i18n.T("Inputs"), inputs, numbered(d.Inputs)),
 	)
-	return views(head, edit, remote(model, d.Buttons, ctl), lists, details)
+	return views(head, edit, fullScreen(ctl, model, d.Buttons), remote(model, d.Buttons, ctl), lists, details)
 }
 
 // runnable is a macro or favorite named name, described by about, with a
@@ -322,7 +324,7 @@ func (k *remoteKey) TappedSecondary(*fyne.PointEvent) {
 // views shows one of its panes at a time, each under a head, picked by a
 // row of buttons that stays put, with Edit calling edit if it is set: the
 // remote first.
-func views(head func() fyne.CanvasObject, edit func(), panes ...[]fyne.CanvasObject) fyne.CanvasObject {
+func views(head func() fyne.CanvasObject, edit, full func(), panes ...[]fyne.CanvasObject) fyne.CanvasObject {
 	pages := make([]fyne.CanvasObject, len(panes))
 	names := make([]string, len(panes))
 	show := func(i int) {
@@ -340,12 +342,17 @@ func views(head func() fyne.CanvasObject, edit func(), panes ...[]fyne.CanvasObj
 	}
 	show(remotePane)
 	var row fyne.CanvasObject = newSegmented(names, remotePane, show)
+	// Icons alone: more names across do not fit a phone.
+	right := container.NewHBox()
+	if full != nil {
+		right.Add(newIconButton(i18n.T("Full screen"), theme.ViewFullScreenIcon(), full))
+	}
 	if edit != nil {
-		// A pencil alone: four names across do not fit a phone.
 		b := newIconButton(i18n.T("Edit"), theme.DocumentCreateIcon(), edit)
 		b.Importance = widget.HighImportance
-		row = container.NewBorder(nil, nil, nil, b, row)
+		right.Add(b)
 	}
+	row = container.NewBorder(nil, nil, nil, right, row)
 	row = container.NewThemeOverride(row, tightKeys{})
 	p, g := theme.Padding(), gutter()
 	top := column(container.New(layout.NewCustomPaddedLayout(p, p, g, g), row))
@@ -433,4 +440,13 @@ func form(pairs ...string) []fyne.CanvasObject {
 		objs = append(objs, widget.NewLabelWithStyle(pairs[i], fyne.TextAlignTrailing, fyne.TextStyle{Bold: true}), wrapped(pairs[i+1]))
 	}
 	return []fyne.CanvasObject{container.New(layout.NewFormLayout(), objs...)}
+}
+
+// fullScreen shows the remote with keys alone, filling the screen, where
+// ctl drives it; nil otherwise.
+func fullScreen(ctl *controls, model string, keys profile.Buttons) func() {
+	if ctl == nil || ctl.full == nil {
+		return nil
+	}
+	return func() { ctl.full(model, keys) }
 }

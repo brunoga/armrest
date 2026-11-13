@@ -285,7 +285,7 @@ func (s *browseScreen) controls(name string, isNew bool) *controls {
 			})
 		})
 	}
-	return &controls{
+	c := &controls{
 		press: func(key string, hold bool) {
 			failed := i18n.T("Could not press %s", key)
 			if hold {
@@ -309,6 +309,8 @@ func (s *browseScreen) controls(name string, isNew bool) *controls {
 				})
 		},
 	}
+	c.full = func(model string, keys profile.Buttons) { s.app.showFullRemote(model, keys, c) }
+	return c
 }
 
 // selectActivity shows the activity named name.
@@ -484,9 +486,7 @@ func (s *browseScreen) hubContent(h backend.Hub) fyne.CanvasObject {
 	s.hubKind = newChip("", chipInfo)
 	s.activityTiles, s.deviceTiles = tileGrid(nil), tileGrid(nil)
 	s.showHub()
-	img := canvas.NewImageFromResource(hubTile)
-	img.FillMode = canvas.ImageFillContain
-	img.SetMinSize(fyne.NewSquareSize(headingTile * Scale()))
+	img := hubImage(headingTile * Scale())
 	hero := widget.NewCard("", "", container.NewBorder(nil, nil, container.NewCenter(img), nil,
 		container.NewVBox(container.NewBorder(nil, nil, nil, container.NewCenter(s.hubKind), s.hubName), quiet(s.hubInfo))))
 

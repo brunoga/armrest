@@ -1245,6 +1245,32 @@ func TestRemote(t *testing.T) {
 		t.Error("A does nothing, yet is enabled")
 	}
 
+	// The remote alone, filling the screen: its keys press as the
+	// drawing's do; Back leaves the number keys, then the remote.
+	var full *iconButton
+	walk(w, func(o fyne.CanvasObject) {
+		if b, ok := o.(*iconButton); ok && b.label == "Full screen" && b.Visible() {
+			full = b
+		}
+	})
+	test.Tap(full)
+	assertScreens(t, w, "remote-full")
+	// It works: the failure before is cleared.
+	test.Tap(key("Mute"))
+	if status() != "" {
+		t.Errorf("Mute in full screen: %q", status())
+	}
+	test.Tap(button(t, w, "123"))
+	assertScreens(t, w, "remote-full-numbers")
+	u.pressBack()
+	if key("OK") == nil {
+		t.Fatal("not back to the keys")
+	}
+	u.pressBack()
+	if u.shown != u.browse.root {
+		t.Fatal("not back to the device")
+	}
+
 	pickRow(t, u, "Watch Google TV")
 	// After a failure, a key that works clears it.
 	test.Tap(key("Vol+"))

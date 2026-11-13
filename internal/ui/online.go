@@ -198,7 +198,7 @@ func onlineAbout(e irsource.Entry) string {
 	if e.Source == irsource.IRDB {
 		parts = append(parts, e.Model)
 	}
-	return strings.Join(append(parts, string(e.Source)), " · ")
+	return strings.Join(parts, " · ")
 }
 
 // sofabatonNamed are the Sofabaton makers a search names: the maker

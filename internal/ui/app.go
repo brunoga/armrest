@@ -47,6 +47,9 @@ type App struct {
 	// tab is the browse screen's tab shown last, shown again on coming
 	// back from an editor.
 	tab int
+	// addOther is set while adding a device shows the other ways than a
+	// model's, shown again on coming back to it.
+	addOther bool
 	// goBack is what Back (Escape on desktop) does on the screen shown.
 	// It reports false when there is nowhere to go back to: the app then
 	// leaves, as Android apps do.

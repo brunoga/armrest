@@ -24,27 +24,6 @@ import (
 // wifiFindTime is how long to look for Rokus and speakers.
 var wifiFindTime = 3 * time.Second
 
-// showServices offers the network services the hub has integrations of.
-func (a *App) showServices() {
-	box := container.NewVBox()
-	for _, sv := range []struct {
-		name, what string
-		show       func()
-	}{
-		{"Philips Hue", i18n.T("Rooms and lights, through your Hue bridge."), a.showHue},
-		{"Roku", i18n.T("Its remote's keys and its channels."), a.showRoku},
-		{"Sonos", i18n.T("Play, pause, mute and volume of a speaker."), a.showSonos},
-		{"Govee", i18n.T("Lights, through Govee's cloud."), a.showGovee},
-		{"LIFX", i18n.T("Lights, through LIFX's cloud."), a.showLIFX},
-	} {
-		b := widget.NewButton(sv.name, sv.show)
-		b.Alignment = widget.ButtonAlignLeading
-		box.Add(container.NewVBox(b, wrapped(sv.what)))
-	}
-	a.screen(i18n.T("Services"), a.showAddDevice, scrolled(container.NewVBox(
-		wrapped(i18n.T("The hub sends these the commands made here over your network.")), box)))
-}
-
 // wifiScreen is a screen that adds a device of a network service, in
 // steps that each replace its content.
 type wifiScreen struct {
@@ -54,7 +33,7 @@ type wifiScreen struct {
 
 func (a *App) wifiScreen(title string) *wifiScreen {
 	s := &wifiScreen{app: a, body: container.NewVBox()}
-	a.screen(title, a.showServices, scrolled(s.body))
+	a.screen(title, a.showAddDevice, scrolled(s.body))
 	return s
 }
 

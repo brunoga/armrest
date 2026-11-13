@@ -105,9 +105,9 @@ func TestRokuAndSonos(t *testing.T) {
 	fakeWiFi(t, u)
 	test.Tap(row(t, w, "Lounge"))
 	pickRow(t, u, "Add a device…")
-	test.Tap(button(t, w, "Services"))
-	assertScreens(t, w, "services")
-	test.Tap(button(t, w, "Roku"))
+	test.Tap(button(t, w, "Other ways"))
+	assertScreens(t, w, "add-device-other")
+	test.Tap(row(t, w, "Roku"))
 	test.Tap(button(t, w, "Den (192.168.1.50)"))
 	if got := checksOf(w); got != "Netflix|YouTube" {
 		t.Fatalf("%s\n%s", got, texts(w))
@@ -121,8 +121,8 @@ func TestRokuAndSonos(t *testing.T) {
 	}
 
 	pickRow(t, u, "Add a device…")
-	test.Tap(button(t, w, "Services"))
-	test.Tap(button(t, w, "Sonos"))
+	test.Tap(button(t, w, "Other ways"))
+	test.Tap(row(t, w, "Sonos"))
 	if !strings.Contains(texts(w), "No speaker answered") {
 		t.Fatalf("found one:\n%s", texts(w))
 	}
@@ -145,8 +145,8 @@ func TestGoveeAndLIFX(t *testing.T) {
 	fakeWiFi(t, u)
 	test.Tap(row(t, w, "Lounge"))
 	pickRow(t, u, "Add a device…")
-	test.Tap(button(t, w, "Services"))
-	test.Tap(button(t, w, "Govee"))
+	test.Tap(button(t, w, "Other ways"))
+	test.Tap(row(t, w, "Govee"))
 	setEntry(t, w, "bad")
 	test.Tap(button(t, w, "Read my lights"))
 	if !strings.Contains(texts(w), "Govee did not take the key.") {
@@ -170,8 +170,8 @@ func TestGoveeAndLIFX(t *testing.T) {
 		t.Fatalf("Govee %+v\n%s", d, texts(w))
 	}
 	pickRow(t, u, "Add a device…")
-	test.Tap(button(t, w, "Services"))
-	test.Tap(button(t, w, "Govee"))
+	test.Tap(button(t, w, "Other ways"))
+	test.Tap(row(t, w, "Govee"))
 	test.Tap(button(t, w, "Read my lights")) // the key the first holds
 	test.Tap(button(t, w, "Add the device"))
 	if u.work.Config.Device("Govee 2") == nil {
@@ -179,8 +179,8 @@ func TestGoveeAndLIFX(t *testing.T) {
 	}
 
 	pickRow(t, u, "Add a device…")
-	test.Tap(button(t, w, "Services"))
-	test.Tap(button(t, w, "LIFX"))
+	test.Tap(button(t, w, "Other ways"))
+	test.Tap(row(t, w, "LIFX"))
 	setEntry(t, w, "LT")
 	test.Tap(button(t, w, "Read my lights"))
 	if got := checksOf(w); got != "All lights|Bedroom|Office|Bed|Desk|On and off|10% brightness|50% brightness|80% brightness|100% brightness" || !strings.Contains(texts(w), "6 commands.") {

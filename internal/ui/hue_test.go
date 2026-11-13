@@ -51,8 +51,8 @@ func TestHueBridge(t *testing.T) {
 
 	test.Tap(row(t, w, "Lounge"))
 	pickRow(t, u, "Add a device…")
-	test.Tap(button(t, w, "Services"))
-	test.Tap(button(t, w, "Philips Hue"))
+	test.Tap(button(t, w, "Other ways"))
+	test.Tap(row(t, w, "Philips Hue"))
 	test.Tap(button(t, w, "192.168.1.183"))
 	if asked != 2 {
 		t.Fatalf("asked %d times:\n%s", asked, texts(w))
@@ -92,8 +92,8 @@ func TestHueBridge(t *testing.T) {
 	// device has a user for it.
 	asked = 0
 	pickRow(t, u, "Add a device…")
-	test.Tap(button(t, w, "Services"))
-	test.Tap(button(t, w, "Philips Hue"))
+	test.Tap(button(t, w, "Other ways"))
+	test.Tap(row(t, w, "Philips Hue"))
 	test.Tap(button(t, w, "192.168.1.183"))
 	if asked != 0 || !strings.Contains(checks(), "Pool Table") {
 		t.Fatalf("linked again (%d):\n%s", asked, texts(w))

@@ -595,7 +595,7 @@ would be squeezed.
 | A key's dialog | keeps | — |
 | Device and activity editors | keep apart from the views: an editor's draft is saved as one edit, undone at once | Next: icons and colors picked from tiles and swatches, not lists of names. |
 | Order | keeps: a rare task, and dragging needs the room | Next: its rows in a card. |
-| Add a device | reworked next | Search first, the other ways as cards with what each is for. The Services screen goes: it was a list of five buttons, a tap for nothing; its services join the cards. |
+| Add a device | reworked | Two panes, picked at the top: searching for a model, its results as rows saying where each comes from (built in, or the online source), and the other ways, as rows saying what each is for, the services among them. The Services screen went: it was a list of five buttons, a tap for nothing. |
 | Hue, Roku, Sonos, Govee and LIFX; from scratch, a file, Bluetooth, network | keep: each asks for different things | Next: the same rows and cards. |
 | Learning a command | keeps | — |
 | Review | reworked next | Changes as cards with their kind (added, changed, deleted) as chips, Apply in reach. |

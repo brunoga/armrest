@@ -227,7 +227,8 @@ data: 9000 4500
 `)
 	test.Tap(row(t, w, "Lounge"))
 	pickRow(t, u, "Add a device…")
-	test.Tap(button(t, w, "From a file…"))
+	test.Tap(button(t, w, "Other ways"))
+	test.Tap(row(t, w, "From a file…"))
 	got := texts(w)
 	for _, want := range []string{"3 commands, 2 of them on the remote's keys. Power: Power."} {
 		if !strings.Contains(got, want) {
@@ -269,7 +270,8 @@ data: 9000 4500 560
 `)
 	test.Tap(row(t, w, "Lounge"))
 	pickRow(t, u, "Add a device…")
-	test.Tap(button(t, w, "From a file…"))
+	test.Tap(button(t, w, "Other ways"))
+	test.Tap(row(t, w, "From a file…"))
 	test.Tap(button(t, w, "Add"))
 	pickRow(t, u, "Living Room TV")
 	test.Tap(button(t, w, "Details"))
@@ -346,7 +348,7 @@ func TestOnlineSearch(t *testing.T) {
 
 	test.Type(search, "acme")
 	got := texts(w)
-	if !strings.Contains(got, "TVs · Flipper-IRDB") {
+	if !strings.Contains(got, "TVs\nFlipper-IRDB") {
 		t.Fatalf("no online result in:\n%s", got)
 	}
 	assertScreens(t, w, "online-search")

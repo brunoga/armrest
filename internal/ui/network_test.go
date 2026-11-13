@@ -17,7 +17,8 @@ func TestNetworkDevice(t *testing.T) {
 	u, w := newApp(t, backend.Hub{Name: "Lounge", Model: "X2", Firmware: 9, Addr: lounge})
 	test.Tap(row(t, w, "Lounge"))
 	pickRow(t, u, "Add a device…")
-	test.Tap(button(t, w, "Network"))
+	test.Tap(button(t, w, "Other ways"))
+	test.Tap(row(t, w, "Network"))
 	var entries []*widget.Entry
 	var names []*widget.SelectEntry
 	walk(w, func(o fyne.CanvasObject) {

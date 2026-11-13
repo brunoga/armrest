@@ -9,9 +9,12 @@ import (
 	"strings"
 	"time"
 
+	"image/color"
+
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/container"
 	"fyne.io/fyne/v2/dialog"
+	"fyne.io/fyne/v2/layout"
 	"fyne.io/fyne/v2/theme"
 	"fyne.io/fyne/v2/widget"
 
@@ -45,20 +48,28 @@ func (a *App) showAddDevice() {
 			name.Truncation = fyne.TextTruncateEllipsis
 			sub := widget.NewLabel("")
 			sub.Truncation = fyne.TextTruncateEllipsis
-			return listRow(container.NewVBox(name, sub))
+			from := newChip("", chipInfo)
+			text := container.New(layout.NewCustomPaddedVBoxLayout(-2.5*theme.Padding()), name, quiet(sub))
+			right := container.NewHBox(container.NewCenter(from), container.NewCenter(quiet(widget.NewIcon(chevronIcon))))
+			return listRow(container.NewBorder(nil, nil, nil, right, text))
 		},
 		func(i widget.ListItemID, o fyne.CanvasObject) {
-			box := o.(*fyne.Container).Objects[0].(*fyne.Container)
-			name, sub := box.Objects[0].(*widget.Label), box.Objects[1].(*widget.Label)
+			row := o.(*fyne.Container).Objects[0].(*fyne.Container)
+			text, right := row.Objects[0].(*fyne.Container), row.Objects[1].(*fyne.Container)
+			name := text.Objects[0].(*widget.Label)
+			sub := text.Objects[1].(*container.ThemeOverride).Content.(*widget.Label)
+			from := right.Objects[0].(*fyne.Container).Objects[0].(*chip)
 			if i < len(shown) {
 				t := shown[i]
 				name.SetText(t.Model)
 				sub.SetText(i18n.N("%s · %d command", "%s · %d commands", t.Commands, t.Brand, t.Commands))
+				from.SetText(i18n.T("Built in"), chipNew)
 				return
 			}
 			e := found[i-len(shown)]
 			name.SetText(e.Name())
 			sub.SetText(onlineAbout(e))
+			from.SetText(string(e.Source), chipInfo)
 		})
 	none := wrapped(i18n.T("No device matches. Try fewer words, or start from scratch."))
 	none.TextStyle.Italic = true
@@ -174,17 +185,6 @@ func (a *App) showAddDevice() {
 		update()
 	})
 
-	intro := wrapped(i18n.T("Pick your device's model. Its commands, keys and power settings come with it, and you can change them before anything is written to the hub."))
-	scratch := widget.NewButtonWithIcon(i18n.T("From scratch"), theme.DocumentCreateIcon(), a.showScratch)
-	fromFile := widget.NewButtonWithIcon(i18n.T("From a file…"), theme.FolderOpenIcon(), a.importIRFile)
-	// Three kinds to a row: without icons, they fit a phone.
-	network := widget.NewButton(i18n.T("Network"), a.showNetwork)
-	bluetooth := widget.NewButton(i18n.T("Bluetooth"), a.showBluetooth)
-	services := widget.NewButton(i18n.T("Services"), a.showServices)
-	notListed := container.NewVBox(
-		wrapped(i18n.T("Not listed? Make it from its IR codes or a file of them, as a Bluetooth or network device, or from a service: Philips Hue, Roku, Sonos, Govee or LIFX.")),
-		container.NewThemeOverride(container.NewGridWithColumns(2, scratch, fromFile), tightKeys{}),
-		container.NewThemeOverride(container.NewGridWithColumns(3, bluetooth, network, services), tightKeys{}))
 	var on []string
 	for _, s := range sources {
 		if sourceOn(s) {
@@ -201,8 +201,51 @@ func (a *App) showAddDevice() {
 	}
 	credit.TextStyle.Italic = true
 	narrow := container.NewGridWithColumns(2, kind, maker)
-	top := container.NewVBox(intro, notListed, search, narrow, alive, status, more, none)
-	a.screen(i18n.T("Add a device"), a.backToBrowse, column(container.NewPadded(container.NewBorder(top, credit, nil, nil, list))))
+	intro := quiet(wrapped(i18n.T("Pick its model: its commands, keys and power settings come with it, to change before anything is written to the hub.")))
+	top := container.NewVBox(intro, search, narrow, alive, status, more, none)
+	models := container.NewBorder(top, quiet(credit), nil, nil, list)
+
+	// The two ways, a model to search for or another way, one at a time:
+	// the other ways would push the list off a phone's screen.
+	ways := scrolled(a.otherWays())
+	panes := container.NewStack(models, ways)
+	show := func(i int) {
+		a.addOther = i == 1
+		if a.addOther {
+			models.Hide()
+			ways.Show()
+		} else {
+			ways.Hide()
+			models.Show()
+		}
+	}
+	pick := 0
+	if a.addOther {
+		pick = 1
+	}
+	picker := newSegmented([]string{i18n.T("Search models"), i18n.T("Other ways")}, pick, show)
+	show(pick)
+	a.screen(i18n.T("Add a device"), a.backToBrowse, column(container.NewPadded(container.NewBorder(picker, nil, nil, nil, panes))))
+}
+
+// otherWays are the ways to add a device besides a model's: making it
+// from IR codes, from a file of them, as a Bluetooth or a network device,
+// or from a service the hub has an integration of.
+func (a *App) otherWays() fyne.CanvasObject {
+	glyph := func(name string, c color.NRGBA, path string) fyne.Resource { return glyphTile(name, c, path) }
+	return container.NewVBox(
+		group(i18n.T("Make it yourself"),
+			newNavRow(glyph("way-scratch.svg", teal, pencilGlyph), i18n.T("From scratch"), i18n.T("Its IR codes, from its manual or a code chart."), a.showScratch),
+			newNavRow(glyph("way-file.svg", slate, folderGlyph), i18n.T("From a file…"), i18n.T("A file of IR codes: Flipper, irdb, LIRC, Pronto and more."), a.importIRFile),
+			newNavRow(glyph("way-bluetooth.svg", blue, bluetoothGlyph), i18n.T("Bluetooth"), i18n.T("A device the hub pairs with, as a keyboard: a TV box, a console."), a.showBluetooth),
+			newNavRow(glyph("way-network.svg", green, globeGlyph), i18n.T("Network"), i18n.T("Web requests the hub sends: a smart plug, a webhook, a media server."), a.showNetwork)),
+		group(i18n.T("Services"),
+			newNavRow(glyph("way-hue.svg", amber, bulbGlyph), "Philips Hue", i18n.T("Rooms and lights, through your Hue bridge."), a.showHue),
+			newNavRow(glyph("way-roku.svg", purple, tvGlyph), "Roku", i18n.T("Its remote's keys and its channels."), a.showRoku),
+			newNavRow(glyph("way-sonos.svg", slate, speakerGlyph), "Sonos", i18n.T("Play, pause, mute and volume of a speaker."), a.showSonos),
+			newNavRow(glyph("way-govee.svg", cyan, bulbGlyph), "Govee", i18n.T("Lights, through Govee's cloud."), a.showGovee),
+			newNavRow(glyph("way-lifx.svg", violet, bulbGlyph), "LIFX", i18n.T("Lights, through LIFX's cloud."), a.showLIFX)),
+		quiet(wrapped(i18n.T("Services' devices are sent their commands by the hub, over your network."))))
 }
 
 // onlineMax is the most online results shown.

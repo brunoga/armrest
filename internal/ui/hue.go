@@ -48,7 +48,7 @@ type hueTarget struct {
 
 func (a *App) showHue() {
 	s := &hueScreen{app: a, body: container.NewVBox()}
-	a.screen(i18n.T("Philips Hue"), func() { s.leave(); a.showServices() }, scrolled(s.body))
+	a.screen(i18n.T("Philips Hue"), func() { s.leave(); a.showAddDevice() }, scrolled(s.body))
 	s.find()
 }
 

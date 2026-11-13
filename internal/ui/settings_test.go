@@ -134,7 +134,7 @@ func TestSettingsSources(t *testing.T) {
 			list = l
 		}
 	})
-	if got := texts(w); !strings.Contains(got, "Acme Box 4") || !strings.Contains(got, "Stream Box · Sofabaton") || !strings.Contains(got, "Online results come from Flipper-IRDB and Sofabaton") {
+	if got := texts(w); !strings.Contains(got, "Acme Box 4") || !strings.Contains(got, "Stream Box\nSofabaton") || !strings.Contains(got, "Online results come from Flipper-IRDB and Sofabaton") {
 		t.Fatalf("results:\n%s", got)
 	}
 	list.Select(0)
@@ -159,7 +159,7 @@ func TestSettingsSources(t *testing.T) {
 			list = l
 		}
 	})
-	if got := texts(w); !strings.Contains(got, "Zap TV") || !strings.Contains(got, "Bluetooth · Sofabaton") {
+	if got := texts(w); !strings.Contains(got, "Zap TV") || !strings.Contains(got, "Bluetooth\nSofabaton") {
 		t.Fatalf("results:\n%s", got)
 	}
 	list.Select(0)

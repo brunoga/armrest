@@ -608,7 +608,7 @@ func TestAddDevice(t *testing.T) {
 	test.Tap(row(t, w, "Lounge"))
 	pickRow(t, u, "Add a device…")
 	got := texts(w)
-	if !strings.Contains(got, "Add a device") || !strings.Contains(got, "Pick your device's model") {
+	if !strings.Contains(got, "Add a device") || !strings.Contains(got, "Pick its model") {
 		t.Fatalf("not the add screen:\n%s", got)
 	}
 	var search *widget.Entry
@@ -655,7 +655,8 @@ func TestScratchDevice(t *testing.T) {
 	u, w := newApp(t, backend.Hub{Name: "Lounge", Model: "X2", Firmware: 9, Addr: lounge})
 	test.Tap(row(t, w, "Lounge"))
 	pickRow(t, u, "Add a device…")
-	test.Tap(button(t, w, "From scratch"))
+	test.Tap(button(t, w, "Other ways"))
+	test.Tap(row(t, w, "From scratch"))
 	if got := texts(w); !strings.Contains(got, "How does the device's remote send its codes?") {
 		t.Fatalf("not the scratch screen:\n%s", got)
 	}

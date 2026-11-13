@@ -19,7 +19,8 @@ func TestBluetoothDevice(t *testing.T) {
 	u, w := newApp(t, backend.Hub{Name: "Lounge", Model: "X2", Firmware: 9, Addr: lounge})
 	test.Tap(row(t, w, "Lounge"))
 	pickRow(t, u, "Add a device…")
-	test.Tap(button(t, w, "Bluetooth"))
+	test.Tap(button(t, w, "Other ways"))
+	test.Tap(row(t, w, "Bluetooth"))
 	var keys []*widget.Select
 	var entries []*widget.Entry
 	walk(w, func(o fyne.CanvasObject) {

@@ -296,7 +296,7 @@ func (s *hueScreen) create() {
 	}
 	b := a.showBrowse(a.hub)
 	b.selectDevice(d.Name)
-	b.setStatus(false, i18n.T("Added %s.", d.Name)+" "+i18n.T("Review your changes to write them to the hub."))
+	b.setStatus(false, i18n.T("Added %s.", d.Name))
 }
 
 // appInstance names this copy of the app to the bridge, which lists the

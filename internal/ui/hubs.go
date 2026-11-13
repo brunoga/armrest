@@ -17,8 +17,9 @@ import (
 )
 
 // hubsScreen is the first screen: the app, and the hubs found on the
-// network to connect to. Connecting by address, for a hub not found, is
-// beside them; opening a file and the demo hub are in the bar's menu.
+// network to connect to, and the other ways in under them: connecting by
+// address, for a hub not found, opening a file and the demo hub. The
+// bar's menu has the settings and About.
 type hubsScreen struct {
 	app    *App
 	found  *fyne.Container
@@ -40,13 +41,20 @@ func (s *hubsScreen) content() fyne.CanvasObject {
 	s.status = wrapped("")
 	s.busy = newPulse()
 	s.busy.Hide()
-	s.search = widget.NewButtonWithIcon(i18n.T("Search again"), theme.SearchIcon(), s.discover)
-	notListed := widget.NewButton(i18n.T("Hub not listed?"), s.askAddress)
-	notListed.Importance = widget.LowImportance
-	network := widget.NewCard(i18n.T("Hubs on your network"), "",
-		container.NewVBox(s.found, s.busy, s.status, container.NewHBox(s.search), container.NewHBox(notListed)))
+	s.search = widget.NewButtonWithIcon(i18n.T("Search again"), theme.ViewRefreshIcon(), s.discover)
+	s.search.Importance = widget.LowImportance
+	network := container.NewVBox(
+		container.NewBorder(nil, nil, nil, s.search, groupTitle(i18n.T("Hubs on your network"))),
+		widget.NewCard("", "", container.NewVBox(s.found, s.busy, quiet(s.status))))
 
-	cards := container.NewVBox(brand())
+	// The other ways in, in sight: a first-time user finds them here, not
+	// in a menu.
+	others := group(i18n.T("Other ways in"),
+		newNavRow(theme.NewPrimaryThemedResource(theme.SearchIcon()), i18n.T("Hub not listed?"), i18n.T("Connect to it by its address."), s.askAddress),
+		newNavRow(theme.NewPrimaryThemedResource(theme.FolderOpenIcon()), i18n.T("Open a saved file…"), i18n.T("A hub saved to a file, to change without the hub."), s.app.openFile),
+		newNavRow(theme.NewPrimaryThemedResource(theme.MediaPlayIcon()), i18n.T("Try the demo hub"), i18n.T("A simulated hub, to look around."), func() { s.app.connect(backend.DemoHub) }))
+
+	cards := container.NewVBox(brand(false))
 	if f := s.app.file; f != nil {
 		// Applying a file: its hub is to be picked.
 		back := widget.NewButtonWithIcon(i18n.T("Back to the file"), theme.NavigateBackIcon(), s.app.showFile)
@@ -56,11 +64,10 @@ func (s *hubsScreen) content() fyne.CanvasObject {
 			container.NewVBox(back, widget.NewButtonWithIcon(i18n.T("Close the file"), theme.CancelIcon(), s.app.closeFile)))))
 	}
 	cards.Add(network)
+	cards.Add(others)
 	s.root = scrolled(cards)
 
 	s.app.hubsMenu = fyne.NewMenu("",
-		fyne.NewMenuItem(i18n.T("Open a saved file…"), s.app.openFile),
-		fyne.NewMenuItem(i18n.T("Try the demo hub"), func() { s.app.connect(backend.DemoHub) }),
 		fyne.NewMenuItem(i18n.T("Settings"), s.app.showSettings),
 		fyne.NewMenuItem(i18n.T("About Armrest"), s.app.showAbout))
 	more := newIconButton(i18n.T("More"), theme.MoreVerticalIcon(), nil)
@@ -112,11 +119,12 @@ func (s *hubsScreen) discover() {
 func (s *hubsScreen) show(hubs []backend.Hub, err error) {
 	s.busy.Stop()
 	s.search.Enable()
-	for _, h := range hubs {
-		b := widget.NewButtonWithIcon(h.String(), theme.MediaPlayIcon(), func() { s.app.connect(h) })
-		b.Alignment = widget.ButtonAlignLeading
-		b.Importance = widget.HighImportance
-		s.found.Add(b)
+	for i, h := range hubs {
+		if i > 0 {
+			s.found.Add(widget.NewSeparator())
+		}
+		sub := i18n.T("%s, firmware %d · %v", h.Model, h.Firmware, h.Addr)
+		s.found.Add(newNavRow(hubTile, h.Name, sub, func() { s.app.connect(h) }))
 	}
 	switch {
 	case err != nil:
@@ -124,7 +132,7 @@ func (s *hubsScreen) show(hubs []backend.Hub, err error) {
 	case len(hubs) == 0:
 		s.status.SetText(i18n.T("No hub answered. A hub connected to another app (Sofabaton's, or sbx) does not answer: close it. Or, if it is on another part of the network, connect to it by address."))
 	default:
-		s.status.SetText(i18n.N("%d hub found. A hub connected to another app does not show up.", "%d hubs found. A hub connected to another app does not show up.", len(hubs), len(hubs)))
+		s.status.SetText(i18n.T("A hub connected to another app does not show up: close that app first."))
 	}
 	s.root.Refresh()
 }

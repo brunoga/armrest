@@ -53,12 +53,12 @@ func (c fakeCatalog) Fetch(_ context.Context, e irsource.Entry) ([]byte, error) 
 	return []byte(fmt.Sprintf(`{"keys": [{"keyname": "Power", "format": "1", "irCode": "%X"}]}`, "P:NEC R:38400 D:4 S:251 F:8")), nil
 }
 
-// check is the check box labeled text.
-func check(t *testing.T, w fyne.Window, text string) *widget.Check {
+// check is the switch labeled text.
+func check(t *testing.T, w fyne.Window, text string) *toggle {
 	t.Helper()
-	var found *widget.Check
+	var found *toggle
 	walk(w, func(o fyne.CanvasObject) {
-		if c, ok := o.(*widget.Check); ok && c.Text == text {
+		if c, ok := o.(*toggle); ok && c.label == text {
 			found = c
 		}
 	})
@@ -83,7 +83,7 @@ func TestSettingsSources(t *testing.T) {
 	}
 	u.showSettings()
 	assertScreens(t, w, "settings")
-	if !check(t, w, "irdb").Checked || !check(t, w, "Flipper-IRDB").Checked || check(t, w, "Sofabaton").Checked {
+	if !check(t, w, "irdb").On || !check(t, w, "Flipper-IRDB").On || check(t, w, "Sofabaton").On {
 		t.Fatal("not irdb and Flipper-IRDB on, Sofabaton off")
 	}
 	test.Tap(check(t, w, "irdb"))
@@ -109,14 +109,14 @@ func TestSettingsSources(t *testing.T) {
 	}
 	key.SetText(fakeKey)
 	test.Tap(button(t, w, "Check and turn on"))
-	if !sourceOn(irsource.Sofabaton) || !check(t, w, "Sofabaton").Checked {
+	if !sourceOn(irsource.Sofabaton) || !check(t, w, "Sofabaton").On {
 		t.Fatal("the right key did not turn Sofabaton on")
 	}
 
 	// Adding a device searches Flipper-IRDB and Sofabaton's makers; a
 	// maker named brings its models, found by model number.
 	test.Tap(button(t, w, "Back"))
-	test.Tap(button(t, w, "Lounge (X2, 192.168.1.20)"))
+	test.Tap(row(t, w, "Lounge"))
 	pickRow(t, u, "Add a device…")
 	if len(asked) != 2 || asked[0] != irsource.Flipper || asked[1] != irsource.Sofabaton {
 		t.Errorf("searched %v", asked)
@@ -173,7 +173,7 @@ func TestSettingsSources(t *testing.T) {
 // The last hub is kept, and connected to on starting when asked.
 func TestAutoConnect(t *testing.T) {
 	u, w := newApp(t, backend.Hub{Name: "Lounge", Model: "X2", Firmware: 9, Addr: lounge})
-	test.Tap(button(t, w, "Lounge (X2, 192.168.1.20)"))
+	test.Tap(row(t, w, "Lounge"))
 	if h, ok := lastHub(); !ok || h.Addr != lounge || h.Name != "Lounge" {
 		t.Fatalf("last hub %+v, %v", h, ok)
 	}

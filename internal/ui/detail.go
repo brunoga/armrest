@@ -326,36 +326,27 @@ func (k *remoteKey) TappedSecondary(*fyne.PointEvent) {
 // remote first.
 func views(head func() fyne.CanvasObject, edit func(), panes ...[]fyne.CanvasObject) fyne.CanvasObject {
 	pages := make([]fyne.CanvasObject, len(panes))
-	pick := make([]*widget.Button, len(panes))
+	names := make([]string, len(panes))
 	show := func(i int) {
-		for j := range panes {
+		for j, p := range pages {
 			if j == i {
-				pages[j].Show()
+				p.Show()
 			} else {
-				pages[j].Hide()
+				p.Hide()
 			}
-			pick[j].Importance = widget.MediumImportance
-			if j == i {
-				pick[j].Importance = widget.HighImportance
-			}
-			pick[j].Refresh()
 		}
 	}
 	for i, p := range panes {
 		pages[i] = page(append([]fyne.CanvasObject{head()}, p...))
-		pick[i] = widget.NewButton(i18n.T(paneNames[i]), func() { show(i) })
+		names[i] = i18n.T(paneNames[i])
 	}
 	show(remotePane)
-	bar := container.NewGridWithColumns(len(pick))
-	for _, b := range pick {
-		bar.Add(b)
-	}
-	var row fyne.CanvasObject = bar
+	var row fyne.CanvasObject = newSegmented(names, remotePane, show)
 	if edit != nil {
 		// A pencil alone: four names across do not fit a phone.
 		b := newIconButton(i18n.T("Edit"), theme.DocumentCreateIcon(), edit)
 		b.Importance = widget.HighImportance
-		row = container.NewBorder(nil, nil, nil, b, bar)
+		row = container.NewBorder(nil, nil, nil, b, row)
 	}
 	row = container.NewThemeOverride(row, tightKeys{})
 	p, g := theme.Padding(), gutter()

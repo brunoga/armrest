@@ -246,7 +246,7 @@ func (a *App) confirmTemplate(t workspace.Template) {
 		}
 		s := a.showBrowse(a.hub)
 		s.selectDevice(d.Name)
-		s.setStatus(false, i18n.T("Added %s. Review your changes to write them to the hub.", d.Name))
+		s.setStatus(false, i18n.T("Added %s.", d.Name))
 	}, a.win)
 	form.Resize(fyne.NewSize(min(a.win.Canvas().Size().Width-32, 480), 0))
 	form.Show()
@@ -321,7 +321,7 @@ func (a *App) confirmImport(title string, im *workspace.Imported) {
 		}
 		s := a.showBrowse(a.hub)
 		s.selectDevice(d.Name)
-		s.setStatus(false, i18n.T("Added %s. Review your changes to write them to the hub, then test its commands.", d.Name))
+		s.setStatus(false, i18n.T("Added %s. Once it is on the hub, test its commands.", d.Name))
 	}, a.win)
 	form.Resize(fyne.NewSize(min(a.win.Canvas().Size().Width-32, 480), 0))
 	form.Show()

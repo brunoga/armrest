@@ -49,7 +49,7 @@ func TestFiles(t *testing.T) {
 	var name string
 	filePickers(u, &f, &name)
 
-	test.Tap(button(t, w, "Lounge (X2, 192.168.1.20)"))
+	test.Tap(row(t, w, "Lounge"))
 	if err := u.work.RemoveActivity("Play PC"); err != nil {
 		t.Fatal(err)
 	}
@@ -60,7 +60,7 @@ func TestFiles(t *testing.T) {
 	}
 	hubAction(t, u, "Disconnect")
 
-	menuItem(t, u, "Open a saved file…")
+	test.Tap(row(t, w, "Open a saved file…"))
 	got := texts(w)
 	if !strings.Contains(got, "From the file X2 HUB 2026-11-02.armrest, saved just now") || listed(u, "Play PC") || !u.browse.changes.Visible() || u.client != nil {
 		t.Fatalf("opened:\n%s", got)
@@ -92,7 +92,7 @@ func TestFiles(t *testing.T) {
 	test.Tap(button(t, w, "Connect to the hub and apply"))
 
 	// The hub is read, and the changes reviewed against it.
-	test.Tap(button(t, w, "Lounge (X2, 192.168.1.20)"))
+	test.Tap(row(t, w, "Lounge"))
 	got = texts(w)
 	if u.file != nil || u.client == nil || !strings.Contains(got, "Applying makes these changes on X2 HUB, in") {
 		t.Fatalf("after connecting:\n%s", got)
@@ -109,7 +109,7 @@ func TestFileOtherHub(t *testing.T) {
 	var f memFile
 	name := "other.armrest"
 	filePickers(u, &f, &name)
-	test.Tap(button(t, w, "Lounge (X2, 192.168.1.20)"))
+	test.Tap(row(t, w, "Lounge"))
 	if err := u.work.RemoveActivity("Play PC"); err != nil {
 		t.Fatal(err)
 	}
@@ -120,9 +120,9 @@ func TestFileOtherHub(t *testing.T) {
 		t.Fatal(err)
 	}
 	hubAction(t, u, "Disconnect")
-	menuItem(t, u, "Open a saved file…")
+	test.Tap(row(t, w, "Open a saved file…"))
 	hubAction(t, u, "Restore to a hub…")
-	test.Tap(button(t, w, "Lounge (X2, 192.168.1.20)"))
+	test.Tap(row(t, w, "Lounge"))
 	if got := texts(w); !strings.Contains(got, "Restore onto another hub") || !strings.Contains(got, "saved from another hub, Bedroom") {
 		t.Fatalf("not asked:\n%s", got)
 	}
@@ -153,7 +153,7 @@ func TestBackup(t *testing.T) {
 	var f memFile
 	var name string
 	filePickers(u, &f, &name)
-	test.Tap(button(t, w, "Lounge (X2, 192.168.1.20)"))
+	test.Tap(row(t, w, "Lounge"))
 	hubAction(t, u, "Save to a file…")
 	if !strings.Contains(texts(w), "Saved the hub to a file.") {
 		t.Fatalf("saving:\n%s", texts(w))
@@ -170,13 +170,13 @@ func TestBackup(t *testing.T) {
 	}
 	hubAction(t, u, "Disconnect")
 
-	menuItem(t, u, "Open a saved file…")
+	test.Tap(row(t, w, "Open a saved file…"))
 	if !listed(u, "Play PC") || u.browse.changes.Visible() {
 		t.Fatal("the backup")
 	}
 	restore := func() {
 		hubAction(t, u, "Restore to a hub…")
-		test.Tap(button(t, w, "Lounge (X2, 192.168.1.20)"))
+		test.Tap(row(t, w, "Lounge"))
 		if got := texts(w); !strings.Contains(got, "The hub changed since") {
 			t.Fatalf("not asked:\n%s", got)
 		}
@@ -225,7 +225,7 @@ frequency: 38000
 duty_cycle: 0.330000
 data: 9000 4500
 `)
-	test.Tap(button(t, w, "Lounge (X2, 192.168.1.20)"))
+	test.Tap(row(t, w, "Lounge"))
 	pickRow(t, u, "Add a device…")
 	test.Tap(button(t, w, "From a file…"))
 	got := texts(w)
@@ -267,7 +267,7 @@ frequency: 38000
 duty_cycle: 0.330000
 data: 9000 4500 560
 `)
-	test.Tap(button(t, w, "Lounge (X2, 192.168.1.20)"))
+	test.Tap(row(t, w, "Lounge"))
 	pickRow(t, u, "Add a device…")
 	test.Tap(button(t, w, "From a file…"))
 	test.Tap(button(t, w, "Add"))
@@ -308,7 +308,7 @@ func TestOnlineSearch(t *testing.T) {
 	u.irFetch = func(_ context.Context, e irsource.Entry) ([]byte, error) {
 		return []byte("Filetype: IR signals file\nVersion: 1\nname: Power\ntype: parsed\nprotocol: NEC\naddress: 04 00 00 00\ncommand: 08 00 00 00\n"), nil
 	}
-	test.Tap(button(t, w, "Lounge (X2, 192.168.1.20)"))
+	test.Tap(row(t, w, "Lounge"))
 	pickRow(t, u, "Add a device…")
 	var search *widget.Entry
 	walk(w, func(o fyne.CanvasObject) {

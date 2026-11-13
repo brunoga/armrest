@@ -36,7 +36,7 @@ const iconSize = 96
 // aboutCards are the About page's: what the app is, who made it, how to
 // reach them, and what it is built on.
 func (a *App) aboutCards() []fyne.CanvasObject {
-	top := brand()
+	top := brand(true)
 
 	made := container.NewVBox(
 		wrapped(author),
@@ -74,20 +74,28 @@ func (a *App) settingsAndAbout(resized func()) fyne.CanvasObject {
 	return scrolled(container.NewVBox(append(a.settingsContent(resized), a.aboutCards()...)...))
 }
 
-// brand is the app's icon, name, version and what it does.
-func brand() fyne.CanvasObject {
+// brand is the app's icon, name and what it does, with its version if
+// withVersion (About has it; the hubs screen has no use for it).
+func brand(withVersion bool) fyne.CanvasObject {
 	icon := canvas.NewImageFromResource(appIcon())
 	if appIcon() == nil {
 		icon.Hide()
 	}
 	icon.FillMode = canvas.ImageFillContain
-	icon.SetMinSize(fyne.NewSquareSize(iconSize * Scale()))
+	size := float32(iconSize)
+	if !withVersion {
+		size = iconSize * 2 / 3
+	}
+	icon.SetMinSize(fyne.NewSquareSize(size * Scale()))
 	name := widget.NewLabelWithStyle("Armrest", fyne.TextAlignCenter, fyne.TextStyle{Bold: true})
 	name.SizeName = theme.SizeNameHeadingText
 	ver := widget.NewLabelWithStyle(version(), fyne.TextAlignCenter, fyne.TextStyle{})
 	what := wrapped(i18n.T("Set up Sofabaton X1, X1S and X2 hubs on your own network, without the cloud."))
 	what.Alignment = fyne.TextAlignCenter
-	return container.NewVBox(container.NewCenter(icon), name, ver, what)
+	if !withVersion {
+		return container.NewVBox(container.NewCenter(icon), name, quiet(what))
+	}
+	return container.NewVBox(container.NewCenter(icon), name, quiet(ver), what)
 }
 
 // showAbout shows the About page on its own, from the hubs screen.

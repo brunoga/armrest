@@ -73,8 +73,8 @@ a timeout.
   detail. A wide one (a tablet, a desktop) shows the list beside the
   detail. Text columns keep a readable width, and touch targets stay
   finger-sized everywhere.
-- **A professional look** comes in the polish phase, with images you will
-  provide; until then, Fyne's default theme, kept tidy.
+- **A professional look:** the app's own theme and widgets (section 11);
+  images you will provide come in the polish phase.
 
 ## 2. Architecture
 
@@ -574,3 +574,34 @@ then), a small JSON API used by the app, the admin UI as server-rendered
 pages, and a database (SQLite to start, PostgreSQL if it grows). The
 library gains a profile-metadata type the app, the server and `sbx`
 share.
+
+## 11. The UI pass (2026-11-13)
+
+Every screen was looked at for whether it earns its place, whether it
+should be merged with another or split, and how it reads on a phone and
+on a desktop. The app gained widgets of its own (`internal/ui/kit.go`):
+rows to tap, grouped in cards as phones' settings are; chips for states;
+a segmented control; a switch; tiles to open devices and activities; and
+a layout that puts a button beside text, or under it where the text
+would be squeezed.
+
+| Screen | Verdict | What changed, or changes next |
+|---|---|---|
+| Hubs | keeps its place: the way in | Hubs as rows (tile, name, model, firmware, address). Connecting by address, opening a file and the demo hub moved out of the menu into "Other ways in": a first-time user did not find them. The version moved to About. |
+| Reading the hub, and its failure | keeps: a read takes up to a minute | — |
+| The hub's tabs (Hub, Devices, Activities, Settings) | keeps | The status and the pending changes were two bars, a third of a phone's screen: now one, the button beside the text, or under it on phones. Statuses no longer repeat "review your changes", the button beside them says it. |
+| Hub tab | reworked: it was three cards of text and a loose button | The tab is the hub's home: the hub, its activities and devices as tiles to open, the firmware, the files, leaving. |
+| Device and activity views | keep: using a device (its remote, testing commands) is not configuring it | A segmented control for Remote, Macros and Details. Next: the remote drawn as the X2's (round keys, the ring around OK, icons), and the details as rows. |
+| A key's dialog | keeps | — |
+| Device and activity editors | keep apart from the views: an editor's draft is saved as one edit, undone at once | Next: icons and colors picked from tiles and swatches, not lists of names. |
+| Order | keeps: a rare task, and dragging needs the room | Next: its rows in a card. |
+| Add a device | reworked next | Search first, the other ways as cards with what each is for. The Services screen goes: it was a list of five buttons, a tap for nothing; its services join the cards. |
+| Hue, Roku, Sonos, Govee and LIFX; from scratch, a file, Bluetooth, network | keep: each asks for different things | Next: the same rows and cards. |
+| Learning a command | keeps | — |
+| Review | reworked next | Changes as cards with their kind (added, changed, deleted) as chips, Apply in reach. |
+| Settings | keeps, from the hubs' menu and as the hub's last tab (the same content) | Switches instead of check boxes; the text size as "Aa" at each size, which fits a phone. |
+| About | keeps, under the settings and from the hubs' menu | — |
+
+Tiles drawn from the X2's icons were cut on their left at large sizes (a
+view box starting below zero): they are drawn from zero now.
+

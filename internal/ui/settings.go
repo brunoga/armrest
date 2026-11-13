@@ -109,45 +109,44 @@ func rememberHub(h backend.Hub) {
 // hub on starting, and the online sources of IR codes. resized shows the
 // page again once the text size changed.
 func (a *App) settingsContent(resized func()) []fyne.CanvasObject {
+	// Each size shows as "Aa" in it, relative to the size set: the names
+	// do not fit across a phone.
 	sizes := make([]string, len(textSizes))
+	looks := make([]fyne.Theme, len(textSizes))
 	for i, s := range textSizes {
-		sizes[i] = i18n.T(s.name)
+		sizes[i] = "Aa"
+		looks[i] = textAt{s.factor / textSizes[textSize()].factor}
 	}
-	size := widget.NewSelect(sizes, nil)
-	size.SetSelectedIndex(textSize())
-	size.OnChanged = func(string) {
-		if size.SelectedIndex() == textSize() {
+	size := newSegmentedLook(sizes, looks, textSize(), func(i int) {
+		if i == textSize() {
 			return
 		}
-		prefs().SetInt(textSizePref, size.SelectedIndex())
+		prefs().SetInt(textSizePref, i)
 		fyne.CurrentApp().Settings().SetTheme(Theme())
 		resized()
-	}
+	})
 
-	auto := widget.NewCheck(i18n.T("Connect on start"), func(on bool) { prefs().SetBool(autoConnectPref, on) })
-	auto.SetChecked(prefs().Bool(autoConnectPref))
+	auto := newToggle(i18n.T("Connect on start"), prefs().Bool(autoConnectPref), func(on bool) { prefs().SetBool(autoConnectPref, on) })
 	last := i18n.T("No hub connected to yet.")
 	if h, ok := lastHub(); ok {
 		last = i18n.T("The last hub: %s.", h.String())
 	}
 
-	list := container.NewVBox(wrapped(i18n.T("Where adding a device searches for a model's IR codes, besides the app's own templates.")))
+	var rows []fyne.CanvasObject
 	for _, s := range sources {
-		list.Add(a.sourceSetting(s))
+		rows = append(rows, a.sourceSetting(s))
 	}
 
 	return []fyne.CanvasObject{
-		card(i18n.T("Text size"), container.NewVBox(wrapped(i18n.T("How large the app's text is.")), size)),
-		card(i18n.T("Connecting"), container.NewVBox(auto, wrapped(i18n.T("Connects to the last hub when the app starts, without looking for hubs first.")+" "+last))),
-		card(i18n.T("IR code sources"), list),
+		groupTitle(i18n.T("Text size")), widget.NewCard("", "", container.NewVBox(size, quiet(wrapped(i18n.T("How large the app's text is: %s.", i18n.T(textSizes[textSize()].name)))))),
+		group(i18n.T("Connecting"), settingRow(i18n.T("Connect on start"), i18n.T("Connects to the last hub when the app starts, without looking for hubs first.")+" "+last, auto)),
+		group(i18n.T("IR code sources"), append([]fyne.CanvasObject{quiet(wrapped(i18n.T("Where adding a device searches for a model's IR codes, besides the app's own templates.")))}, rows...)...),
 	}
 }
 
 // sourceSetting turns searching a source on and off. Sofabaton's catalog
 // asks for its key first, and checks it.
 func (a *App) sourceSetting(s irsource.Source) fyne.CanvasObject {
-	check := widget.NewCheck(string(s), nil)
-	check.SetChecked(sourceOn(s))
 	about := i18n.T("Public, and searched unless turned off.")
 	if s == irsource.Sofabaton {
 		about = i18n.T("The catalog Sofabaton's app searches, with most brands and models by number. It is not offered for other apps: it may change or stop answering, and its answers are encrypted with a key the Sofabaton app holds, which you give here (the app does not carry it).")
@@ -155,9 +154,8 @@ func (a *App) sourceSetting(s irsource.Source) fyne.CanvasObject {
 			about = i18n.T("The catalog Sofabaton's app searches, with most brands and models by number, and Sofabaton's firmware updates. It is not offered for other apps: it may change or stop answering. Its key, which the Sofabaton app holds, comes with this build of Armrest.")
 		}
 	}
-	note := wrapped(about)
-	note.TextStyle.Italic = true
-	check.OnChanged = func(on bool) {
+	sw := newToggle(string(s), sourceOn(s), nil)
+	sw.OnChanged = func(on bool) {
 		if on == sourceOn(s) {
 			return
 		}
@@ -171,12 +169,12 @@ func (a *App) sourceSetting(s irsource.Source) fyne.CanvasObject {
 			a.online = online{}
 			return
 		}
-		check.SetChecked(false) // until the key is checked
+		sw.SetOn(false) // until the key is checked
 		a.askSofabatonKey(func() {
-			check.SetChecked(true)
+			sw.SetOn(true)
 		})
 	}
-	return container.NewVBox(check, note)
+	return settingRow(string(s), about, sw)
 }
 
 // askSofabatonKey asks for the catalog's key, checks it with the

@@ -25,7 +25,7 @@ func TestFirmware(t *testing.T) {
 	prev := remoteUpdates
 	t.Cleanup(func() { remoteUpdates = prev })
 	remoteUpdates = func(context.Context, *hub.Client, sofabatonCatalog) ([]remoteUpdate, error) { return nil, nil }
-	test.Tap(button(t, w, "Lounge (X2, 192.168.1.20)"))
+	test.Tap(row(t, w, "Lounge"))
 	u.browse.tabs.SelectIndex(hubTab)
 	if got := texts(w); !strings.Contains(got, "with the key the settings take") || !strings.Contains(got, "[Settings…]") {
 		t.Fatalf("checked without a key:\n%s", got)
@@ -145,7 +145,7 @@ func TestRemoteFirmware(t *testing.T) {
 
 	// Connecting checks the remotes too.
 	remoteBluetooth = false
-	test.Tap(button(t, w, "Lounge (X2, 192.168.1.20)"))
+	test.Tap(row(t, w, "Lounge"))
 	u.browse.tabs.SelectIndex(hubTab)
 	if got := texts(w); !strings.Contains(got, "Remote 1: firmware 10 is available: Faster sync") || !strings.Contains(got, "from a phone") {
 		t.Fatalf("no remote update offered:\n%s", got)

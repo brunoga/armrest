@@ -103,7 +103,7 @@ func setEntry(t *testing.T, w fyne.Window, text string) {
 func TestRokuAndSonos(t *testing.T) {
 	u, w := newApp(t, backend.Hub{Name: "Lounge", Model: "X2", Firmware: 9, Addr: lounge})
 	fakeWiFi(t, u)
-	test.Tap(button(t, w, "Lounge (X2, 192.168.1.20)"))
+	test.Tap(row(t, w, "Lounge"))
 	pickRow(t, u, "Add a device…")
 	test.Tap(button(t, w, "Services"))
 	assertScreens(t, w, "services")
@@ -143,7 +143,7 @@ func TestRokuAndSonos(t *testing.T) {
 func TestGoveeAndLIFX(t *testing.T) {
 	u, w := newApp(t, backend.Hub{Name: "Lounge", Model: "X2", Firmware: 9, Addr: lounge})
 	fakeWiFi(t, u)
-	test.Tap(button(t, w, "Lounge (X2, 192.168.1.20)"))
+	test.Tap(row(t, w, "Lounge"))
 	pickRow(t, u, "Add a device…")
 	test.Tap(button(t, w, "Services"))
 	test.Tap(button(t, w, "Govee"))

@@ -189,7 +189,7 @@ func remote(model string, keys profile.Buttons, ctl *controls) []fyne.CanvasObje
 // the remote does (a right click holds it too). Keys that do nothing are
 // disabled.
 type remoteKey struct {
-	widget.Button
+	padKey
 	hold func()
 
 	// pressed is set while a finger or mouse button holds the key down;
@@ -272,7 +272,7 @@ func (k *remoteKey) MouseUp(*desktop.MouseEvent)    { k.up() }
 
 func newRemoteKey(key, label string, set profile.Key, ctl *controls) *remoteKey {
 	k := &remoteKey{}
-	k.Text = label
+	k.init(key, label, nil)
 	if set.Short != "" {
 		k.Importance = widget.HighImportance
 	}
@@ -301,7 +301,7 @@ func (k *remoteKey) Tapped(e *fyne.PointEvent) {
 		k.held = false
 		return
 	}
-	k.Button.Tapped(e)
+	k.padKey.Tapped(e)
 }
 
 // TappedSecondary is a right click, which holds the key; on phones, a

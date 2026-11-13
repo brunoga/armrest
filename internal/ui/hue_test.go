@@ -49,7 +49,7 @@ func TestHueBridge(t *testing.T) {
 	hueLinkPoll = time.Millisecond
 	t.Cleanup(func() { hueLinkPoll = 2 * time.Second })
 
-	test.Tap(button(t, w, "Lounge (X2, 192.168.1.20)"))
+	test.Tap(row(t, w, "Lounge"))
 	pickRow(t, u, "Add a device…")
 	test.Tap(button(t, w, "Services"))
 	test.Tap(button(t, w, "Philips Hue"))

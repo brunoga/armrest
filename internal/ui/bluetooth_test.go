@@ -17,7 +17,7 @@ import (
 // TV box's remote to start with.
 func TestBluetoothDevice(t *testing.T) {
 	u, w := newApp(t, backend.Hub{Name: "Lounge", Model: "X2", Firmware: 9, Addr: lounge})
-	test.Tap(button(t, w, "Lounge (X2, 192.168.1.20)"))
+	test.Tap(row(t, w, "Lounge"))
 	pickRow(t, u, "Add a device…")
 	test.Tap(button(t, w, "Bluetooth"))
 	var keys []*widget.Select
@@ -64,7 +64,7 @@ func TestBluetoothDevice(t *testing.T) {
 // adds commands as keys too.
 func TestBluetoothDeviceEdit(t *testing.T) {
 	u, w := newApp(t, backend.Hub{Name: "Lounge", Model: "X2", Firmware: 9, Addr: lounge})
-	test.Tap(button(t, w, "Lounge (X2, 192.168.1.20)"))
+	test.Tap(row(t, w, "Lounge"))
 	d, err := workspace.BluetoothSpec{Name: "TV Box", Commands: []workspace.BluetoothCommand{{Key: "OK"}, {Key: "Back"}}}.Build()
 	if err != nil {
 		t.Fatal(err)

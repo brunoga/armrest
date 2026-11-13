@@ -87,7 +87,7 @@ func (s *wifiScreen) added(d *profile.Device, problem *widget.Label) {
 	}
 	b := a.showBrowse(a.hub)
 	b.selectDevice(d.Name)
-	b.setStatus(false, i18n.T("Added %s.", d.Name)+" "+i18n.T("Review your changes to write them to the hub."))
+	b.setStatus(false, i18n.T("Added %s.", d.Name))
 }
 
 // found is a device found on the network: its address and what to call

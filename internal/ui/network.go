@@ -220,5 +220,5 @@ func (s *networkScreen) create() {
 	}
 	b := s.app.showBrowse(s.app.hub)
 	b.selectDevice(d.Name)
-	b.setStatus(false, msg+" "+i18n.T("Review your changes to write them to the hub."))
+	b.setStatus(false, msg)
 }

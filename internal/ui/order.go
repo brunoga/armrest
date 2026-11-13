@@ -60,7 +60,7 @@ func (a *App) showOrder(activities bool) {
 			b.setStatus(false, err.Error())
 			return
 		}
-		b.edited(i18n.T("Changed the order. Review your changes to write it to the hub."))
+		b.edited(i18n.T("Changed the order."))
 	})
 	done.Importance = widget.HighImportance
 	a.screen(title, back, scrolled(container.NewVBox(

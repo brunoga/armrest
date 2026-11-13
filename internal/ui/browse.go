@@ -39,8 +39,12 @@ type browseScreen struct {
 	barBack    *widget.Button
 	barBackBox *fyne.Container
 	barTop     fyne.CanvasObject
-	// hubInfo says what the hub is, on the hub's tab.
-	hubInfo *widget.Label
+	// hubName, hubKind and hubInfo say what the hub is, on the hub's
+	// tab, over its activities' and devices' tiles.
+	hubName                    *widget.Label
+	hubKind                    *chip
+	hubInfo                    *widget.Label
+	activityTiles, deviceTiles *fyne.Container
 	// The firmware card: the check's words, its buttons, the remotes'.
 	fwStatus            *widget.Label
 	fwActions           *fyne.Container
@@ -59,6 +63,8 @@ type browseScreen struct {
 	changes *fyne.Container
 	review  *widget.Button
 	pending *widget.Label
+	// pendingBox holds pending, in muted text.
+	pendingBox fyne.CanvasObject
 	// bottom holds changes and the status; it moves to the tab shown, so
 	// on phones it sits above the tabs.
 	bottom *fyne.Container
@@ -183,20 +189,33 @@ func (s *browseScreen) setStatus(busy bool, text string) {
 	} else {
 		s.busy.Stop()
 	}
-	s.footer.Show()
-	s.relayout()
+	s.updateFooter()
 }
 
 // clearStatus hides the status.
 func (s *browseScreen) clearStatus() {
 	s.setStatus(false, "")
-	s.footer.Hide()
-	s.relayout()
 }
 
 // offerReconnect shows Reconnect beside the status.
 func (s *browseScreen) offerReconnect() {
 	s.retry.Show()
+	s.updateFooter()
+}
+
+// updateFooter shows the bar at the bottom, one line where it can be:
+// the status, or, with none, that there are changes to review; and
+// Reconnect and Review changes beside it. Without either, it is hidden.
+func (s *browseScreen) updateFooter() {
+	changes := s.changes.Visible()
+	if changes && s.status.Text == "" {
+		s.pendingBox.Show()
+	} else {
+		s.pendingBox.Hide()
+	}
+	s.status.Hidden = s.status.Text == ""
+	s.footer.Hidden = s.status.Hidden && !changes && !s.retry.Visible() && !s.busy.Visible()
+	s.footer.Refresh()
 	s.relayout()
 }
 
@@ -209,8 +228,8 @@ func (s *browseScreen) relayout() {
 }
 
 // state is how the row's device or activity differs from the hub's, in
-// words.
-func (s *browseScreen) state(r browseRow) string {
+// words, and the kind of chip saying it.
+func (s *browseScreen) state(r browseRow) (string, int) {
 	st := workspace.Unchanged
 	switch {
 	case r.activity != nil:
@@ -220,11 +239,11 @@ func (s *browseScreen) state(r browseRow) string {
 	}
 	switch st {
 	case workspace.New:
-		return i18n.T("New")
+		return i18n.T("New"), chipNew
 	case workspace.Edited:
-		return i18n.T("Edited")
+		return i18n.T("Edited"), chipEdited
 	}
-	return ""
+	return "", chipInfo
 }
 
 // controls drive the device or activity named name on the hub, or are
@@ -309,20 +328,20 @@ func (s *browseScreen) showChanges() {
 	s.showUndo()
 	if !s.app.work.Changed() {
 		s.changes.Hide()
-		s.relayout()
+		s.updateFooter()
 		return
 	}
 	// Changes are planned against the hub as it is: not before the
 	// background check read it.
 	if s.app.checking {
 		s.review.Disable()
-		s.pending.SetText(i18n.T("You have changes that are not on the hub yet. Review them once the hub is checked."))
+		s.pending.SetText(i18n.T("Your changes are not on the hub yet. Review them once the hub is checked."))
 	} else {
 		s.review.Enable()
-		s.pending.SetText(i18n.T("You have changes that are not on the hub yet."))
+		s.pending.SetText(i18n.T("Your changes are not on the hub yet."))
 	}
 	s.changes.Show()
-	s.relayout()
+	s.updateFooter()
 }
 
 // reload shows the workspace again after it changed, keeping the detail
@@ -366,13 +385,18 @@ func (s *browseScreen) content(h backend.Hub) fyne.CanvasObject {
 		s.app.reconnect()
 	}))
 	s.retry.Hide()
-	s.footer = container.NewBorder(container.NewVBox(widget.NewSeparator(), s.busy), nil, nil, s.retry, s.status)
-	s.footer.Hide()
 	s.review = widget.NewButtonWithIcon(i18n.T("Review changes"), theme.DocumentIcon(), s.app.showReview)
 	s.review.Importance = widget.HighImportance
 	s.pending = wrapped("")
-	s.changes = container.NewBorder(widget.NewSeparator(), nil, nil, container.NewCenter(s.review), s.pending)
-	s.bottom = container.NewVBox(s.changes, s.footer)
+	s.changes = container.NewCenter(s.review)
+	s.changes.Hide()
+	// One bar: what happened, or that there are changes, and what to do.
+	s.pendingBox = quiet(s.pending)
+	text := container.NewVBox(s.status, s.pendingBox)
+	s.footer = container.NewBorder(container.NewVBox(widget.NewSeparator(), s.busy), nil, nil, nil,
+		container.NewPadded(container.New(&besideOrUnder{}, text, container.NewHBox(s.retry, s.changes))))
+	s.footer.Hide()
+	s.bottom = container.NewStack(newFill(colorPage), s.footer)
 	s.undoBtn = newIconButton(i18n.T("Undo"), theme.ContentUndoIcon(), s.undo)
 	s.redoBtn = newIconButton(i18n.T("Redo"), theme.ContentRedoIcon(), s.redo)
 
@@ -449,41 +473,53 @@ func (s *browseScreen) updateBar() {
 	}
 }
 
-// hubContent is the hub's tab: what it is, saving it to a file (and,
-// for a file, restoring it), and leaving it.
+// hubContent is the hub's tab, its home: what the hub is, its
+// activities and devices as tiles to open, its firmware, saving it to a
+// file (and, for a file, restoring it), and leaving it.
 func (s *browseScreen) hubContent(h backend.Hub) fyne.CanvasObject {
 	s.hubInfo = wrapped("")
+	s.hubName = widget.NewLabelWithStyle("", fyne.TextAlignLeading, fyne.TextStyle{Bold: true})
+	s.hubName.SizeName = theme.SizeNameHeadingText
+	s.hubName.Wrapping = fyne.TextWrapWord
+	s.hubKind = newChip("", chipInfo)
+	s.activityTiles, s.deviceTiles = tileGrid(nil), tileGrid(nil)
 	s.showHub()
-	save := widget.NewButtonWithIcon(i18n.T("Save to a file…"), theme.DocumentSaveIcon(), s.app.saveToFile)
-	files := container.NewVBox(
-		wrapped(i18n.T("Save the hub, with your changes, to a file: as a backup, or to apply later. Open it from the hubs screen, without the hub.")),
-		container.NewHBox(save))
-	leave := widget.NewButtonWithIcon(i18n.T("Disconnect"), theme.LogoutIcon(), s.app.disconnect)
+	img := canvas.NewImageFromResource(hubTile)
+	img.FillMode = canvas.ImageFillContain
+	img.SetMinSize(fyne.NewSquareSize(headingTile * Scale()))
+	hero := widget.NewCard("", "", container.NewBorder(nil, nil, container.NewCenter(img), nil,
+		container.NewVBox(container.NewBorder(nil, nil, nil, container.NewCenter(s.hubKind), s.hubName), quiet(s.hubInfo))))
+
+	files := []fyne.CanvasObject{newNavRow(theme.NewPrimaryThemedResource(theme.DocumentSaveIcon()), i18n.T("Save to a file…"),
+		i18n.T("The hub with your changes: a backup, or to apply later, without the hub."), s.app.saveToFile)}
+	leave := newNavRow(theme.NewPrimaryThemedResource(theme.LogoutIcon()), i18n.T("Disconnect"), i18n.T("Leave the hub for another app, or another hub."), s.app.disconnect)
 	if s.app.offline() {
-		restore := widget.NewButtonWithIcon(i18n.T("Restore to a hub…"), theme.UploadIcon(), s.app.applyFile)
-		files.Add(wrapped(i18n.T("Restoring makes a hub hold what this file has. You see every change before anything is written.")))
-		files.Add(container.NewHBox(restore))
-		leave = widget.NewButtonWithIcon(i18n.T("Close the file"), theme.LogoutIcon(), s.app.closeFile)
+		files = append(files, newNavRow(theme.NewPrimaryThemedResource(theme.UploadIcon()), i18n.T("Restore to a hub…"),
+			i18n.T("Make a hub hold what this file has. You see every change before anything is written."), s.app.applyFile))
+		leave = newNavRow(theme.NewPrimaryThemedResource(theme.LogoutIcon()), i18n.T("Close the file"), "", s.app.closeFile)
 	}
-	parts := []fyne.CanvasObject{card(i18n.T("The hub"), s.hubInfo)}
+	parts := []fyne.CanvasObject{hero,
+		groupTitle(i18n.T("Activities")), s.activityTiles,
+		groupTitle(i18n.T("Devices")), s.deviceTiles}
 	if fw := s.firmwareCard(); fw != nil {
 		parts = append(parts, fw)
 	}
-	parts = append(parts, card(i18n.T("Files"), files), container.NewHBox(leave))
+	parts = append(parts, group(i18n.T("Files"), files...), group("", leave))
 	return scrolled(container.NewVBox(parts...))
 }
 
-// showHub says what the hub is, on its tab.
+// showHub says what the hub is, on its tab, and shows its activities
+// and devices.
 func (s *browseScreen) showHub() {
 	a, info, cfg := s.app, s.app.work.Dump.Info, s.app.work.Config
-	var text string
+	var text, kind string
 	switch {
 	case a.offline() && !a.file.saved.IsZero():
-		text = i18n.T("From the file %s, saved %s: %s, firmware %d.", a.file.name, ago(a.file.saved, a.now()), info.Model, info.Firmware)
+		text, kind = i18n.T("From the file %s, saved %s: %s, firmware %d.", a.file.name, ago(a.file.saved, a.now()), info.Model, info.Firmware), i18n.T("File")
 	case a.offline():
-		text = i18n.T("From the file %s: %s, firmware %d.", a.file.name, info.Model, info.Firmware)
+		text, kind = i18n.T("From the file %s: %s, firmware %d.", a.file.name, info.Model, info.Firmware), i18n.T("File")
 	case s.hub.Demo:
-		text = i18n.T("A demo hub: a simulated %s, firmware %d.", info.Model, info.Firmware)
+		text, kind = i18n.T("A demo hub: a simulated %s, firmware %d.", info.Model, info.Firmware), i18n.T("Demo")
 	default:
 		text = i18n.T("%s, firmware %d, at %s.", info.Model, info.Firmware, s.hub.Addr.String())
 	}
@@ -491,6 +527,30 @@ func (s *browseScreen) showHub() {
 	acts := i18n.N("%d activity", "%d activities", len(cfg.Activities), len(cfg.Activities))
 	text += "\n" + i18n.T("%s and %s.", devs, acts)
 	s.hubInfo.SetText(text)
+	s.hubName.SetText(info.Name)
+	s.hubKind.SetText(kind, chipInfo)
+
+	var acTiles, devTiles []fyne.CanvasObject
+	for _, act := range cfg.Activities {
+		acTiles = append(acTiles, newLaunchTile(tile(act.Icon, activityIcon, act.Color), act.Name, func() { s.selectActivity(act.Name) }))
+	}
+	acTiles = append(acTiles, newLaunchTile(addTile, i18n.T("New activity"), s.addActivity))
+	for _, d := range cfg.Devices {
+		devTiles = append(devTiles, newLaunchTile(tile(d.Icon, deviceIcon, d.Color), d.Name, func() { s.selectDevice(d.Name) }))
+	}
+	devTiles = append(devTiles, newLaunchTile(addTile, i18n.T("New device"), s.app.showAddDevice))
+	s.activityTiles.Objects, s.deviceTiles.Objects = acTiles, devTiles
+	s.activityTiles.Refresh()
+	s.deviceTiles.Refresh()
+}
+
+// addActivity adds an activity, once there is a device for it.
+func (s *browseScreen) addActivity() {
+	if len(s.app.work.Config.Devices) == 0 {
+		s.setStatus(false, i18n.T("Add a device first: an activity needs at least one."))
+		return
+	}
+	s.app.showEditActivity("")
 }
 
 // newList makes a tab's list, whose rows build lists, with hint shown
@@ -506,16 +566,16 @@ func (s *browseScreen) newList(hint string, build func() []browseRow) *browseLis
 			icon.SetMinSize(fyne.NewSquareSize(rowTile * Scale()))
 			l := widget.NewLabel("")
 			l.Truncation = fyne.TextTruncateEllipsis
-			state := widget.NewLabel("")
-			state.TextStyle.Italic = true
-			return listRow(container.NewBorder(nil, nil, icon, state, l))
+			state := newChip("", chipNew)
+			return listRow(container.NewBorder(nil, nil, icon, container.NewCenter(state), l))
 		},
 		func(i widget.ListItemID, o fyne.CanvasObject) {
 			r := b.rows[i]
 			row := o.(*fyne.Container).Objects[0].(*fyne.Container)
-			l, icon, state := row.Objects[0].(*widget.Label), row.Objects[1].(*canvas.Image), row.Objects[2].(*widget.Label)
+			l, icon, state := row.Objects[0].(*widget.Label), row.Objects[1].(*canvas.Image), row.Objects[2].(*fyne.Container).Objects[0].(*chip)
 			l.SetText(r.text())
-			state.SetText(s.state(r))
+			text, kind := s.state(r)
+			state.SetText(text, kind)
 			switch {
 			case r.activity != nil:
 				icon.Resource = tile(r.activity.Icon, activityIcon, r.activity.Color)
@@ -539,11 +599,7 @@ func (s *browseScreen) newList(hint string, build func() []browseRow) *browseLis
 			s.app.showOrder(b == s.activities)
 		case r.addActivity:
 			b.list.Unselect(i)
-			if len(s.app.work.Config.Devices) == 0 {
-				s.setStatus(false, i18n.T("Add a device first: an activity needs at least one."))
-				return
-			}
-			s.app.showEditActivity("")
+			s.addActivity()
 		case r.activity != nil:
 			b.shown = &r
 			act := r.activity

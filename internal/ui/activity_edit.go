@@ -585,7 +585,7 @@ func (ed *activityEditor) save() {
 	}
 	b := ed.app.showBrowse(ed.app.hub)
 	b.selectActivity(strings.TrimSpace(e.Name))
-	b.setStatus(false, i18n.T("Saved. Review your changes to write them to the hub."))
+	b.setStatus(false, i18n.T("Saved."))
 }
 
 func (ed *activityEditor) remove() {
@@ -600,6 +600,6 @@ func (ed *activityEditor) remove() {
 				dialog.ShowError(err, ed.app.win)
 				return
 			}
-			ed.app.showBrowse(ed.app.hub).setStatus(false, i18n.T("Deleted %s. Review your changes to write them to the hub.", name))
+			ed.app.showBrowse(ed.app.hub).setStatus(false, i18n.T("Deleted %s.", name))
 		}, ed.app.win)
 }

@@ -619,7 +619,7 @@ func (ed *deviceEditor) save() {
 	}
 	b := ed.app.showBrowse(ed.app.hub)
 	b.selectDevice(strings.TrimSpace(e.Name))
-	b.setStatus(false, i18n.T("Saved. Review your changes to write them to the hub."))
+	b.setStatus(false, i18n.T("Saved."))
 }
 
 func (ed *deviceEditor) remove() {
@@ -637,6 +637,6 @@ func (ed *deviceEditor) remove() {
 			return
 		}
 		b := ed.app.showBrowse(ed.app.hub)
-		b.setStatus(false, i18n.T("Deleted %s. Review your changes to write them to the hub.", name))
+		b.setStatus(false, i18n.T("Deleted %s.", name))
 	}, ed.app.win)
 }

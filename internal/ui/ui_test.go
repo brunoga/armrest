@@ -131,6 +131,10 @@ func texts(w fyne.Window) string {
 			out = append(out, "["+o.Text+"]")
 		case *widget.Card:
 			out = append(out, o.Title)
+		case *chip:
+			if o.Visible() {
+				out = append(out, o.text)
+			}
 		case *container.AppTabs:
 			for _, it := range o.Items {
 				out = append(out, "<"+it.Text+">")
@@ -154,10 +158,25 @@ func button(t *testing.T, w fyne.Window, text string) *widget.Button {
 	return found
 }
 
+// row is the row titled title.
+func row(t *testing.T, w fyne.Window, title string) *navRow {
+	t.Helper()
+	var found *navRow
+	walk(w, func(o fyne.CanvasObject) {
+		if r, ok := o.(*navRow); ok && r.title.Text == title {
+			found = r
+		}
+	})
+	if found == nil {
+		t.Fatalf("no row %q in:\n%s", title, texts(w))
+	}
+	return found
+}
+
 func TestHubsScreen(t *testing.T) {
 	_, w := newApp(t, backend.Hub{Name: "Lounge", Model: "X2", Firmware: 9, Addr: lounge})
 	got := texts(w)
-	for _, want := range []string{"[Lounge (X2, 192.168.1.20)]", "1 hub found.", "[Hub not listed?]"} {
+	for _, want := range []string{"Lounge\nX2, firmware 9 · 192.168.1.20", "A hub connected to another app does not show up", "Hub not listed?"} {
 		if !strings.Contains(got, want) {
 			t.Errorf("missing %q in:\n%s", want, got)
 		}
@@ -174,7 +193,7 @@ func TestNoHubs(t *testing.T) {
 
 func TestBrowse(t *testing.T) {
 	u, w := newApp(t, backend.Hub{Name: "Lounge", Model: "X2", Firmware: 9, Addr: lounge})
-	test.Tap(button(t, w, "Lounge (X2, 192.168.1.20)"))
+	test.Tap(row(t, w, "Lounge"))
 	got := texts(w)
 	if !listed(u, "Watch Google TV") || !listed(u, "Receiver") {
 		t.Error("not listed")
@@ -270,7 +289,7 @@ func TestReadFailure(t *testing.T) {
 	t.Cleanup(u.Close)
 	u.Start()
 
-	test.Tap(button(t, w, "Lounge (X2, 192.168.1.20)"))
+	test.Tap(row(t, w, "Lounge"))
 	if got := texts(w); !strings.Contains(got, "Could not read the hub") || !strings.Contains(got, "connection to the hub was lost") {
 		t.Fatalf("no explanation:\n%s", got)
 	}
@@ -292,7 +311,7 @@ func TestReading(t *testing.T) {
 			f()
 		}
 	}
-	test.Tap(button(t, w, "Lounge (X2, 192.168.1.20)"))
+	test.Tap(row(t, w, "Lounge"))
 	var p *pulse
 	walk(w, func(o fyne.CanvasObject) {
 		if o, ok := o.(*pulse); ok {
@@ -360,7 +379,7 @@ func cachedApp(t *testing.T) (u *App, w fyne.Window, run func(), step func(), re
 	run()
 
 	// First visit: read, then cached.
-	test.Tap(button(t, w, "Lounge (X2, 192.168.1.20)"))
+	test.Tap(row(t, w, "Lounge"))
 	run()
 	if !listed(u, "Watch Google TV") {
 		t.Fatalf("first visit:\n%s", texts(w))
@@ -386,7 +405,7 @@ func TestCachedHubDeviceChanged(t *testing.T) {
 	}
 	t.Cleanup(func() { hubChange = nil })
 	command := func() string { return u.work.Config.Device("3D Player").Commands[0].Name }
-	test.Tap(button(t, w, "Lounge (X2, 192.168.1.20)"))
+	test.Tap(row(t, w, "Lounge"))
 	run()
 	if got := texts(w); !strings.Contains(got, "Up to date.") || command() == "Changed" {
 		t.Fatalf("after connecting, the lists as cached: %q\n%s", command(), got)
@@ -421,7 +440,7 @@ func TestCachedHubNewDevice(t *testing.T) {
 		}
 	}
 	t.Cleanup(func() { hubChange = nil })
-	test.Tap(button(t, w, "Lounge (X2, 192.168.1.20)"))
+	test.Tap(row(t, w, "Lounge"))
 	step() // connect
 	step() // the lists
 	if !listed(u, "New Box") {
@@ -443,7 +462,7 @@ func TestCachedHub(t *testing.T) {
 	// The hub changes; the next visit shows the cache at once.
 	*renamed = true
 	*now = now.Add(5 * time.Minute)
-	test.Tap(button(t, w, "Lounge (X2, 192.168.1.20)"))
+	test.Tap(row(t, w, "Lounge"))
 	step() // connect
 	got := texts(w)
 	if !listed(u, "Watch Google TV") || !strings.Contains(got, "as it was 5 minutes ago. Checking for changes") {
@@ -462,7 +481,7 @@ func TestCachedHub(t *testing.T) {
 func TestCachedHubEdited(t *testing.T) {
 	u, w, run, step, renamed, _ := cachedApp(t)
 	*renamed = true
-	test.Tap(button(t, w, "Lounge (X2, 192.168.1.20)"))
+	test.Tap(row(t, w, "Lounge"))
 	step() // connect, showing the cache
 	if err := u.work.Config.RenameDevice("3D Player", "Blu-ray"); err != nil {
 		t.Fatal(err)
@@ -479,7 +498,7 @@ func TestCachedHubEdited(t *testing.T) {
 	got := texts(w)
 	// The kept copy still has the activity's old name: applying would
 	// rename it back, which the list shows as an edit.
-	if !strings.Contains(got, "Your changes are kept") || !listed(u, "Blu-ray") || u.browse.state(browseRow{activity: u.work.Config.Activity("Watch Google TV")}) != "Edited" {
+	if !strings.Contains(got, "Your changes are kept") || !listed(u, "Blu-ray") || stateOf(u, browseRow{activity: u.work.Config.Activity("Watch Google TV")}) != "Edited" {
 		t.Errorf("after keeping:\n%s", got)
 	}
 	if button(t, w, "Review changes").Disabled() {
@@ -491,7 +510,7 @@ func TestCachedHubEdited(t *testing.T) {
 // app: the next visit to the hub has them, checked against the hub.
 func TestUndoAndKeptEdits(t *testing.T) {
 	u, w, run, step, _, _ := cachedApp(t)
-	test.Tap(button(t, w, "Lounge (X2, 192.168.1.20)"))
+	test.Tap(row(t, w, "Lounge"))
 	run()
 	undo, redo := u.browse.undoBtn, u.browse.redoBtn
 	if !undo.Disabled() || !redo.Disabled() {
@@ -522,7 +541,7 @@ func TestUndoAndKeptEdits(t *testing.T) {
 	u.Close()
 	u.showHubs()
 	run()
-	test.Tap(button(t, w, "Lounge (X2, 192.168.1.20)"))
+	test.Tap(row(t, w, "Lounge"))
 	step() // connect, showing the cache
 	if got := texts(w); listed(u, "Play PC") || !u.browse.changes.Visible() {
 		t.Fatalf("the edits are not back:\n%s", got)
@@ -534,10 +553,32 @@ func TestUndoAndKeptEdits(t *testing.T) {
 }
 
 // hubAction taps the hub tab's button labelled label.
+// stateOf is what the row's chip says.
+func stateOf(u *App, r browseRow) string {
+	text, _ := u.browse.state(r)
+	return text
+}
+
 func hubAction(t *testing.T, u *App, label string) {
 	t.Helper()
 	u.browse.tabs.SelectIndex(hubTab)
-	test.Tap(button(t, u.win, label))
+	var found fyne.Tappable
+	walk(u.win, func(o fyne.CanvasObject) {
+		switch o := o.(type) {
+		case *navRow:
+			if o.title.Text == label {
+				found = o
+			}
+		case *widget.Button:
+			if o.Text == label {
+				found = o
+			}
+		}
+	})
+	if found == nil {
+		t.Fatalf("no %q on the hub's tab:\n%s", label, texts(u.win))
+	}
+	test.Tap(found)
 }
 
 // listed reports whether the browse list has a row named name.
@@ -556,7 +597,7 @@ func listed(u *App, name string) bool {
 // then is on the hub.
 func TestAddDevice(t *testing.T) {
 	u, w := newApp(t, backend.Hub{Name: "Lounge", Model: "X2", Firmware: 9, Addr: lounge})
-	test.Tap(button(t, w, "Lounge (X2, 192.168.1.20)"))
+	test.Tap(row(t, w, "Lounge"))
 	pickRow(t, u, "Add a device…")
 	got := texts(w)
 	if !strings.Contains(got, "Add a device") || !strings.Contains(got, "Pick your device's model") {
@@ -604,7 +645,7 @@ func TestAddDevice(t *testing.T) {
 // is added with its keys set from its command names.
 func TestScratchDevice(t *testing.T) {
 	u, w := newApp(t, backend.Hub{Name: "Lounge", Model: "X2", Firmware: 9, Addr: lounge})
-	test.Tap(button(t, w, "Lounge (X2, 192.168.1.20)"))
+	test.Tap(row(t, w, "Lounge"))
 	pickRow(t, u, "Add a device…")
 	test.Tap(button(t, w, "From scratch"))
 	if got := texts(w); !strings.Contains(got, "How does the device's remote send its codes?") {
@@ -646,8 +687,8 @@ func TestScratchDevice(t *testing.T) {
 }
 
 func TestDemoHub(t *testing.T) {
-	u, w := newApp(t)
-	menuItem(t, u, "Try the demo hub")
+	_, w := newApp(t)
+	test.Tap(row(t, w, "Try the demo hub"))
 	if got := texts(w); !strings.Contains(got, "demo hub: a simulated X2, firmware 9") {
 		t.Errorf("not the demo hub:\n%s", got)
 	}
@@ -661,7 +702,7 @@ func TestConnectByAddress(t *testing.T) {
 	} {
 		t.Run(tc.addr, func(t *testing.T) {
 			_, w := newApp(t)
-			test.Tap(button(t, w, "Hub not listed?"))
+			test.Tap(row(t, w, "Hub not listed?"))
 			var entry *widget.Entry
 			walk(w, func(o fyne.CanvasObject) {
 				if e, ok := o.(*widget.Entry); ok && entry == nil {
@@ -681,7 +722,7 @@ func TestConnectByAddress(t *testing.T) {
 // edited; the activities follow.
 func TestEditDevice(t *testing.T) {
 	u, w := newApp(t, backend.Hub{Name: "Lounge", Model: "X2", Firmware: 9, Addr: lounge})
-	test.Tap(button(t, w, "Lounge (X2, 192.168.1.20)"))
+	test.Tap(row(t, w, "Lounge"))
 	pickRow(t, u, "Receiver")
 	test.Tap(editButton(t, w))
 	if got := texts(w); !strings.Contains(got, "Edit Receiver") || !strings.Contains(got, "What the remote's keys do") {
@@ -720,7 +761,7 @@ func TestEditDevice(t *testing.T) {
 	lastPicker.SetSelected("Silence")
 	test.Tap(button(t, w, "Save"))
 	got := texts(w)
-	if !strings.Contains(got, "Saved. Review your changes") || !strings.Contains(got, "AVR") || !strings.Contains(got, "Edited") {
+	if !strings.Contains(got, "Saved.") || !strings.Contains(got, "AVR") || !strings.Contains(got, "Edited") {
 		t.Fatalf("after saving:\n%s", got)
 	}
 	for _, a := range u.work.Config.Activities {
@@ -740,7 +781,7 @@ func TestEditDevice(t *testing.T) {
 // start and end.
 func TestEditActivity(t *testing.T) {
 	u, w := newApp(t, backend.Hub{Name: "Lounge", Model: "X2", Firmware: 9, Addr: lounge})
-	test.Tap(button(t, w, "Lounge (X2, 192.168.1.20)"))
+	test.Tap(row(t, w, "Lounge"))
 
 	// Saving what the editor shows, untouched, changes nothing.
 	for _, n := range []string{"Watch Google TV", "Play Switch 2", "Watch 3D Movies", "Play PC"} {
@@ -838,7 +879,7 @@ func overlaySelects(w fyne.Window) []*widget.Select {
 // Keys are set and cleared from the drawing of the remote.
 func TestKeyPad(t *testing.T) {
 	u, w := newApp(t, backend.Hub{Name: "Lounge", Model: "X2", Firmware: 9, Addr: lounge})
-	test.Tap(button(t, w, "Lounge (X2, 192.168.1.20)"))
+	test.Tap(row(t, w, "Lounge"))
 	pickRow(t, u, "Receiver")
 	test.Tap(editButton(t, w))
 	d := u.work.Config.Device("Receiver")
@@ -928,7 +969,7 @@ func list(t *testing.T, w fyne.Window) *widget.List {
 // phone, then goes to the hub's tab.
 func TestBack(t *testing.T) {
 	u, w := newApp(t, backend.Hub{Name: "Lounge", Model: "X2", Firmware: 9, Addr: lounge})
-	test.Tap(button(t, w, "Lounge (X2, 192.168.1.20)"))
+	test.Tap(row(t, w, "Lounge"))
 	w.Resize(sizes[0].size)
 	back := func() { w.Canvas().OnTypedKey()(&fyne.KeyEvent{Name: fyne.KeyEscape}) }
 
@@ -977,14 +1018,14 @@ func TestAbout(t *testing.T) {
 
 	// The text size is in the settings, and changing it stays there.
 	menuItem(t, u, "Settings")
-	var size *widget.Select
+	normal := Scale()
+	var size *segmented
 	walk(w, func(o fyne.CanvasObject) {
-		if s, ok := o.(*widget.Select); ok {
+		if s, ok := o.(*segmented); ok {
 			size = s
 		}
 	})
-	normal := Scale()
-	size.SetSelected("Larger")
+	test.Tap(size.buttons[2])
 	if Scale() <= normal || textSize() != 2 {
 		t.Errorf("text size %d, scale %v after Larger, from %v", textSize(), Scale(), normal)
 	}
@@ -992,14 +1033,14 @@ func TestAbout(t *testing.T) {
 		t.Error("left the settings")
 	}
 	u.pressBack()
-	if !strings.Contains(texts(w), "[Hub not listed?]") {
+	if !strings.Contains(texts(w), "Hub not listed?") {
 		t.Error("Back did not go to the hubs")
 	}
 }
 
 func TestSettingsTab(t *testing.T) {
 	u, w := newApp(t, backend.Hub{Name: "Lounge", Model: "X2", Firmware: 9, Addr: lounge})
-	test.Tap(button(t, w, "Lounge (X2, 192.168.1.20)"))
+	test.Tap(row(t, w, "Lounge"))
 	u.browse.tabs.SelectIndex(settingsTab)
 	if !strings.Contains(texts(w), "Bruno Albuquerque") {
 		t.Error("no About in the settings tab")
@@ -1040,7 +1081,7 @@ func themedApp(t *testing.T) {
 // Commands and favorites move by dragging their rows' handles.
 func TestDragToReorder(t *testing.T) {
 	u, w := newApp(t, backend.Hub{Name: "Lounge", Model: "X2", Firmware: 9, Addr: lounge})
-	test.Tap(button(t, w, "Lounge (X2, 192.168.1.20)"))
+	test.Tap(row(t, w, "Lounge"))
 	grips := func() []*dragHandle {
 		var out []*dragHandle
 		walk(w, func(o fyne.CanvasObject) {
@@ -1109,7 +1150,7 @@ func editButton(t *testing.T, w fyne.Window) *iconButton {
 // A device's and an activity's remote press their keys on the hub.
 func TestRemote(t *testing.T) {
 	u, w := newApp(t, backend.Hub{Name: "Lounge", Model: "X2", Firmware: 9, Addr: lounge})
-	test.Tap(button(t, w, "Lounge (X2, 192.168.1.20)"))
+	test.Tap(row(t, w, "Lounge"))
 	key := func(k string) *remoteKey {
 		t.Helper()
 		var found *remoteKey
@@ -1179,7 +1220,7 @@ func TestRemote(t *testing.T) {
 // background, once the app is back; Reconnect is offered when it fails.
 func TestReconnect(t *testing.T) {
 	u, w := newApp(t, backend.Hub{Name: "Lounge", Model: "X2", Firmware: 9, Addr: lounge})
-	test.Tap(button(t, w, "Lounge (X2, 192.168.1.20)"))
+	test.Tap(row(t, w, "Lounge"))
 	e, err := u.work.EditActivity("Play PC")
 	if err != nil {
 		t.Fatal(err)

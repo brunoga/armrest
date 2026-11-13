@@ -153,10 +153,12 @@ func (look) Size(n fyne.ThemeSizeName) float32 {
 	return theme.DefaultTheme().Size(n) * Scale()
 }
 
-// fill is a rectangle of a theme color, following the theme.
+// fill is a rectangle of a theme color, following the theme; rounded as
+// buttons are, if round.
 type fill struct {
 	widget.BaseWidget
-	name fyne.ThemeColorName
+	name  fyne.ThemeColorName
+	round bool
 }
 
 func newFill(name fyne.ThemeColorName) *fill {
@@ -165,8 +167,17 @@ func newFill(name fyne.ThemeColorName) *fill {
 	return f
 }
 
+// newRoundFill is a fill with the corners of a button.
+func newRoundFill(name fyne.ThemeColorName) *fill {
+	f := &fill{name: name, round: true}
+	f.ExtendBaseWidget(f)
+	return f
+}
+
 func (f *fill) CreateRenderer() fyne.WidgetRenderer {
-	return &fillRenderer{f, canvas.NewRectangle(theme.Color(f.name))}
+	r := &fillRenderer{f, canvas.NewRectangle(theme.Color(f.name))}
+	r.Refresh()
+	return r
 }
 
 type fillRenderer struct {
@@ -180,6 +191,9 @@ func (r *fillRenderer) Objects() []fyne.CanvasObject { return []fyne.CanvasObjec
 func (r *fillRenderer) Destroy()                     {}
 func (r *fillRenderer) Refresh() {
 	r.r.FillColor = theme.Color(r.f.name)
+	if r.f.round {
+		r.r.CornerRadius = theme.Size(theme.SizeNameButtonRadius) + 2
+	}
 	r.r.Refresh()
 }
 
@@ -261,15 +275,33 @@ func tile(icon, fallback profile.Icon, c profile.Color) fyne.Resource {
 		return r
 	}
 	r, g, b := c.RGB()
-	// Fyne draws no transforms: the icon is made smaller by a view box
-	// wider than its 24x24.
-	svg := fmt.Sprintf(`<svg xmlns="http://www.w3.org/2000/svg" width="36" height="36" viewBox="-6 -6 36 36">`+
-		`<rect x="-6" y="-6" width="36" height="36" rx="9" ry="9" fill="#%02X%02X%02X"/>`+
-		`<path fill="#F5F2EC" d="%s"/></svg>`, r, g, b, icon.Path())
-	res := fyne.NewStaticResource(fmt.Sprintf("tile-%d-%d.svg", icon, c), []byte(svg))
+	res := glyphTile(fmt.Sprintf("tile-%d-%d.svg", icon, c), color.NRGBA{r, g, b, 0xFF}, icon.Path())
 	tiles[key] = res
 	return res
 }
+
+// glyphTile is a 24x24 drawing, path, in cream on a rounded square of
+// bg, as tile draws icons.
+func glyphTile(name string, bg color.NRGBA, path string) fyne.Resource {
+	// The 24x24 drawing, moved into the middle of the 36x36 square: a
+	// view box starting below zero is cut at large sizes.
+	svg := fmt.Sprintf(`<svg xmlns="http://www.w3.org/2000/svg" width="36" height="36" viewBox="0 0 36 36">`+
+		`<rect x="0" y="0" width="36" height="36" rx="9" ry="9" fill="#%02X%02X%02X"/>`+
+		`<g transform="translate(6 6)"><path fill="#F5F2EC" d="%s"/></g></svg>`, bg.R, bg.G, bg.B, path)
+	return fyne.NewStaticResource(name, []byte(svg))
+}
+
+// hubGlyph is a hub, drawn as the X2's is: a low puck, its light on the
+// front.
+const hubGlyph = "M5 8h14a3 3 0 0 1 3 3v3a3 3 0 0 1-3 3H5a3 3 0 0 1-3-3v-3a3 3 0 0 1 3-3z" +
+	"M16.5 12.5a1.5 1.5 0 1 0 3 0a1.5 1.5 0 1 0-3 0z"
+
+// addTile is the tile that adds a device or activity: a plus, on the
+// app's teal (Material's add, Apache 2.0).
+var addTile = glyphTile("add-tile.svg", color.NRGBA{0x8A, 0x96, 0x98, 0xFF}, "M11 5h2v6h6v2h-6v6h-2v-6H5v-2h6z")
+
+// hubTile is a hub's tile, in the app's teal.
+var hubTile = glyphTile("hub-tile.svg", teal, hubGlyph)
 
 // Fallback icons, for devices and activities with none the X2 draws.
 const (
